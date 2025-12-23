@@ -55,6 +55,13 @@ final class SQLCompletionWindowController: NSObject {
         self.items = items
         self.selectedIndex = 0
         
+        // CRITICAL: Dismiss existing window first to prevent duplicates
+        // This ensures only one window exists at a time
+        if window?.isVisible == true {
+            window?.parent?.removeChildWindow(window!)
+            window?.orderOut(nil)
+        }
+        
         // Create or update window
         if window == nil {
             createWindow()

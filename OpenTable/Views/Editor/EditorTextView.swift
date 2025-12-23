@@ -21,6 +21,9 @@ final class EditorTextView: NSTextView {
     /// Callback for handling key events (returns true if handled)
     var onKeyEvent: ((NSEvent) -> Bool)?
     
+    /// Callback when user clicks at a different position (to dismiss completion)
+    var onClickOutsideCompletion: (() -> Void)?
+    
     // MARK: - Auto-Pairing Configuration
     
     private let bracketPairs: [Character: Character] = [
@@ -184,6 +187,23 @@ final class EditorTextView: NSTextView {
                 NSBezierPath(roundedRect: rect, xRadius: SQLEditorTheme.highlightCornerRadius, yRadius: SQLEditorTheme.highlightCornerRadius).fill()
             }
         }
+    }
+    
+    // MARK: - Mouse Input
+    
+    override func mouseDown(with event: NSEvent) {
+        // Dismiss autocomplete when clicking at a different position in the text editor
+        // This matches VSCode/IntelliJ behavior - clicking sidebar/tabs won't dismiss
+        let clickLocation = convert(event.locationInWindow, from: nil)
+        let characterIndex = characterIndexForInsertion(at: clickLocation)
+        
+        // If click is far from current cursor position, dismiss completion
+        let currentCursor = selectedRange().location
+        if abs(characterIndex - currentCursor) > 1 {
+            onClickOutsideCompletion?()
+        }
+        
+        super.mouseDown(with: event)
     }
     
     // MARK: - Keyboard Input

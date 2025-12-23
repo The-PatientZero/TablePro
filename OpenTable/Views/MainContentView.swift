@@ -198,6 +198,9 @@ struct MainContentView: View {
                 // Must be synchronous - save state BEFORE SwiftUI updates the view
                 handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
                 
+                // Dismiss all autocomplete windows to prevent duplicates
+                NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
+                
                 // Sync selected tab ID to session for persistence
                 if let sessionId = DatabaseManager.shared.currentSessionId {
                     DatabaseManager.shared.updateSession(sessionId) { session in

@@ -84,6 +84,27 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
         textView.onKeyEvent = { [weak self] event in
             self?.handleKeyEvent(event) ?? false
         }
+        
+        textView.onClickOutsideCompletion = { [weak self] in
+            self?.dismissCompletion()
+        }
+        
+        // Observe tab switch to dismiss completion (prevents duplicate windows)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTabSwitch),
+            name: NSNotification.Name("QueryTabDidChange"),
+            object: nil
+        )
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc private func handleTabSwitch() {
+        // Dismiss completion when switching tabs to prevent duplicates
+        dismissCompletion()
     }
     
     // MARK: - NSTextViewDelegate
@@ -163,7 +184,6 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
             let prevIndex = text.index(text.startIndex, offsetBy: cursorPosition - 1)
             let prevChar = text[prevIndex]
             if prevChar == ";" || prevChar == "\n" {
-                // Check if we're at the very end or just after semicolon/newline with no new content
                 let afterCursor = String(text[text.index(text.startIndex, offsetBy: cursorPosition)...])
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 if afterCursor.isEmpty || cursorPosition == text.count {
@@ -189,7 +209,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
             return
         }
         
-        // Show completion window
+        // Show completion window (window controller handles dismissing old window if needed)
         completionWindow.showCompletions(context.items, at: screenPoint, relativeTo: textView.window)
     }
     
