@@ -39,6 +39,10 @@ struct MainContentView: View {
     @State private var queryGeneration: Int = 0
     @State private var changeManagerUpdateTask: Task<Void, Never>?
     @State private var isRestoringTabs = false  // Prevent circular sync during restoration
+    @State private var needsLazyLoad = false  // Flag to trigger lazy load when connection becomes ready
+    @State private var saveDebounceTask: Task<Void, Never>?  // Debounce task for saving tabs
+    @State private var isDismissing = false  // Prevent saving when view is being destroyed
+    @State private var justRestoredTab = false  // Prevent lazy load duplicate execution after restore
 
     // Error alert state
     @State private var showErrorAlert = false
@@ -201,22 +205,52 @@ struct MainContentView: View {
                 // Dismiss all autocomplete windows to prevent duplicates
                 NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
                 
+                // Skip save during restoration
+                guard !isRestoringTabs else { return }
+                
+                // CRITICAL: Skip save if view is being dismissed
+                guard !isDismissing else {
+                    print("[MainContentView] Skipping selectedTabId save - view is being dismissed")
+                    return
+                }
+                
                 // Sync selected tab ID to session for persistence
                 if let sessionId = DatabaseManager.shared.currentSessionId {
                     DatabaseManager.shared.updateSession(sessionId) { session in
                         session.selectedTabId = newTabId
                     }
+                    
+                    // CRITICAL: Also persist to disk for restoration
+                    TabStateStorage.shared.saveTabState(
+                        connectionId: connection.id,
+                        tabs: tabManager.tabs,
+                        selectedTabId: newTabId
+                    )
                 }
             }
             .onChange(of: tabManager.tabs) { _, newTabs in
                 // Skip sync if we're currently restoring tabs from session (prevents circular updates)
                 guard !isRestoringTabs else { return }
                 
+                // CRITICAL: Skip save if view is being dismissed to prevent saving empty query
+                // When SwiftUI tears down the view, bindings may be reset causing empty saves
+                guard !isDismissing else {
+                    print("[MainContentView] Skipping save - view is being dismissed")
+                    return
+                }
+                
                 // Sync tabs array to session for persistence
                 if let sessionId = DatabaseManager.shared.currentSessionId {
                     DatabaseManager.shared.updateSession(sessionId) { session in
                         session.tabs = newTabs
                     }
+                    
+                    // CRITICAL: Persist tabs to disk so they can be restored when connection reopens
+                    TabStateStorage.shared.saveTabState(
+                        connectionId: connection.id,
+                        tabs: newTabs,
+                        selectedTabId: tabManager.selectedTabId
+                    )
                     
                     // Clear saved state immediately when all tabs are closed
                     if newTabs.isEmpty {
@@ -225,15 +259,21 @@ struct MainContentView: View {
                 }
             }
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
-                Task { @MainActor in
-                    handleColumnsChange(newColumns: newColumns)
-                }
+                handleColumnsChange(newColumns: newColumns)
             }
             .onChange(of: currentTab?.errorMessage) { _, newError in
                 // Show error alert when errorMessage is set
                 if let error = newError, !error.isEmpty {
                     errorAlertMessage = error
                     showErrorAlert = true
+                }
+            }
+            .onChange(of: DatabaseManager.shared.currentSession?.isConnected) { _, isConnected in
+                // Auto-execute query when connection becomes ready and tab needs data
+                if isConnected == true && needsLazyLoad {
+                    print("[MainContentView] Connection ready - executing lazy load")
+                    needsLazyLoad = false
+                    runQuery()
                 }
             }
     }
@@ -302,6 +342,27 @@ struct MainContentView: View {
                     redoLastChange()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .mainWindowWillClose)) { _ in
+                // CRITICAL: Window is about to close - flush pending saves immediately
+                // This prevents query text from being lost when SwiftUI tears down the view
+                print("[MainContentView] Window will close - flushing pending saves")
+                
+                // Set flag to prevent further saves (view is being destroyed)
+                isDismissing = true
+                
+                // Cancel debounce task and save immediately
+                saveDebounceTask?.cancel()
+                
+                // Immediately save current state before view is destroyed
+                if let sessionId = DatabaseManager.shared.currentSessionId {
+                    TabStateStorage.shared.saveTabState(
+                        connectionId: connection.id,
+                        tabs: tabManager.tabs,
+                        selectedTabId: tabManager.selectedTabId
+                    )
+                    print("[MainContentView] Flushed tab state for connection \(connection.id)")
+                }
+            }
     }
     
     /// First part of notifications - reduces type-checker complexity
@@ -311,16 +372,81 @@ struct MainContentView: View {
             .task {
                 await initializeView()
                 
-                // Restore tabs from session if available (after DatabaseManager has loaded them)
-                if let sessionId = DatabaseManager.shared.currentSessionId,
-                   let session = DatabaseManager.shared.activeSessions[sessionId],
-                   !session.tabs.isEmpty {
-                    // Set flag to prevent onChange(tabManager.tabs) from syncing back
-                    // Use defer to ensure flag is always reset even if an error occurs
+                // Restore tabs from disk first (persists across app restarts)
+                // Fallback to session tabs (persists during app session only)
+                var didRestoreTabs = false
+                if let savedState = TabStateStorage.shared.loadTabState(connectionId: connection.id),
+                   !savedState.tabs.isEmpty {
+                    // Restore from disk
                     isRestoringTabs = true
                     defer { isRestoringTabs = false }
+                    
+                    let restoredTabs = savedState.tabs.map { QueryTab(from: $0) }
+                    tabManager.tabs = restoredTabs
+                    tabManager.selectedTabId = savedState.selectedTabId
+                    didRestoreTabs = true
+                    
+                    print("[MainContentView] Restored \(restoredTabs.count) tabs from disk")
+                    // Debug: Print query text to verify restoration
+                    for (index, tab) in restoredTabs.enumerated() {
+                        print("[MainContentView]   Tab \(index): \"\(tab.title)\" - Query: \(tab.query.prefix(50))...")
+                    }
+                } else if let sessionId = DatabaseManager.shared.currentSessionId,
+                          let session = DatabaseManager.shared.activeSessions[sessionId],
+                          !session.tabs.isEmpty {
+                    // Fallback: Restore from session (for backward compatibility)
+                    isRestoringTabs = true
+                    defer { isRestoringTabs = false }
+                    
                     tabManager.tabs = session.tabs
                     tabManager.selectedTabId = session.selectedTabId
+                    didRestoreTabs = true
+                    
+                    print("[MainContentView] Restored \(session.tabs.count) tabs from session")
+                }
+                // CRITICAL: Execute query for table tabs to load data
+                // Query tabs only restore text without auto-execution
+                if didRestoreTabs {
+                    if let selectedTab = tabManager.selectedTab {
+                        print("[MainContentView] Restored tab: \(selectedTab.title), type: \(selectedTab.tabType), hasQuery: \(!selectedTab.query.isEmpty)")
+                        
+                        if selectedTab.tabType == .table,
+                           !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            print("[MainContentView] Waiting for connection to be ready...")
+                            
+                            // CRITICAL: Wait for connection to be established
+                            // Without this, query fails with "Not connected to database"
+                            var retryCount = 0
+                            while retryCount < 50 { // Max 5 seconds
+                                if let session = DatabaseManager.shared.currentSession,
+                                   session.isConnected {
+                                    print("[MainContentView] Connection ready! Executing query for restored table tab: \(selectedTab.title)")
+                                    
+                                    // Small delay to ensure everything is initialized
+                                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                                    await MainActor.run {
+                                        justRestoredTab = true  // Prevent lazy load from executing again
+                                        runQuery()
+                                    }
+                                    break
+                                }
+                                
+                                // Wait 100ms and retry
+                                try? await Task.sleep(nanoseconds: 100_000_000)
+                                retryCount += 1
+                            }
+                            
+                            if retryCount >= 50 {
+                                print("[MainContentView] Warning: Connection timeout, query not executed")
+                            }
+                        } else if selectedTab.tabType == .query {
+                            print("[MainContentView] Restored query tab - skipping auto-execution")
+                        } else {
+                            print("[MainContentView] Restored table tab but no query - skipping auto-execution")
+                        }
+                    } else {
+                        print("[MainContentView] No selected tab after restore")
+                    }
                 }
             }
             .onChange(of: selectedTables) { oldTables, newTables in
@@ -459,11 +585,43 @@ struct MainContentView: View {
                     queryText: Binding(
                         get: { tab.query },
                         set: { newValue in
-                            if let index = tabManager.selectedTabIndex {
-                                tabManager.tabs[index].query = newValue
+                            // CRITICAL: Bounds check to prevent crash on paste
+                            guard let index = tabManager.selectedTabIndex,
+                                  index < tabManager.tabs.count else {
+                                print("[MainContentView] Warning: Invalid tab index during query update")
+                                return
+                            }
+                            
+                            tabManager.tabs[index].query = newValue
+                            
+                            // Save as last query for this connection (TablePlus-style)
+                            TabStateStorage.shared.saveLastQuery(newValue, for: connection.id)
+                            
+                            // CRITICAL: Debounce save to prevent race conditions
+                            // Only save 500ms after user stops typing
+                            // SKIP save during restoration or dismissal to prevent overwriting with empty values
+                            if !isRestoringTabs && !isDismissing {
+                                // Cancel previous debounce task
+                                saveDebounceTask?.cancel()
                                 
-                                // Save as last query for this connection (TablePlus-style)
-                                TabStateStorage.shared.saveLastQuery(newValue, for: connection.id)
+                                // CRITICAL: Capture current tabs STATE to prevent stale data
+                                let tabsToSave = tabManager.tabs
+                                let selectedId = tabManager.selectedTabId
+                                
+                                // Create new debounce task
+                                saveDebounceTask = Task { @MainActor in
+                                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+                                    
+                                    // Only save if not cancelled and view not being dismissed
+                                    guard !Task.isCancelled && !isDismissing else { return }
+                                    
+                                    // Save the captured tabs state (NOT current state which may have changed)
+                                    TabStateStorage.shared.saveTabState(
+                                        connectionId: connection.id,
+                                        tabs: tabsToSave,
+                                        selectedTabId: selectedId
+                                    )
+                                }
                             }
                         }
                     ),
@@ -733,7 +891,10 @@ struct MainContentView: View {
     }
 
     private func runQuery() {
-        guard let index = tabManager.selectedTabIndex else { return }
+        guard let index = tabManager.selectedTabIndex else {
+            print("[MainContentView] ⚠️ runQuery() called but selectedTabIndex is nil!")
+            return
+        }
 
         // Cancel any previous running query to prevent race conditions
         // This is critical for SSH connections where rapid sorting can cause
@@ -1694,6 +1855,20 @@ struct MainContentView: View {
 
     /// Handle tab selection changes
     private func handleTabChange(oldTabId: UUID?, newTabId: UUID?) {
+        // CRITICAL: Flush pending debounced save to ensure last edit is saved
+        // Cancel and immediately execute if pending
+        if let task = saveDebounceTask, !task.isCancelled {
+            task.cancel()
+            // Immediately save current state before switching
+            if let sessionId = DatabaseManager.shared.currentSessionId, !isRestoringTabs, !isDismissing {
+                TabStateStorage.shared.saveTabState(
+                    connectionId: connection.id,
+                    tabs: tabManager.tabs,
+                    selectedTabId: tabManager.selectedTabId
+                )
+            }
+        }
+        
         // Save state to the old tab before switching
         if let oldId = oldTabId,
             let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId })
@@ -1705,32 +1880,72 @@ struct MainContentView: View {
             // sortState is already in tab, no need to save from local state
         }
 
-        // Restore state from the new tab
+        // Restore LIGHTWEIGHT state immediately (synchronous for instant UI update)
         if let newId = newTabId,
             let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId })
         {
             let newTab = tabManager.tabs[newIndex]
+            print("[MainContentView] Tab change: \(oldTabId == nil ? "nil" : "tab") -> \(newTab.title) (type: \(newTab.tabType))")
 
-            // Restore pending changes
-            if newTab.pendingChanges.hasChanges {
-                changeManager.restoreState(
-                    from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
-            } else {
-                // Clear changeManager for tabs without pending changes (atomically)
-                changeManager.configureForTable(
-                    tableName: newTab.tableName ?? "",
-                    columns: newTab.resultColumns,
-                    primaryKeyColumn: newTab.resultColumns.first,
-                    databaseType: connection.type
-                )
-            }
-
-            // Restore row selection
+            // CRITICAL: Update these immediately for UI consistency
             selectedRowIndices = newTab.selectedRowIndices
-            // sortState is accessed via binding, no need to restore to local state
-            
-            // Update app state for menu item enabled state
             AppState.shared.isCurrentTabEditable = newTab.isEditable && newTab.tableName != nil
+            
+            // DEFER heavy changeManager operations to next run loop
+            // This prevents blocking the UI thread and gives instant tab switching
+            Task { @MainActor in
+                // This runs after SwiftUI updates the view
+                if newTab.pendingChanges.hasChanges {
+                    changeManager.restoreState(
+                        from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
+                } else {
+                    // Clear changeManager for tabs without pending changes (atomically)
+                    changeManager.configureForTable(
+                        tableName: newTab.tableName ?? "",
+                        columns: newTab.resultColumns,
+                        primaryKeyColumn: newTab.resultColumns.first,
+                        databaseType: connection.type
+                    )
+                }
+                
+                // Reset flag BEFORE checking lazy load to ensure it's always reset
+                // Otherwise, if lazy load is skipped due to flag=true, flag never resets!
+                let shouldSkipLazyLoad = justRestoredTab
+                if justRestoredTab {
+                    print("[MainContentView] Resetting justRestoredTab flag")
+                    justRestoredTab = false
+                }
+                
+                // LAZY LOAD: Auto-execute query ONLY for table tabs
+                // Query tabs require manual execution by user (Cmd+Return)
+                // Skip if we just restored and executed this tab
+                
+                // DEBUG: Log all conditions
+                print("[MainContentView] Lazy load check for \(newTab.title):")
+                print("  - shouldSkipLazyLoad: \(shouldSkipLazyLoad)")
+                print("  - tabType: \(newTab.tabType)")
+                print("  - resultRows.isEmpty: \(newTab.resultRows.isEmpty)")
+                print("  - lastExecutedAt == nil: \(newTab.lastExecutedAt == nil)")
+                print("  - has query: \(!newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+                
+                if !shouldSkipLazyLoad &&
+                   newTab.tabType == .table &&  // Only auto-execute for table tabs
+                   newTab.resultRows.isEmpty && 
+                   newTab.lastExecutedAt == nil && 
+                   !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    
+                    // CRITICAL: Check connection before executing
+                    if let session = DatabaseManager.shared.currentSession, session.isConnected {
+                        print("[MainContentView] Lazy loading data for table tab: \(newTab.title)")
+                        runQuery()
+                    } else {
+                        print("[MainContentView] Table tab needs data but not connected - setting flag")
+                        needsLazyLoad = true
+                    }
+                } else {
+                    print("[MainContentView] Skipping lazy load (one or more conditions not met)")
+                }
+            }
         } else {
             // No tab selected
             AppState.shared.isCurrentTabEditable = false
@@ -1746,6 +1961,10 @@ struct MainContentView: View {
 
         // Only update if columns have actually changed
         guard changeManager.columns != newColumns else { return }
+        
+        // IMPORTANT: Skip if tableName or columns don't match current tab
+        // This prevents duplicate updates when switching tabs (handleTabChange already handles it)
+        guard changeManager.tableName == tab.tableName ?? "" else { return }
 
         changeManager.configureForTable(
             tableName: tab.tableName ?? "",

@@ -29,11 +29,27 @@ final class TabStateStorage {
         let persistedTabs = tabs.map { $0.toPersistedTab() }
         let tabState = TabState(tabs: persistedTabs, selectedTabId: selectedTabId)
         
+        #if DEBUG
+        print("[TabStateStorage] Saving \(tabs.count) tabs for connection \(connectionId)")
+        for (index, tab) in tabs.enumerated() {
+            print("[TabStateStorage]   Tab \(index): \"\(tab.title)\" - Query: \"\(tab.query.prefix(50))\"")
+            
+            // DEBUG: Print call stack when saving empty query
+            if tab.query.isEmpty {
+                print("[TabStateStorage] ⚠️ WARNING: Saving empty query! Call stack:")
+                Thread.callStackSymbols.prefix(10).forEach { print("  \($0)") }
+            }
+        }
+        #endif
+        
         do {
             let encoder = JSONEncoder()
             let data = try encoder.encode(tabState)
             let key = tabStateKey(for: connectionId)
             defaults.set(data, forKey: key)
+            #if DEBUG
+            print("[TabStateStorage] ✅ Saved to disk successfully")
+            #endif
         } catch {
             #if DEBUG
             print("[TabStateStorage] Failed to encode tab state: \(error.localizedDescription)")

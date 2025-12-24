@@ -270,6 +270,9 @@ extension Notification.Name {
     
     // History panel notifications
     static let toggleHistoryPanel = Notification.Name("toggleHistoryPanel")
+    
+    // Window lifecycle notifications
+    static let mainWindowWillClose = Notification.Name("mainWindowWillClose")
 }
 
 // MARK: - Open Window Handler
