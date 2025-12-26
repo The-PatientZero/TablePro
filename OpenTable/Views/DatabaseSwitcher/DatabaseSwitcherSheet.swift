@@ -139,25 +139,26 @@ struct DatabaseSwitcherSheet: View {
             .onChange(of: shouldScrollToSelection) { _, shouldScroll in
                 // Scroll to selection after databases load
                 if shouldScroll, let item = selectedItem {
-                    // Delay to ensure list is fully rendered
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    // Scroll once the selection flag is set; defer focus to next runloop
+                    withAnimation(.easeInOut(duration: 0.15)) {
                         proxy.scrollTo(item, anchor: .center)
-                        shouldScrollToSelection = false
+                    }
+                    shouldScrollToSelection = false
 
-                        // Focus the list to show blue selection
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                            isListFocused = true
-                            // Find and focus NSTableView in sheet window
-                            // Sheets become key window, or check attached sheets
-                            if let sheetWindow = NSApp.keyWindow,
-                               sheetWindow.isSheet || sheetWindow.sheetParent != nil,
-                               let tableView = findTableView(in: sheetWindow.contentView) {
-                                sheetWindow.makeFirstResponder(tableView)
-                            } else if let mainWindow = NSApp.mainWindow,
-                                      let sheet = mainWindow.attachedSheet,
-                                      let tableView = findTableView(in: sheet.contentView) {
-                                sheet.makeFirstResponder(tableView)
-                            }
+                    // Focus the list and underlying NSTableView to show blue selection
+                    DispatchQueue.main.async {
+                        isListFocused = true
+
+                        // Find and focus NSTableView in sheet window
+                        // Sheets become key window, or check attached sheets
+                        if let sheetWindow = NSApp.keyWindow,
+                           sheetWindow.isSheet || sheetWindow.sheetParent != nil,
+                           let tableView = findTableView(in: sheetWindow.contentView) {
+                            sheetWindow.makeFirstResponder(tableView)
+                        } else if let mainWindow = NSApp.mainWindow,
+                                  let sheet = mainWindow.attachedSheet,
+                                  let tableView = findTableView(in: sheet.contentView) {
+                            sheet.makeFirstResponder(tableView)
                         }
                     }
                 }
