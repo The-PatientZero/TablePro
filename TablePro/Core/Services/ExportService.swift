@@ -413,7 +413,7 @@ final class ExportService: ObservableObject {
             // CREATE TABLE (structure)
             if sqlOptions.includeStructure {
                 // For cross-database, we need the full reference
-                let ddl = try await driver.fetchTableDDL(table: table.name)
+                let ddl = try await driver.fetchTableDDL(table: tableRef)
                 output += ddl
                 if !ddl.hasSuffix(";") {
                     output += ";"
