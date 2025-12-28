@@ -184,9 +184,13 @@ struct MainEditorContentView: View {
         VStack(spacing: 0) {
             // Error banner (if query failed)
             if let errorMessage = tab.errorMessage, !errorMessage.isEmpty {
-                errorBanner(errorMessage)
+                InlineErrorBanner(message: errorMessage) {
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = nil
+                    }
+                }
             }
-            
+
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
                     .frame(maxHeight: .infinity)
@@ -218,6 +222,7 @@ struct MainEditorContentView: View {
         }
         .frame(minHeight: 150)
         .animation(.easeInOut(duration: 0.2), value: filterStateManager.isVisible)
+        .animation(.easeInOut(duration: 0.2), value: tab.errorMessage)
     }
 
     @ViewBuilder
@@ -293,7 +298,7 @@ struct MainEditorContentView: View {
             onLastPage: onLastPage,
             onLimitChange: onLimitChange,
             onOffsetChange: onOffsetChange,
-            onPaginationGo: onPaginationGo
+            onPaginationGo: onPaginationGo,
         )
     }
 
@@ -327,59 +332,5 @@ struct MainEditorContentView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - Error Banner
-
-extension MainEditorContentView {
-    @ViewBuilder
-    private func errorBanner(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            // Native macOS error icon
-            Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(DesignConstants.Colors.error)
-                .font(.system(size: 16))
-                .symbolRenderingMode(.multicolor)
-            
-            VStack(alignment: .leading, spacing: 3) {
-                Text(message)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer(minLength: 8)
-            
-            // Dismiss button
-            Button(action: {
-                Task { @MainActor in
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].errorMessage = nil
-                    }
-                }
-            }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Dismiss")
-            .opacity(0.6)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 0.5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5)
-        )
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 }
