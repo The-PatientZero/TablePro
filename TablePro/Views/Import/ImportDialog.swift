@@ -264,6 +264,7 @@ struct ImportDialog: View {
             panel.allowedContentTypes = allowedTypes
         } else {
             // Fallback: restrict by file extensions if UTType lookup fails
+            NSLog("ImportDialog.selectFile: UTType lookup for extensions [\"sql\", \"gz\"] returned no results; falling back to deprecated allowedFileTypes.")
             panel.allowedFileTypes = ["sql", "gz"]
         }
         panel.allowsMultipleSelection = false
