@@ -279,6 +279,7 @@ struct SidebarView: View {
         Button("Create New Table...") {
             NotificationCenter.default.post(name: .createTable, object: nil)
         }
+        .keyboardShortcut("n", modifiers: .command)
 
         Divider()
 
@@ -292,6 +293,7 @@ struct SidebarView: View {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(names.joined(separator: ","), forType: .string)
         }
+        .keyboardShortcut("c", modifiers: .command)
         .disabled(!hasSelection)
 
         Button("Export...") {
@@ -300,11 +302,13 @@ struct SidebarView: View {
             }
             NotificationCenter.default.post(name: .exportTables, object: nil)
         }
+        .keyboardShortcut("e", modifiers: .command)
         .disabled(!hasSelection)
 
         Button("Import...") {
             NotificationCenter.default.post(name: .importTables, object: nil)
         }
+        .keyboardShortcut("i", modifiers: .command)
 
         Divider()
 
@@ -322,6 +326,7 @@ struct SidebarView: View {
             }
             batchToggleDelete()
         }
+        .keyboardShortcut(.delete, modifiers: .command)
         .disabled(!hasSelection)
     }
     
