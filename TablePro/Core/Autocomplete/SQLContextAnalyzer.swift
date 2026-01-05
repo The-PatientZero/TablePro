@@ -126,19 +126,17 @@ final class SQLContextAnalyzer {
             // SELECT is most general
             ("\\bSELECT\\s+[^;]*$", .select),
         ]
-        return patterns.compactMap { pattern, clause in
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
-                return nil
-            }
+        return patterns.map { pattern, clause in
+            let regex = try! NSRegularExpression(pattern: pattern, options: .caseInsensitive)
             return (regex, clause)
         }
     }()
     
     /// Pre-compiled regex for removing strings and comments
-    private static let singleQuoteStringRegex = try? NSRegularExpression(pattern: "'[^']*'")
-    private static let doubleQuoteStringRegex = try? NSRegularExpression(pattern: "\"[^\"]*\"")
-    private static let blockCommentRegex = try? NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/")
-    private static let lineCommentRegex = try? NSRegularExpression(pattern: "--[^\n]*")
+    private static let singleQuoteStringRegex = try! NSRegularExpression(pattern: "'[^']*'")
+    private static let doubleQuoteStringRegex = try! NSRegularExpression(pattern: "\"[^\"]*\"")
+    private static let blockCommentRegex = try! NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/")
+    private static let lineCommentRegex = try! NSRegularExpression(pattern: "--[^\n]*")
     
     // MARK: - Main Analysis
     
