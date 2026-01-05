@@ -56,6 +56,9 @@ final class EditorTextView: NSTextView {
         commonInit()
     }
     
+    /// Track the last cursor position for smart invalidation
+    private var lastCursorLine: Int = -1
+    
     private func commonInit() {
         // Observe selection changes for visual updates
         NotificationCenter.default.addObserver(
@@ -71,8 +74,90 @@ final class EditorTextView: NSTextView {
     }
     
     @objc private func selectionDidChange(_ notification: Notification) {
-        // Trigger redraw for current line highlight and bracket matching
-        needsDisplay = true
+        // Smart invalidation: only redraw the affected line regions
+        // instead of the entire view
+        invalidateLineHighlightIfNeeded()
+    }
+    
+    /// Invalidate only the current and previous line regions for redraw
+    private func invalidateLineHighlightIfNeeded() {
+        guard let layoutManager = layoutManager,
+              let textContainer = textContainer else {
+            needsDisplay = true
+            return
+        }
+        
+        let cursorPos = selectedRange().location
+        
+        // Calculate current line
+        let currentLine: Int
+        if string.isEmpty {
+            currentLine = 0
+        } else if cursorPos >= string.count {
+            currentLine = string.filter { $0 == "\n" }.count
+        } else {
+            let index = string.index(string.startIndex, offsetBy: cursorPos)
+            currentLine = string[..<index].filter { $0 == "\n" }.count
+        }
+        
+        // Skip if cursor is on the same line
+        if currentLine == lastCursorLine {
+            return
+        }
+        
+        // Invalidate the previous line rect
+        if lastCursorLine >= 0 {
+            if let rect = lineRectForLine(lastCursorLine, layoutManager: layoutManager, textContainer: textContainer) {
+                setNeedsDisplay(rect.insetBy(dx: -2, dy: -2))
+            }
+        }
+        
+        // Invalidate the current line rect
+        if let rect = lineRectForLine(currentLine, layoutManager: layoutManager, textContainer: textContainer) {
+            setNeedsDisplay(rect.insetBy(dx: -2, dy: -2))
+        }
+        
+        lastCursorLine = currentLine
+    }
+    
+    /// Get the rect for a specific line number
+    private func lineRectForLine(_ lineNumber: Int, layoutManager: NSLayoutManager, textContainer: NSTextContainer) -> NSRect? {
+        guard layoutManager.numberOfGlyphs > 0 else { return nil }
+        
+        // Find the character index for the start of the line
+        var currentLine = 0
+        var charIndex = 0
+        let text = string
+        
+        for (index, char) in text.enumerated() {
+            if currentLine == lineNumber {
+                charIndex = index
+                break
+            }
+            if char == "\n" {
+                currentLine += 1
+            }
+        }
+        
+        // Handle cursor at end of text
+        if currentLine < lineNumber {
+            charIndex = text.count > 0 ? text.count - 1 : 0
+        }
+        
+        layoutManager.ensureLayout(for: textContainer)
+        
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: min(charIndex, max(0, text.count - 1)))
+        guard glyphIndex < layoutManager.numberOfGlyphs else { return nil }
+        
+        var lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        
+        // Adjust for text container origin
+        let origin = textContainerOrigin
+        lineRect.origin.x = origin.x
+        lineRect.origin.y += origin.y
+        lineRect.size.width = bounds.width - origin.x * 2
+        
+        return lineRect
     }
     
     // MARK: - Drawing

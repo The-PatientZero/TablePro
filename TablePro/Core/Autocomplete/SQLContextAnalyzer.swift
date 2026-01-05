@@ -26,10 +26,11 @@ enum SQLClauseType {
     case caseExpression // Inside CASE WHEN expression
     case inList         // Inside IN (...) list
     case limit          // After LIMIT/OFFSET
-    case alterTable     // After ALTER TABLE tablename
-    case createTable    // Inside CREATE TABLE definition
-    case columnDef      // Typing column data type (after column name)
-    case unknown        // Unknown or start of query
+    case alterTable       // After ALTER TABLE tablename
+    case alterTableColumn // After DROP/MODIFY/CHANGE/RENAME COLUMN - need column names
+    case createTable      // Inside CREATE TABLE definition
+    case columnDef        // Typing column data type (after column name)
+    case unknown          // Unknown or start of query
 }
 
 /// Represents a table reference with optional alias
@@ -89,6 +90,56 @@ struct SQLContext {
 /// Analyzes SQL query to determine completion context
 final class SQLContextAnalyzer {
     
+    // MARK: - Cached Regex Patterns (Compiled Once at Class Load)
+    
+    /// Pre-compiled clause detection patterns for performance
+    /// ORDER MATTERS: More specific patterns must come before general ones
+    private static let clauseRegexes: [(regex: NSRegularExpression, clause: SQLClauseType)] = {
+        let patterns: [(String, SQLClauseType)] = [
+            // DDL patterns (most specific first)
+            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?\\w+\\s+\\w*$", .columnDef),
+            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+(?:DROP|MODIFY|CHANGE|RENAME)\\s+(?:COLUMN\\s+)?\\w*$", .alterTableColumn),
+            ("\\bALTER\\s+TABLE\\s+[^;]*\\bAFTER\\s+\\w*$", .alterTableColumn),
+            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+\\w*$", .alterTable),
+            ("\\bCREATE\\s+TABLE\\s+[^(]*\\([^)]*$", .createTable),
+            // Enhanced context patterns
+            ("\\bIN\\s*\\([^)]*$", .inList),
+            ("\\bCASE\\s+(?:WHEN\\s+[^;]*)?$", .caseExpression),
+            ("\\b(LIMIT|OFFSET)\\s+\\d*$", .limit),
+            // Standard clause patterns
+            ("\\bVALUES\\s*\\([^)]*$", .values),
+            ("\\bINSERT\\s+INTO\\s+\\w+\\s*\\([^)]*$", .insertColumns),
+            ("\\bINTO\\s+\\w*$", .into),
+            ("\\bSET\\s+[^;]*$", .set),
+            ("\\bHAVING\\s+[^;]*$", .having),
+            ("\\bORDER\\s+BY\\s+[^;]*$", .orderBy),
+            ("\\bGROUP\\s+BY\\s+[^;]*$", .groupBy),
+            ("\\b(AND|OR)\\s+\\w*$", .and),
+            ("\\bWHERE\\s+[^;]*$", .where_),
+            ("\\bON\\s+[^;]*$", .on),
+            // JOIN patterns
+            ("(?:LEFT|RIGHT|INNER|OUTER|FULL|CROSS)?\\s*(?:OUTER)?\\s*JOIN\\s+[`\"']?\\w+[`\"']?(?:\\s+(?:AS\\s+)?\\w+)?\\s*$", .join),
+            ("\\bJOIN\\s+[`\"']?\\w*[`\"']?\\s*$", .join),
+            // FROM patterns
+            ("\\bFROM\\s+[`\"']?\\w+[`\"']?(?:\\s+(?:AS\\s+)?\\w+)?\\s*$", .from),
+            ("\\bFROM\\s+\\w*$", .from),
+            // SELECT is most general
+            ("\\bSELECT\\s+[^;]*$", .select),
+        ]
+        return patterns.compactMap { pattern, clause in
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+                return nil
+            }
+            return (regex, clause)
+        }
+    }()
+    
+    /// Pre-compiled regex for removing strings and comments
+    private static let singleQuoteStringRegex = try? NSRegularExpression(pattern: "'[^']*'")
+    private static let doubleQuoteStringRegex = try? NSRegularExpression(pattern: "\"[^\"]*\"")
+    private static let blockCommentRegex = try? NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/")
+    private static let lineCommentRegex = try? NSRegularExpression(pattern: "--[^\n]*")
+    
     // MARK: - Main Analysis
     
     /// Analyze the query at the given cursor position
@@ -140,6 +191,14 @@ final class SQLContextAnalyzer {
             let cteRef = TableReference(tableName: cteName, alias: nil)
             if !tableReferences.contains(cteRef) {
                 tableReferences.append(cteRef)
+            }
+        }
+        
+        // Extract ALTER TABLE table name and add to references
+        if let alterTableName = extractAlterTableName(from: currentStatement) {
+            let alterRef = TableReference(tableName: alterTableName, alias: nil)
+            if !tableReferences.contains(alterRef) {
+                tableReferences.append(alterRef)
             }
         }
         
@@ -511,6 +570,22 @@ final class SQLContextAnalyzer {
         return references
     }
     
+    /// Extract table name from ALTER TABLE statement
+    private func extractAlterTableName(from query: String) -> String? {
+        // Pattern: ALTER TABLE tablename
+        let pattern = "(?i)\\bALTER\\s+TABLE\\s+[`\"']?([\\w]+)[`\"']?"
+        
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        
+        let range = NSRange(query.startIndex..., in: query)
+        if let match = regex.firstMatch(in: query, range: range),
+           let tableRange = Range(match.range(at: 1), in: query) {
+            return String(query[tableRange])
+        }
+        
+        return nil
+    }
+    
     /// Determine the clause type based on text before cursor
     private func determineClauseType(textBeforeCursor: String, dotPrefix: String?, currentFunction: String? = nil) -> SQLClauseType {
         // If we have a dot prefix, we're looking for columns
@@ -528,46 +603,10 @@ final class SQLContextAnalyzer {
         // Remove string literals and comments for analysis
         let cleaned = removeStringsAndComments(from: upper)
         
-        // Find the last keyword to determine context
-        // ORDER MATTERS: More specific patterns must come before general ones
-        let clausePatterns: [(pattern: String, clause: SQLClauseType)] = [
-            // DDL patterns (most specific first)
-            // After ADD/MODIFY COLUMN name - suggest data types
-            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?\\w+\\s+\\w*$", .columnDef),
-            // After ALTER TABLE tablename - suggest ADD, DROP, MODIFY, etc.
-            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+\\w*$", .alterTable),
-            // Inside CREATE TABLE (...) - suggest column definitions
-            ("\\bCREATE\\s+TABLE\\s+[^(]*\\([^)]*$", .createTable),
-            
-            // New patterns for enhanced context
-            ("\\bIN\\s*\\([^)]*$", .inList),
-            ("\\bCASE\\s+(?:WHEN\\s+[^;]*)?$", .caseExpression),
-            ("\\b(LIMIT|OFFSET)\\s+\\d*$", .limit),
-            
-            // Existing patterns
-            ("\\bVALUES\\s*\\([^)]*$", .values),
-            ("\\bINSERT\\s+INTO\\s+\\w+\\s*\\([^)]*$", .insertColumns),
-            ("\\bINTO\\s+\\w*$", .into),
-            ("\\bSET\\s+[^;]*$", .set),
-            ("\\bHAVING\\s+[^;]*$", .having),
-            ("\\bORDER\\s+BY\\s+[^;]*$", .orderBy),
-            ("\\bGROUP\\s+BY\\s+[^;]*$", .groupBy),
-            ("\\b(AND|OR)\\s+\\w*$", .and),
-            ("\\bWHERE\\s+[^;]*$", .where_),
-            ("\\bON\\s+[^;]*$", .on),
-            // JOIN: match various JOIN types followed by table [alias] - must come before FROM
-            ("(?:LEFT|RIGHT|INNER|OUTER|FULL|CROSS)?\\s*(?:OUTER)?\\s*JOIN\\s+[`\"']?\\w+[`\"']?(?:\\s+(?:AS\\s+)?\\w+)?\\s*$", .join),
-            ("\\bJOIN\\s+[`\"']?\\w*[`\"']?\\s*$", .join),
-            // FROM: match "FROM table" or "FROM table " (with or without trailing space) - NOT followed by WHERE/ORDER/etc.
-            ("\\bFROM\\s+[`\"']?\\w+[`\"']?(?:\\s+(?:AS\\s+)?\\w+)?\\s*$", .from),
-            ("\\bFROM\\s+\\w*$", .from),
-            // SELECT comes last as it's the most general
-            ("\\bSELECT\\s+[^;]*$", .select),
-        ]
-        
-        for (pattern, clause) in clausePatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-               regex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)) != nil {
+        // Use pre-compiled regex patterns for performance
+        let range = NSRange(cleaned.startIndex..., in: cleaned)
+        for (regex, clause) in Self.clauseRegexes {
+            if regex.firstMatch(in: cleaned, range: range) != nil {
                 return clause
             }
         }
@@ -579,23 +618,20 @@ final class SQLContextAnalyzer {
     private func removeStringsAndComments(from text: String) -> String {
         var result = text
         
-        // Remove single-quoted strings
-        if let regex = try? NSRegularExpression(pattern: "'[^']*'") {
+        // Use pre-compiled regex patterns for performance
+        if let regex = Self.singleQuoteStringRegex {
             result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "''")
         }
         
-        // Remove double-quoted strings
-        if let regex = try? NSRegularExpression(pattern: "\"[^\"]*\"") {
+        if let regex = Self.doubleQuoteStringRegex {
             result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "\"\"")
         }
         
-        // Remove block comments
-        if let regex = try? NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/") {
+        if let regex = Self.blockCommentRegex {
             result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
         }
         
-        // Remove line comments
-        if let regex = try? NSRegularExpression(pattern: "--[^\n]*") {
+        if let regex = Self.lineCommentRegex {
             result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
         }
         
