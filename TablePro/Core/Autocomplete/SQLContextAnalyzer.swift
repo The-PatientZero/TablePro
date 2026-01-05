@@ -98,7 +98,7 @@ final class SQLContextAnalyzer {
         let patterns: [(String, SQLClauseType)] = [
             // DDL patterns (most specific first)
             ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?\\w+\\s+\\w*$", .columnDef),
-            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+(?:DROP|MODIFY|CHANGE|RENAME)\\s+(?:COLUMN\\s+)?\\w*$", .alterTableColumn),
+            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+(?:DROP|MODIFY|CHANGE|RENAME)\\s+(?:COLUMN\\s+)?(?:[`\"']?\\w+[`\"']?)?\\s*$", .alterTableColumn),
             ("\\bALTER\\s+TABLE\\s+[^;]*\\bAFTER\\s+\\w*$", .alterTableColumn),
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+\\w*$", .alterTable),
             ("\\bCREATE\\s+TABLE\\s+[^(]*\\([^)]*$", .createTable),
