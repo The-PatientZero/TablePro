@@ -44,6 +44,16 @@ xcodebuild -project TablePro.xcodeproj \
            build
 ```
 
+> **Note:** For this universal build to succeed, the MariaDB static library must also be a universal binary.  
+> Ensure that `Libs/libmariadb_universal.a` exists (or create it first, similar to what `build-release.sh` expects) and that your Xcode project links against this universal library instead of an architecture-specific `libmariadb.a`.  
+> For example, if you have separate per-architecture libraries, you can create the universal one with:
+>
+> ```bash
+> lipo -create \
+>   path/to/arm64/libmariadb.a \
+>   path/to/x86_64/libmariadb.a \
+>   -output Libs/libmariadb_universal.a
+> ```
 **Output:**
 - `TablePro.app` - Runs on both Apple Silicon and Intel (~12MB)
 
