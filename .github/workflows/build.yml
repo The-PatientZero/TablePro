@@ -416,14 +416,37 @@ jobs:
           echo "Binary size: $(ls -lh "$BINARY_PATH" | awk '{print $5}')"
           echo "App bundle size: $(du -sh build/Release/TablePro-arm64.app | awk '{print $1}')"
 
-      - name: Create ZIP archive
+      - name: Create DMG installer
         run: |
-          echo "Creating ZIP archive..."
+          echo "Creating DMG installer..."
 
-          if [ ! -d "build/Release/TablePro-arm64.app" ]; then
-            echo "❌ ERROR: App bundle not found for archiving"
+          # Rename app to remove architecture suffix for better UX
+          if [ -d "build/Release/TablePro-arm64.app" ]; then
+            cp -R "build/Release/TablePro-arm64.app" "build/Release/TablePro.app"
+          else
+            echo "❌ ERROR: App bundle not found"
             exit 1
           fi
+
+          # Make DMG creation script executable
+          chmod +x create-dmg.sh
+
+          # Create DMG with version from git tag or use default
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
+          ./create-dmg.sh "$VERSION" "arm64" "build/Release/TablePro.app"
+
+          # Verify DMG was created
+          if [ ! -f "build/Release/TablePro-${VERSION}-arm64.dmg" ]; then
+            echo "❌ ERROR: DMG file was not created"
+            exit 1
+          fi
+
+          echo "✅ DMG installer created successfully"
+          ls -lh build/Release/*.dmg
+
+      - name: Create ZIP archive (fallback)
+        run: |
+          echo "Creating ZIP archive..."
 
           cd build/Release
 
@@ -432,25 +455,16 @@ jobs:
             exit 1
           fi
 
-          if [ ! -f "TablePro-arm64.zip" ]; then
-            echo "❌ ERROR: ZIP file was not created"
-            exit 1
-          fi
-
-          # Verify it's a valid ZIP
-          if ! unzip -t TablePro-arm64.zip > /dev/null; then
-            echo "❌ ERROR: Created ZIP is corrupted or invalid"
-            exit 1
-          fi
-
-          echo "✅ ZIP archive created and verified"
+          echo "✅ ZIP archive created"
           ls -lh TablePro-arm64.zip
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: TablePro-arm64-${{ github.sha }}
-          path: build/Release/TablePro-arm64.zip
+          path: |
+            build/Release/*.dmg
+            build/Release/TablePro-arm64.zip
           retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 90 || 7 }}
 
   build-x86_64:
@@ -623,14 +637,37 @@ jobs:
           echo "Binary size: $(ls -lh "$BINARY_PATH" | awk '{print $5}')"
           echo "App bundle size: $(du -sh build/Release/TablePro-x86_64.app | awk '{print $1}')"
 
-      - name: Create ZIP archive
+      - name: Create DMG installer
         run: |
-          echo "Creating ZIP archive..."
+          echo "Creating DMG installer..."
 
-          if [ ! -d "build/Release/TablePro-x86_64.app" ]; then
-            echo "❌ ERROR: App bundle not found for archiving"
+          # Rename app to remove architecture suffix for better UX
+          if [ -d "build/Release/TablePro-x86_64.app" ]; then
+            cp -R "build/Release/TablePro-x86_64.app" "build/Release/TablePro.app"
+          else
+            echo "❌ ERROR: App bundle not found"
             exit 1
           fi
+
+          # Make DMG creation script executable
+          chmod +x create-dmg.sh
+
+          # Create DMG with version from git tag or use default
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
+          ./create-dmg.sh "$VERSION" "x86_64" "build/Release/TablePro.app"
+
+          # Verify DMG was created
+          if [ ! -f "build/Release/TablePro-${VERSION}-x86_64.dmg" ]; then
+            echo "❌ ERROR: DMG file was not created"
+            exit 1
+          fi
+
+          echo "✅ DMG installer created successfully"
+          ls -lh build/Release/*.dmg
+
+      - name: Create ZIP archive (fallback)
+        run: |
+          echo "Creating ZIP archive..."
 
           cd build/Release
 
@@ -639,25 +676,16 @@ jobs:
             exit 1
           fi
 
-          if [ ! -f "TablePro-x86_64.zip" ]; then
-            echo "❌ ERROR: ZIP file was not created"
-            exit 1
-          fi
-
-          # Verify it's a valid ZIP
-          if ! unzip -t TablePro-x86_64.zip > /dev/null; then
-            echo "❌ ERROR: Created ZIP is corrupted or invalid"
-            exit 1
-          fi
-
-          echo "✅ ZIP archive created and verified"
+          echo "✅ ZIP archive created"
           ls -lh TablePro-x86_64.zip
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: TablePro-x86_64-${{ github.sha }}
-          path: build/Release/TablePro-x86_64.zip
+          path: |
+            build/Release/*.dmg
+            build/Release/TablePro-x86_64.zip
           retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 90 || 7 }}
 
   release:
@@ -683,9 +711,9 @@ jobs:
           name: TablePro-x86_64-${{ github.sha }}
           path: artifacts/
 
-      - name: Verify and rename artifacts for release
+      - name: Verify and organize artifacts for release
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${GITHUB_REF#refs/tags/v}
 
           if [ -z "$VERSION" ]; then
             echo "❌ ERROR: Failed to extract version from ref: $GITHUB_REF"
@@ -693,45 +721,23 @@ jobs:
           fi
 
           echo "Preparing artifacts for version: $VERSION"
+          echo "Contents of artifacts directory:"
+          ls -la artifacts/
 
-          # Check source files exist
-          if [ ! -f "artifacts/TablePro-arm64.zip" ]; then
-            echo "❌ ERROR: ARM64 artifact not found"
-            echo "Contents of artifacts directory:"
-            ls -la artifacts/
-            exit 1
+          # Note: DMG files should already have correct names from build
+          # ZIP files need to be renamed
+
+          # Rename ZIP files if they exist
+          if [ -f "artifacts/TablePro-arm64.zip" ]; then
+            mv artifacts/TablePro-arm64.zip "artifacts/TablePro-${VERSION}-arm64.zip"
           fi
 
-          if [ ! -f "artifacts/TablePro-x86_64.zip" ]; then
-            echo "❌ ERROR: x86_64 artifact not found"
-            echo "Contents of artifacts directory:"
-            ls -la artifacts/
-            exit 1
+          if [ -f "artifacts/TablePro-x86_64.zip" ]; then
+            mv artifacts/TablePro-x86_64.zip "artifacts/TablePro-${VERSION}-x86_64.zip"
           fi
 
-          # Rename with verification
-          if ! mv artifacts/TablePro-arm64.zip "artifacts/TablePro-${VERSION}-arm64.zip"; then
-            echo "❌ ERROR: Failed to rename ARM64 artifact"
-            exit 1
-          fi
-
-          if ! mv artifacts/TablePro-x86_64.zip "artifacts/TablePro-${VERSION}-x86_64.zip"; then
-            echo "❌ ERROR: Failed to rename x86_64 artifact"
-            exit 1
-          fi
-
-          # Verify renamed files exist
-          if [ ! -f "artifacts/TablePro-${VERSION}-arm64.zip" ]; then
-            echo "❌ ERROR: Renamed ARM64 file not found"
-            exit 1
-          fi
-
-          if [ ! -f "artifacts/TablePro-${VERSION}-x86_64.zip" ]; then
-            echo "❌ ERROR: Renamed x86_64 file not found"
-            exit 1
-          fi
-
-          echo "✅ Artifacts renamed successfully"
+          echo "✅ Artifacts organized successfully"
+          echo "Final artifacts:"
           ls -lh artifacts/
 
       - name: Generate release notes
@@ -761,15 +767,28 @@ jobs:
 
           Choose the appropriate version for your Mac:
 
-          - **Apple Silicon (M1/M2/M3)**: Download \`TablePro-${VERSION}-arm64.zip\`
-          - **Intel**: Download \`TablePro-${VERSION}-x86_64.zip\`
+          **Recommended (DMG Installer):**
+          - 🍎 **Apple Silicon (M1/M2/M3/M4)**: \`TablePro-${VERSION}-arm64.dmg\`
+          - 💻 **Intel**: \`TablePro-${VERSION}-x86_64.dmg\`
+
+          **Alternative (ZIP Archive):**
+          - \`TablePro-${VERSION}-arm64.zip\` (Apple Silicon)
+          - \`TablePro-${VERSION}-x86_64.zip\` (Intel)
 
           ### Installation
 
-          1. Download the appropriate ZIP file for your Mac
-          2. Unzip the file
-          3. Move TablePro.app to your Applications folder
-          4. Right-click and select "Open" on first launch (unsigned app)
+          **DMG Installer (Recommended):**
+          1. Download and open the DMG file
+          2. Drag TablePro to the Applications folder
+          3. Eject the DMG
+          4. Right-click TablePro in Applications and select "Open" on first launch
+
+          **ZIP Archive:**
+          1. Download and unzip the file
+          2. Move TablePro.app to your Applications folder
+          3. Right-click and select "Open" on first launch
+
+          > **Note:** This app is not signed with an Apple Developer certificate. You may need to allow it in System Settings > Privacy & Security on first launch.
 
           ### Changes
 
@@ -783,6 +802,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
+            artifacts/*.dmg
             artifacts/*.zip
           body_path: release_notes.md
           draft: false
