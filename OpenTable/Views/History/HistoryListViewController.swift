@@ -483,7 +483,7 @@ extension HistoryListViewController: NSTableViewDataSource {
 
 extension HistoryListViewController: NSTableViewDelegate {
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int)
-        -> NSView?
+    -> NSView?
     {
         guard let entry = dataProvider.historyEntry(at: row) else { return nil }
         let identifier = NSUserInterfaceItemIdentifier("HistoryCell")
@@ -511,8 +511,7 @@ extension HistoryListViewController: NSTableViewDelegate {
         _ tableView: NSTableView, rowActionsForRow row: Int, edge: NSTableView.RowActionEdge
     ) -> [NSTableViewRowAction] {
         if edge == .trailing {
-            let delete = NSTableViewRowAction(style: .destructive, title: "Delete") {
-                [weak self] _, row in
+            let delete = NSTableViewRowAction(style: .destructive, title: "Delete") { [weak self] _, row in
                 _ = self?.dataProvider.deleteItem(at: row)
             }
             return [delete]
@@ -531,7 +530,7 @@ extension HistoryListViewController: NSSearchFieldDelegate {
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector)
-        -> Bool
+    -> Bool
     {
         if commandSelector == #selector(cancelOperation(_:)) {
             if !searchText.isEmpty {
