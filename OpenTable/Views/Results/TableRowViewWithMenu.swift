@@ -136,10 +136,13 @@ final class TableRowViewWithMenu: NSTableRowView {
 
     @objc private func copySelectedOrCurrentRow() {
         guard let coordinator = coordinator else { return }
-        if !coordinator.selectedRowIndices.isEmpty {
-            coordinator.copyRows(at: coordinator.selectedRowIndices)
+        let indices: Set<Int> = !coordinator.selectedRowIndices.isEmpty
+            ? coordinator.selectedRowIndices
+            : [rowIndex]
+        if let callback = coordinator.onCopyRows {
+            callback(indices)
         } else {
-            coordinator.copyRows(at: [rowIndex])
+            coordinator.copyRows(at: indices)
         }
     }
 

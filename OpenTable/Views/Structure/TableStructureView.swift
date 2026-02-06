@@ -357,25 +357,44 @@ struct TableStructureView: View {
             break
         }
 
-        // Store in pasteboard as JSON string using CUSTOM TYPE
+        // Store in pasteboard with both custom JSON type (internal paste) and TSV (external paste)
         guard !copiedItems.isEmpty else { return }
+
+        // Build JSON string for custom pasteboard type
+        var jsonString: String?
+        if let columns = copiedItems as? [EditableColumnDefinition],
+           let encoded = try? JSONEncoder().encode(columns) {
+            jsonString = String(data: encoded, encoding: .utf8)
+        } else if let indexes = copiedItems as? [EditableIndexDefinition],
+                  let encoded = try? JSONEncoder().encode(indexes) {
+            jsonString = String(data: encoded, encoding: .utf8)
+        } else if let fks = copiedItems as? [EditableForeignKeyDefinition],
+                  let encoded = try? JSONEncoder().encode(fks) {
+            jsonString = String(data: encoded, encoding: .utf8)
+        }
+
+        // Build TSV string for external paste
+        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab)
+        var lines: [String] = []
+        for row in rowIndices.sorted() {
+            guard let rowData = provider.row(at: row) else { continue }
+            let line = rowData.values.map { $0 ?? "NULL" }.joined(separator: "\t")
+            lines.append(line)
+        }
+        let tsvString = lines.joined(separator: "\n")
+
+        // Write both types on a single pasteboard item
+        let item = NSPasteboardItem()
+        if let json = jsonString {
+            item.setString(json, forType: Self.structurePasteboardType)
+        }
+        if !tsvString.isEmpty {
+            item.setString(tsvString, forType: .string)
+        }
 
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-
-        if let columns = copiedItems as? [EditableColumnDefinition],
-           let encoded = try? JSONEncoder().encode(columns),
-           let jsonString = String(data: encoded, encoding: .utf8) {
-            pasteboard.setString(jsonString, forType: Self.structurePasteboardType)
-        } else if let indexes = copiedItems as? [EditableIndexDefinition],
-                  let encoded = try? JSONEncoder().encode(indexes),
-                  let jsonString = String(data: encoded, encoding: .utf8) {
-            pasteboard.setString(jsonString, forType: Self.structurePasteboardType)
-        } else if let fks = copiedItems as? [EditableForeignKeyDefinition],
-                  let encoded = try? JSONEncoder().encode(fks),
-                  let jsonString = String(data: encoded, encoding: .utf8) {
-            pasteboard.setString(jsonString, forType: Self.structurePasteboardType)
-        }
+        pasteboard.writeObjects([item])
     }
 
     private func handlePaste() {
