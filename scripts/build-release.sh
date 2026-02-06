@@ -5,12 +5,12 @@ set -e
 # Usage: ./build-release.sh [arm64|x86_64|both]
 
 ARCH="${1:-both}"
-PROJECT="OpenTable.xcodeproj"
-SCHEME="OpenTable"
+PROJECT="TablePro.xcodeproj"
+SCHEME="TablePro"
 CONFIG="Release"
 BUILD_DIR="build/Release"
 
-echo "🏗️  Building OpenTable for: $ARCH"
+echo "🏗️  Building TablePro for: $ARCH"
 
 # Ensure libmariadb.a has correct architecture
 prepare_mariadb() {
@@ -100,7 +100,7 @@ build_for_arch() {
         exit 1
     fi
 
-    APP_PATH="${DERIVED_DATA}/${CONFIG}/OpenTable.app"
+    APP_PATH="${DERIVED_DATA}/${CONFIG}/TablePro.app"
     echo "📂 Expected app path: $APP_PATH"
 
     # Verify app bundle exists
@@ -117,7 +117,7 @@ build_for_arch() {
     }
 
     # Copy and rename app
-    OUTPUT_NAME="OpenTable-${arch}.app"
+    OUTPUT_NAME="TablePro-${arch}.app"
     echo "Copying app bundle to release directory..."
     if ! cp -R "$APP_PATH" "$BUILD_DIR/$OUTPUT_NAME"; then
         echo "❌ FATAL: Failed to copy app bundle"
@@ -134,7 +134,7 @@ build_for_arch() {
 
     # Fix app icon - Xcode strips larger sizes from icns in asset catalogs
     # Copy the full source icon to ensure all sizes (16-1024px) are included
-    SOURCE_ICON="OpenTable/Assets.xcassets/AppIcon.appiconset/AppIcon.icns"
+    SOURCE_ICON="TablePro/Assets.xcassets/AppIcon.appiconset/AppIcon.icns"
     DEST_ICON="$BUILD_DIR/$OUTPUT_NAME/Contents/Resources/AppIcon.icns"
     if [ -f "$SOURCE_ICON" ]; then
         echo "🎨 Restoring full app icon (Xcode strips large sizes from asset catalog)..."
@@ -148,7 +148,7 @@ build_for_arch() {
     fi
 
     # Verify binary exists inside the copied bundle
-    BINARY_PATH="$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS/OpenTable"
+    BINARY_PATH="$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS/TablePro"
     if [ ! -f "$BINARY_PATH" ]; then
         echo "❌ FATAL: Binary not found in copied app bundle: $BINARY_PATH"
         exit 1

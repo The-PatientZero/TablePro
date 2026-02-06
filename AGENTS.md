@@ -1,8 +1,8 @@
-# OpenTable - Agent Development Guide
+# TablePro - Agent Development Guide
 
 ## Project Overview
 
-OpenTable is a native macOS database client built with SwiftUI and AppKit. It's designed as a fast, lightweight alternative to TablePlus, prioritizing Apple-native frameworks and modern Swift idioms for optimal performance and maintainability.
+TablePro is a native macOS database client built with SwiftUI and AppKit. It's designed as a fast, lightweight alternative to TablePlus, prioritizing Apple-native frameworks and modern Swift idioms for optimal performance and maintainability.
 
 ## Build & Development Commands
 
@@ -10,7 +10,7 @@ OpenTable is a native macOS database client built with SwiftUI and AppKit. It's 
 
 ```bash
 # Build for current architecture (development)
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug build
+xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build
 
 # Build for specific architecture (release)
 scripts/build-release.sh arm64       # Apple Silicon only
@@ -18,10 +18,10 @@ scripts/build-release.sh x86_64      # Intel only
 scripts/build-release.sh both        # Universal binary
 
 # Clean build
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable clean
+xcodebuild -project TablePro.xcodeproj -scheme TablePro clean
 
 # Build and run
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug build && open build/Debug/OpenTable.app
+xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build && open build/Debug/TablePro.app
 ```
 
 ### Linting & Formatting
@@ -44,13 +44,13 @@ swiftformat --lint .
 
 ```bash
 # Run all tests
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable test
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test
 
 # Run specific test class
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable test -only-testing:OpenTableTests/TestClassName
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test -only-testing:TableProTests/TestClassName
 
 # Run specific test method
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable test -only-testing:OpenTableTests/TestClassName/testMethodName
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test -only-testing:TableProTests/TestClassName/testMethodName
 ```
 
 ### Creating DMG
@@ -72,12 +72,12 @@ scripts/create-dmg.sh
 
 ### File Structure
 
-- **Models**: `OpenTable/Models/` - Data structures, domain entities (prefer `struct`, `enum`)
-- **Views**: `OpenTable/Views/` - SwiftUI views only, no business logic
-- **ViewModels**: `OpenTable/ViewModels/` - `@Observable` classes (Swift 5.9+) or `ObservableObject`
-- **Core**: `OpenTable/Core/` - Business logic, database drivers, services
-- **Extensions**: `OpenTable/Extensions/` - Type extensions, protocol conformances
-- **Resources**: `OpenTable/Resources/` - Assets, localized strings, asset catalogs
+- **Models**: `TablePro/Models/` - Data structures, domain entities (prefer `struct`, `enum`)
+- **Views**: `TablePro/Views/` - SwiftUI views only, no business logic
+- **ViewModels**: `TablePro/ViewModels/` - `@Observable` classes (Swift 5.9+) or `ObservableObject`
+- **Core**: `TablePro/Core/` - Business logic, database drivers, services
+- **Extensions**: `TablePro/Extensions/` - Type extensions, protocol conformances
+- **Resources**: `TablePro/Resources/` - Assets, localized strings, asset catalogs
 
 ### Imports
 
@@ -207,7 +207,7 @@ Use OSLog for debugging:
 ```swift
 import os
 
-private static let logger = Logger(subsystem: "com.OpenTable", category: "ComponentName")
+private static let logger = Logger(subsystem: "com.TablePro", category: "ComponentName")
 logger.debug("Connection established")
 logger.error("Failed to connect: \(error.localizedDescription)")
 ```
@@ -222,7 +222,7 @@ logger.error("Failed to connect: \(error.localizedDescription)")
 
 ### Database Connections
 
-Follow existing driver patterns in `OpenTable/Core/Database/`
+Follow existing driver patterns in `TablePro/Core/Database/`
 
 ### Error Propagation
 

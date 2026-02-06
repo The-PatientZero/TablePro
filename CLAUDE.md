@@ -1,8 +1,8 @@
-# OpenTable - Agent Development Guide
+# TablePro - Agent Development Guide
 
 ## Project Overview
 
-OpenTable is a native macOS database client built with SwiftUI and AppKit. It's designed as a fast, lightweight alternative to TablePlus, prioritizing Apple-native frameworks and modern Swift idioms for optimal performance and maintainability.
+TablePro is a native macOS database client built with SwiftUI and AppKit. It's designed as a fast, lightweight alternative to TablePlus, prioritizing Apple-native frameworks and modern Swift idioms for optimal performance and maintainability.
 
 ## Build & Development Commands
 
@@ -10,7 +10,7 @@ OpenTable is a native macOS database client built with SwiftUI and AppKit. It's 
 
 ```bash
 # Build for current architecture (development)
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug build
+xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build
 
 # Build for specific architecture (release)
 scripts/build-release.sh arm64       # Apple Silicon only
@@ -18,10 +18,10 @@ scripts/build-release.sh x86_64      # Intel only
 scripts/build-release.sh both        # Universal binary
 
 # Clean build
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable clean
+xcodebuild -project TablePro.xcodeproj -scheme TablePro clean
 
 # Build and run
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug build && open build/Debug/OpenTable.app
+xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build && open build/Debug/TablePro.app
 ```
 
 ### Linting & Formatting
@@ -44,13 +44,13 @@ swiftformat --lint .
 
 ```bash
 # Run all tests
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable test
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test
 
 # Run specific test class
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable test -only-testing:OpenTableTests/TestClassName
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test -only-testing:TableProTests/TestClassName
 
 # Run specific test method
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable test -only-testing:OpenTableTests/TestClassName/testMethodName
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test -only-testing:TableProTests/TestClassName/testMethodName
 ```
 
 ### Creating DMG
@@ -72,12 +72,12 @@ scripts/create-dmg.sh
 
 ### File Structure
 
-- **Models**: `OpenTable/Models/` - Data structures, domain entities (prefer `struct`, `enum`)
-- **Views**: `OpenTable/Views/` - SwiftUI views only, no business logic
-- **ViewModels**: `OpenTable/ViewModels/` - `@Observable` classes (Swift 5.9+) or `ObservableObject`
-- **Core**: `OpenTable/Core/` - Business logic, database drivers, services
-- **Extensions**: `OpenTable/Extensions/` - Type extensions, protocol conformances
-- **Resources**: `OpenTable/Resources/` - Assets, localized strings, asset catalogs
+- **Models**: `TablePro/Models/` - Data structures, domain entities (prefer `struct`, `enum`)
+- **Views**: `TablePro/Views/` - SwiftUI views only, no business logic
+- **ViewModels**: `TablePro/ViewModels/` - `@Observable` classes (Swift 5.9+) or `ObservableObject`
+- **Core**: `TablePro/Core/` - Business logic, database drivers, services
+- **Extensions**: `TablePro/Extensions/` - Type extensions, protocol conformances
+- **Resources**: `TablePro/Resources/` - Assets, localized strings, asset catalogs
 
 ### Imports
 
@@ -246,7 +246,7 @@ Extract logical sections into separate extension files:
 
 **Example structure:**
 ```
-OpenTable/Views/Main/
+TablePro/Views/Main/
 ├── MainContentCoordinator.swift          # Core class definition
 └── Extensions/
     ├── MainContentCoordinator+RowOperations.swift
@@ -259,7 +259,7 @@ OpenTable/Views/Main/
 ```swift
 //
 //  MainContentCoordinator+RowOperations.swift
-//  OpenTable
+//  TablePro
 //
 //  Row manipulation operations for MainContentCoordinator
 //
@@ -338,7 +338,7 @@ Use OSLog for debugging:
 ```swift
 import os
 
-private static let logger = Logger(subsystem: "com.OpenTable", category: "ComponentName")
+private static let logger = Logger(subsystem: "com.TablePro", category: "ComponentName")
 logger.debug("Connection established")
 logger.error("Failed to connect: \(error.localizedDescription)")
 ```
@@ -353,7 +353,7 @@ logger.error("Failed to connect: \(error.localizedDescription)")
 
 ### Database Connections
 
-Follow existing driver patterns in `OpenTable/Core/Database/`
+Follow existing driver patterns in `TablePro/Core/Database/`
 
 ### Error Propagation
 
@@ -361,7 +361,7 @@ Prefer throwing errors over returning optionals for failure cases
 
 ## Documentation
 
-The documentation site is located in a separate repository at `opentable.nqd.vn/docs/` (Mintlify-powered).
+The documentation site is located in a separate repository at `tablepro.app/docs/` (Mintlify-powered).
 
 ### When to Update Documentation
 
@@ -382,7 +382,7 @@ The documentation site is located in a separate repository at `opentable.nqd.vn/
 ### Documentation Structure
 
 ```
-opentable.nqd.vn/docs/
+tablepro.app/docs/
 ├── index.mdx                    # Introduction
 ├── quickstart.mdx               # Getting started guide
 ├── installation.mdx             # Installation instructions
@@ -417,12 +417,12 @@ opentable.nqd.vn/docs/
 - Add screenshot placeholders: `{/* Screenshot: description */}`
 - Use Mermaid for diagrams (use `<br>` for line breaks, not `\n`)
 - Keep content accurate and up-to-date with code changes
-- The docs repo is separate: `git@github.com:datlechin/opentable.nqd.vn.git`
+- The docs repo is separate: `git@github.com:datlechin/tablepro.app.git`
 
 ### Preview Documentation Locally
 
 ```bash
-cd opentable.nqd.vn/docs
+cd tablepro.app/docs
 npm i -g mint
 mint dev
 # Open http://localhost:3000
@@ -448,4 +448,4 @@ mint dev
   - Preserve all existing functionality and behavior
   - Update imports in extension files as needed
   - Test that build succeeds after refactoring
-- Documentation is in a separate repo (`opentable.nqd.vn/`) - commit docs changes there
+- Documentation is in a separate repo (`tablepro.app/`) - commit docs changes there

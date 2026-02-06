@@ -1,28 +1,28 @@
 <p align="center">
-  <img src="opentable.nqd.vn/docs/logo/logo.png" width="128" height="128" alt="OpenTable">
+  <img src="tablepro.app/docs/logo/logo.png" width="128" height="128" alt="TablePro">
 </p>
 
-<h1 align="center">OpenTable</h1>
+<h1 align="center">TablePro</h1>
 
 <p align="center">
   A fast, native macOS database client — built with SwiftUI and AppKit.
 </p>
 
 <p align="center">
-  <a href="https://opentable.nqd.vn/docs">Documentation</a> ·
-  <a href="https://github.com/datlechin/opentable/releases">Download</a> ·
-  <a href="https://github.com/datlechin/opentable/issues">Report Bug</a>
+  <a href="https://tablepro.app/docs">Documentation</a> ·
+  <a href="https://github.com/datlechin/tablepro/releases">Download</a> ·
+  <a href="https://github.com/datlechin/tablepro/issues">Report Bug</a>
 </p>
 
 ---
 
 <p align="center">
-  <img src="opentable.nqd.vn/src/assets/app-dark.png" alt="OpenTable Screenshot" width="800">
+  <img src="tablepro.app/src/assets/app-dark.png" alt="TablePro Screenshot" width="800">
 </p>
 
 ## About
 
-OpenTable is a lightweight alternative to TablePlus, built entirely with Apple-native frameworks. No Electron, no web views — just pure SwiftUI + AppKit for a truly native macOS experience.
+TablePro is a lightweight alternative to TablePlus, built entirely with Apple-native frameworks. No Electron, no web views — just pure SwiftUI + AppKit for a truly native macOS experience.
 
 **Zero third-party Swift packages.** Only system-level database libraries (libpq, libmariadb) and macOS built-in SQLite.
 
@@ -114,7 +114,7 @@ brew install libpq mariadb-connector-c
 
 ```bash
 # Debug build
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug build
+xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build
 
 # Release build (Apple Silicon)
 scripts/build-release.sh arm64
@@ -146,7 +146,7 @@ swiftformat .
 
 ## Documentation
 
-Full documentation is available at [opentable.nqd.vn/docs](https://opentable.nqd.vn/docs).
+Full documentation is available at [tablepro.app/docs](https://tablepro.app/docs).
 
 ## License
 

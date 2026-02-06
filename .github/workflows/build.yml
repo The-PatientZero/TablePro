@@ -1,4 +1,4 @@
-name: Build OpenTable
+name: Build TablePro
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
       - ".vscode/**"
 
 env:
-  XCODE_PROJECT: OpenTable.xcodeproj
-  XCODE_SCHEME: OpenTable
+  XCODE_PROJECT: TablePro.xcodeproj
+  XCODE_SCHEME: TablePro
   BUILD_CONFIGURATION: Release
   XCODE_VERSION: "26.2" # Updated to support macOS 26 Tahoe liquid design
 
@@ -404,7 +404,7 @@ jobs:
         run: |
           echo "Verifying build output..."
 
-          BINARY_PATH="build/Release/OpenTable-arm64.app/Contents/MacOS/OpenTable"
+          BINARY_PATH="build/Release/TablePro-arm64.app/Contents/MacOS/TablePro"
 
           # Check binary exists
           if [ ! -f "$BINARY_PATH" ]; then
@@ -444,7 +444,7 @@ jobs:
           # Display info
           echo "✅ Build verified successfully"
           echo "Binary size: $(ls -lh "$BINARY_PATH" | awk '{print $5}')"
-          echo "App bundle size: $(du -sh build/Release/OpenTable-arm64.app | awk '{print $1}')"
+          echo "App bundle size: $(du -sh build/Release/TablePro-arm64.app | awk '{print $1}')"
 
       - name: Create DMG installer
         run: |
@@ -461,10 +461,10 @@ jobs:
           # The script handles app renaming internally
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
           echo "📌 Using version: $VERSION"
-          scripts/create-dmg.sh "$VERSION" "arm64" "build/Release/OpenTable-arm64.app"
+          scripts/create-dmg.sh "$VERSION" "arm64" "build/Release/TablePro-arm64.app"
 
           # Verify DMG was created - check for the specific file or any arm64 DMG
-          DMG_FILE="build/Release/OpenTable-${VERSION}-arm64.dmg"
+          DMG_FILE="build/Release/TablePro-${VERSION}-arm64.dmg"
           if [ -f "$DMG_FILE" ]; then
             echo "✅ DMG installer created successfully: $DMG_FILE"
           else
@@ -490,21 +490,21 @@ jobs:
 
           cd build/Release
 
-          if ! zip -r OpenTable-arm64.zip OpenTable-arm64.app; then
+          if ! zip -r TablePro-arm64.zip TablePro-arm64.app; then
             echo "❌ ERROR: Failed to create ZIP archive"
             exit 1
           fi
 
           echo "✅ ZIP archive created"
-          ls -lh OpenTable-arm64.zip
+          ls -lh TablePro-arm64.zip
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: OpenTable-arm64-${{ github.sha }}
+          name: TablePro-arm64-${{ github.sha }}
           path: |
             build/Release/*.dmg
-            build/Release/OpenTable-arm64.zip
+            build/Release/TablePro-arm64.zip
           retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 90 || 7 }}
 
   build-x86_64:
@@ -648,7 +648,7 @@ jobs:
         run: |
           echo "Verifying build output..."
 
-          BINARY_PATH="build/Release/OpenTable-x86_64.app/Contents/MacOS/OpenTable"
+          BINARY_PATH="build/Release/TablePro-x86_64.app/Contents/MacOS/TablePro"
 
           # Check binary exists
           if [ ! -f "$BINARY_PATH" ]; then
@@ -687,7 +687,7 @@ jobs:
           # Display info
           echo "✅ Build verified successfully"
           echo "Binary size: $(ls -lh "$BINARY_PATH" | awk '{print $5}')"
-          echo "App bundle size: $(du -sh build/Release/OpenTable-x86_64.app | awk '{print $1}')"
+          echo "App bundle size: $(du -sh build/Release/TablePro-x86_64.app | awk '{print $1}')"
 
       - name: Create DMG installer
         run: |
@@ -704,10 +704,10 @@ jobs:
           # The script handles app renaming internally
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
           echo "📌 Using version: $VERSION"
-          scripts/create-dmg.sh "$VERSION" "x86_64" "build/Release/OpenTable-x86_64.app"
+          scripts/create-dmg.sh "$VERSION" "x86_64" "build/Release/TablePro-x86_64.app"
 
           # Verify DMG was created - check for the specific file or any x86_64 DMG
-          DMG_FILE="build/Release/OpenTable-${VERSION}-x86_64.dmg"
+          DMG_FILE="build/Release/TablePro-${VERSION}-x86_64.dmg"
           if [ -f "$DMG_FILE" ]; then
             echo "✅ DMG installer created successfully: $DMG_FILE"
           else
@@ -733,21 +733,21 @@ jobs:
 
           cd build/Release
 
-          if ! zip -r OpenTable-x86_64.zip OpenTable-x86_64.app; then
+          if ! zip -r TablePro-x86_64.zip TablePro-x86_64.app; then
             echo "❌ ERROR: Failed to create ZIP archive"
             exit 1
           fi
 
           echo "✅ ZIP archive created"
-          ls -lh OpenTable-x86_64.zip
+          ls -lh TablePro-x86_64.zip
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: OpenTable-x86_64-${{ github.sha }}
+          name: TablePro-x86_64-${{ github.sha }}
           path: |
             build/Release/*.dmg
-            build/Release/OpenTable-x86_64.zip
+            build/Release/TablePro-x86_64.zip
           retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 90 || 7 }}
 
   release:
@@ -766,13 +766,13 @@ jobs:
       - name: Download ARM64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: OpenTable-arm64-${{ github.sha }}
+          name: TablePro-arm64-${{ github.sha }}
           path: artifacts/
 
       - name: Download x86_64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: OpenTable-x86_64-${{ github.sha }}
+          name: TablePro-x86_64-${{ github.sha }}
           path: artifacts/
 
       - name: Verify and organize artifacts for release
@@ -792,12 +792,12 @@ jobs:
           # ZIP files need to be renamed
 
           # Rename ZIP files if they exist
-          if [ -f "artifacts/OpenTable-arm64.zip" ]; then
-            mv artifacts/OpenTable-arm64.zip "artifacts/OpenTable-${VERSION}-arm64.zip"
+          if [ -f "artifacts/TablePro-arm64.zip" ]; then
+            mv artifacts/TablePro-arm64.zip "artifacts/TablePro-${VERSION}-arm64.zip"
           fi
 
-          if [ -f "artifacts/OpenTable-x86_64.zip" ]; then
-            mv artifacts/OpenTable-x86_64.zip "artifacts/OpenTable-${VERSION}-x86_64.zip"
+          if [ -f "artifacts/TablePro-x86_64.zip" ]; then
+            mv artifacts/TablePro-x86_64.zip "artifacts/TablePro-${VERSION}-x86_64.zip"
           fi
 
           echo "✅ Artifacts organized successfully"

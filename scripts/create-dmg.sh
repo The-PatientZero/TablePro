@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-APP_NAME="OpenTable"
+APP_NAME="TablePro"
 VERSION="${1:-0.1.13}"
 ARCH="${2:-universal}"
 SOURCE_APP="${3:-build/Release/${APP_NAME}.app}"
@@ -27,8 +27,8 @@ fi
 # Ensure output directory exists
 mkdir -p "build/Release"
 
-# Create a staging copy of the app with the correct name (OpenTable.app)
-# This ensures the DMG shows "OpenTable.app" regardless of the source name
+# Create a staging copy of the app with the correct name (TablePro.app)
+# This ensures the DMG shows "TablePro.app" regardless of the source name
 STAGING_APP="build/Release/${APP_NAME}.app"
 if [ "$SOURCE_APP" != "$STAGING_APP" ]; then
     echo "📋 Preparing $APP_NAME.app for DMG..."
