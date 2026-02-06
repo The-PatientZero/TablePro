@@ -17,6 +17,14 @@ enum DiscardAction {
     case refreshAll
 }
 
+/// Cache entry for async-sorted query tab rows
+struct QuerySortCacheEntry {
+    let rows: [QueryResultRow]
+    let columnIndex: Int
+    let direction: SortDirection
+    let resultVersion: Int
+}
+
 /// Coordinator managing MainContentView business logic
 @MainActor
 final class MainContentCoordinator: ObservableObject {
@@ -48,11 +56,19 @@ final class MainContentCoordinator: ObservableObject {
     @Published var importFileURL: URL?
     @Published var needsLazyLoad = false
 
+    /// Cache for async-sorted query tab rows (large datasets sorted on background thread)
+    @Published private(set) var querySortCache: [UUID: QuerySortCacheEntry] = [:]
+
     // MARK: - Internal State
 
     private var queryGeneration: Int = 0
     private var currentQueryTask: Task<Void, Never>?
     private var changeManagerUpdateTask: Task<Void, Never>?
+
+    /// Remove sort cache entries for tabs that no longer exist
+    func cleanupSortCache(openTabIds: Set<UUID>) {
+        querySortCache = querySortCache.filter { openTabIds.contains($0.key) }
+    }
 
     // MARK: - Initialization
 
@@ -416,11 +432,44 @@ final class MainContentCoordinator: ObservableObject {
         tabManager.tabs[tabIndex].pagination.reset()
 
         if tab.tabType == .query {
-            Task { @MainActor in
+            let rows = tab.resultRows
+            let tabId = tab.id
+            let resultVersion = tab.resultVersion
+            let sortDirection = ascending ? SortDirection.ascending : .descending
+
+            if rows.count > 10_000 {
+                // Large dataset: sort on background thread to avoid UI freeze
                 tabManager.tabs[tabIndex].isExecuting = true
-                try? await Task.sleep(nanoseconds: 10_000_000)
+                querySortCache.removeValue(forKey: tabId)
+
+                Task.detached { [weak self] in
+                    let sorted = rows.sorted { row1, row2 in
+                        let val1 = row1.values[columnIndex] ?? ""
+                        let val2 = row2.values[columnIndex] ?? ""
+                        if sortDirection == .ascending {
+                            return val1.localizedStandardCompare(val2) == .orderedAscending
+                        } else {
+                            return val1.localizedStandardCompare(val2) == .orderedDescending
+                        }
+                    }
+
+                    await MainActor.run { [weak self] in
+                        guard let self else { return }
+                        self.querySortCache[tabId] = QuerySortCacheEntry(
+                            rows: sorted,
+                            columnIndex: columnIndex,
+                            direction: sortDirection,
+                            resultVersion: resultVersion
+                        )
+                        if let idx = self.tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                            self.tabManager.tabs[idx].isExecuting = false
+                        }
+                        self.changeManager.reloadVersion += 1
+                    }
+                }
+            } else {
+                // Small dataset: view sorts synchronously, just trigger reload
                 changeManager.reloadVersion += 1
-                tabManager.tabs[tabIndex].isExecuting = false
             }
             return
         }
