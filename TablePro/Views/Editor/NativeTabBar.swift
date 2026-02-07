@@ -11,6 +11,15 @@ import SwiftUI
 struct NativeTabBar: NSViewRepresentable {
     @ObservedObject var tabManager: QueryTabManager
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        var cachedSnapshots: [TabSnapshot] = []
+        var cachedSelectedId: UUID?
+    }
+
     func makeNSView(context: Context) -> NativeTabBarView {
         let view = NativeTabBarView()
 
@@ -67,6 +76,16 @@ struct NativeTabBar: NSViewRepresentable {
                 tabType: tab.tabType
             )
         }
-        nsView.updateTabs(snapshots, selectedId: tabManager.selectedTabId)
+        let selectedId = tabManager.selectedTabId
+
+        // Skip update if tab metadata hasn't changed (query text edits don't affect snapshots)
+        let coordinator = context.coordinator
+        if snapshots == coordinator.cachedSnapshots && selectedId == coordinator.cachedSelectedId {
+            return
+        }
+        coordinator.cachedSnapshots = snapshots
+        coordinator.cachedSelectedId = selectedId
+
+        nsView.updateTabs(snapshots, selectedId: selectedId)
     }
 }

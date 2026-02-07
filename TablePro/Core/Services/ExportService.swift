@@ -590,7 +590,7 @@ final class ExportService: ObservableObject {
     /// - Control characters U+0000 to U+001F (required by spec)
     private func escapeJSONString(_ string: String) -> String {
         var result = ""
-        result.reserveCapacity(string.count)
+        result.reserveCapacity((string as NSString).length)
         for char in string {
             switch char {
             case "\"": result += "\\\""

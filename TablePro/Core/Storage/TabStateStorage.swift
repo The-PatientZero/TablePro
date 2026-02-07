@@ -64,9 +64,16 @@ final class TabStateStorage {
 
     // MARK: - Last Query Memory (TablePlus-style)
 
+    /// Maximum query size to persist (500KB). Larger queries (e.g., imported SQL dumps)
+    /// would block the main thread during UserDefaults I/O.
+    private static let maxPersistableQuerySize = 500_000
+
     /// Save the last query text for a connection (persists across tab close/open)
     func saveLastQuery(_ query: String, for connectionId: UUID) {
         let key = "com.TablePro.lastquery.\(connectionId.uuidString)"
+
+        // Skip persistence for very large queries to avoid main-thread freeze
+        guard (query as NSString).length < Self.maxPersistableQuerySize else { return }
 
         // Only save non-empty queries (trimmed to avoid saving whitespace-only queries)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)

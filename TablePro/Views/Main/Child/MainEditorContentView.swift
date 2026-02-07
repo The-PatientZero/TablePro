@@ -87,7 +87,7 @@ struct MainEditorContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: appState.isHistoryPanelVisible)
-        .onChange(of: tabManager.tabs.count) { _ in
+        .onChange(of: tabManager.tabs.count) {
             // Clean up sort cache for closed tabs
             let openTabIds = Set(tabManager.tabs.map(\.id))
             sortCache = sortCache.filter { openTabIds.contains($0.key) }
@@ -131,15 +131,31 @@ struct MainEditorContentView: View {
         }
     }
 
+    /// Maximum query size to persist (500KB). Queries larger than this are typically
+    /// imported SQL dumps — serializing 40MB to JSON + writing to UserDefaults
+    /// blocks the main thread for 10-30+ seconds, freezing the app.
+    private static let maxPersistableQuerySize = 500_000
+
     private func queryTextBinding(for tab: QueryTab) -> Binding<String> {
-        Binding(
+        let tabId = tab.id
+        return Binding(
             get: { tab.query },
             set: { newValue in
-                guard let index = tabManager.selectedTabIndex,
+                // Find this tab by ID, not by selectedTabIndex. During tab switch,
+                // flushTextUpdate() fires on the OLD tab's EditorCoordinator when
+                // selectedTabIndex already points to the NEW tab — writing to
+                // selectedTabIndex would overwrite the new tab's query.
+                guard let index = tabManager.tabs.firstIndex(where: { $0.id == tabId }),
                       index < tabManager.tabs.count else { return }
 
                 tabManager.tabs[index].query = newValue
-                coordinator.tabPersistence.saveLastQuery(newValue)
+
+                // Skip persistence for very large queries (e.g., imported SQL dumps).
+                // JSON-encoding 40MB + writing to UserDefaults freezes the main thread.
+                let queryLength = (newValue as NSString).length
+                guard queryLength < Self.maxPersistableQuerySize else { return }
+
+                coordinator.tabPersistence.saveLastQueryDebounced(newValue)
 
                 if !coordinator.tabPersistence.isRestoringTabs && !coordinator.tabPersistence.isDismissing {
                     coordinator.tabPersistence.saveTabsDebounced(

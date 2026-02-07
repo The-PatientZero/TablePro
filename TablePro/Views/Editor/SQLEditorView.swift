@@ -33,6 +33,9 @@ struct SQLEditorView: NSViewRepresentable {
         // Create text storage, layout manager, and text container
         let textStorage = NSTextStorage()
         let layoutManager = NSLayoutManager()
+        // Allow non-contiguous layout: lets the layout manager skip laying out offscreen
+        // regions. This is the single most important setting for large-document performance.
+        layoutManager.allowsNonContiguousLayout = true
         textStorage.addLayoutManager(layoutManager)
 
         let textContainer = NSTextContainer(size: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
@@ -69,20 +72,28 @@ struct SQLEditorView: NSViewRepresentable {
         textView.insertionPointColor = SQLEditorTheme.insertionPoint
         textView.textContainerInset = SQLEditorTheme.textContainerInset
 
-        // Disable automatic text substitutions for SQL syntax integrity
+        // Disable all automatic text features for SQL syntax integrity and performance
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
+        textView.isContinuousSpellCheckingEnabled = false
+        textView.isGrammarCheckingEnabled = false
+        textView.isAutomaticTextCompletionEnabled = false
+        textView.isAutomaticLinkDetectionEnabled = false
+        textView.usesFontPanel = false
+        textView.usesFindBar = true
 
         // Set initial text
         textView.string = text
 
+        // MUST set documentView BEFORE coordinator setup so that
+        // textView.enclosingScrollView is non-nil when SyntaxHighlighter
+        // attaches its scroll observer for viewport-based highlighting.
+        scrollView.documentView = textView
+
         // Set up coordinator (textStorage is now guaranteed to exist)
         context.coordinator.setup(textView: textView, textStorage: textStorage)
-
-        // MUST set documentView BEFORE creating line number view
-        scrollView.documentView = textView
 
         // Create custom line number view (positioned left of scroll view)
         let lineNumberView = LineNumberView(textView: textView, scrollView: scrollView)

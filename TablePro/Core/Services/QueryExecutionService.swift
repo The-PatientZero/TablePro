@@ -147,60 +147,61 @@ final class QueryExecutionService: ObservableObject {
     /// Extract the SQL statement at the cursor position (semicolon-delimited)
     /// Enables TablePlus-like behavior: execute only the current query
     func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
-        let trimmed = fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return trimmed }
+        let nsQuery = fullQuery as NSString
+        let length = nsQuery.length
+        guard length > 0 else { return "" }
 
-        // If no semicolons, return the entire query
-        guard trimmed.contains(";") else { return trimmed }
+        // Fast check: if no semicolons, return the full query trimmed.
+        // Uses NSString range search (C-level speed) instead of Swift String.contains.
+        guard nsQuery.range(of: ";").location != NSNotFound else {
+            return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
-        // Split by semicolon but keep track of positions
-        var statements: [(text: String, range: Range<Int>)] = []
+        let singleQuote = UInt16(UnicodeScalar("'").value)
+        let doubleQuote = UInt16(UnicodeScalar("\"").value)
+        let semicolonChar = UInt16(UnicodeScalar(";").value)
+
+        let safePosition = min(max(0, position), length)
         var currentStart = 0
         var inString = false
-        var stringChar: Character = "\""
+        var stringCharVal: UInt16 = 0
 
-        for (i, char) in fullQuery.enumerated() {
+        // Scan through characters, stopping as soon as we find the statement
+        // containing the cursor. Avoids scanning the entire file.
+        for i in 0..<length {
+            let ch = nsQuery.character(at: i)
+
             // Track string literals to avoid splitting on semicolons inside strings
-            if char == "'" || char == "\"" {
+            if ch == singleQuote || ch == doubleQuote {
                 if !inString {
                     inString = true
-                    stringChar = char
-                } else if char == stringChar {
+                    stringCharVal = ch
+                } else if ch == stringCharVal {
                     inString = false
                 }
             }
 
             // Found a statement delimiter
-            if char == ";" && !inString {
-                let startIndex = fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)
-                let endIndex = fullQuery.index(fullQuery.startIndex, offsetBy: i)
-                let statement = String(fullQuery[startIndex..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !statement.isEmpty {
-                    statements.append((text: statement, range: currentStart..<(i + 1)))
+            if ch == semicolonChar && !inString {
+                let stmtEnd = i + 1
+                // Check if cursor is within this statement
+                if safePosition >= currentStart && safePosition <= stmtEnd {
+                    let stmtRange = NSRange(location: currentStart, length: i - currentStart)
+                    return nsQuery.substring(with: stmtRange)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
                 }
-                currentStart = i + 1
+                currentStart = stmtEnd
             }
         }
 
-        // Don't forget the last statement (may not end with ;)
-        if currentStart < fullQuery.count {
-            let startIndex = fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)
-            let remaining = String(fullQuery[startIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !remaining.isEmpty {
-                statements.append((text: remaining, range: currentStart..<fullQuery.count))
-            }
+        // Cursor is in the last statement (no trailing semicolon)
+        if currentStart < length {
+            let stmtRange = NSRange(location: currentStart, length: length - currentStart)
+            return nsQuery.substring(with: stmtRange)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // Find the statement containing the cursor position
-        let safePosition = min(max(0, position), fullQuery.count)
-        for statement in statements {
-            if statement.range.contains(safePosition) || statement.range.upperBound == safePosition {
-                return statement.text
-            }
-        }
-
-        // If cursor is at end or no match, return last statement
-        return statements.last?.text ?? trimmed
+        return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Extract table name from a simple SELECT query

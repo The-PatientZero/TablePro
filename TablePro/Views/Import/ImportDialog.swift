@@ -357,8 +357,8 @@ struct ImportDialog: View {
 
         do {
             let encoding = config.encoding
+            let parser = SQLFileParser()
             let count = try await Task.detached {
-                let parser = SQLFileParser()
                 return try await parser.countStatements(url: url, encoding: encoding)
             }.value
             statementCount = count

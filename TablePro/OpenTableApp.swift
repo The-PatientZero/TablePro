@@ -447,6 +447,9 @@ extension Notification.Name {
     static let previousTab = Notification.Name("previousTab")
     static let nextTab = Notification.Name("nextTab")
 
+    // File opening notifications
+    static let openSQLFiles = Notification.Name("openSQLFiles")
+
     // Window lifecycle notifications
     static let mainWindowWillClose = Notification.Name("mainWindowWillClose")
     static let openMainWindow = Notification.Name("openMainWindow")

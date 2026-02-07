@@ -209,9 +209,13 @@ final class MainContentCoordinator: ObservableObject {
         queryGeneration += 1
         let capturedGeneration = queryGeneration
 
-        tabManager.tabs[index].isExecuting = true
-        tabManager.tabs[index].executionTime = nil
-        tabManager.tabs[index].errorMessage = nil
+        // Batch mutations into a single array write to avoid multiple @Published
+        // notifications — each notification triggers a full SwiftUI update cycle.
+        var tab = tabManager.tabs[index]
+        tab.isExecuting = true
+        tab.executionTime = nil
+        tab.errorMessage = nil
+        tabManager.tabs[index] = tab
         toolbarState.isExecuting = true
 
         let conn = connection
@@ -330,8 +334,10 @@ final class MainContentCoordinator: ObservableObject {
                 await MainActor.run {
                     currentQueryTask = nil
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        tabManager.tabs[idx].errorMessage = error.localizedDescription
-                        tabManager.tabs[idx].isExecuting = false
+                        var errTab = tabManager.tabs[idx]
+                        errTab.errorMessage = error.localizedDescription
+                        errTab.isExecuting = false
+                        tabManager.tabs[idx] = errTab
                     }
                     toolbarState.isExecuting = false
 
@@ -369,51 +375,59 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
-        let trimmed = fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.contains(";") else { return trimmed }
+        let nsQuery = fullQuery as NSString
+        let length = nsQuery.length
+        guard length > 0 else { return "" }
 
-        var statements: [(text: String, range: Range<Int>)] = []
+        // Fast check: if no semicolons, return the full query trimmed.
+        // Uses NSString range search (C-level speed) instead of Swift String.contains.
+        guard nsQuery.range(of: ";").location != NSNotFound else {
+            return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        let singleQuote = UInt16(UnicodeScalar("'").value)
+        let doubleQuote = UInt16(UnicodeScalar("\"").value)
+        let semicolonChar = UInt16(UnicodeScalar(";").value)
+
+        let safePosition = min(max(0, position), length)
         var currentStart = 0
         var inString = false
-        var stringChar: Character = "\""
+        var stringCharVal: UInt16 = 0
 
-        for (i, char) in fullQuery.enumerated() {
-            if char == "'" || char == "\"" {
+        // Scan through characters, stopping as soon as we find the statement
+        // containing the cursor. Avoids scanning the entire 40MB file.
+        for i in 0..<length {
+            let ch = nsQuery.character(at: i)
+
+            if ch == singleQuote || ch == doubleQuote {
                 if !inString {
                     inString = true
-                    stringChar = char
-                } else if char == stringChar {
+                    stringCharVal = ch
+                } else if ch == stringCharVal {
                     inString = false
                 }
             }
 
-            if char == ";" && !inString {
-                let statement = String(
-                    fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)..<fullQuery.index(fullQuery.startIndex, offsetBy: i)]
-                ).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !statement.isEmpty {
-                    statements.append((text: statement, range: currentStart..<(i + 1)))
+            if ch == semicolonChar && !inString {
+                let stmtEnd = i + 1
+                // Check if cursor is within this statement
+                if safePosition >= currentStart && safePosition <= stmtEnd {
+                    let stmtRange = NSRange(location: currentStart, length: i - currentStart)
+                    return nsQuery.substring(with: stmtRange)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
                 }
-                currentStart = i + 1
+                currentStart = stmtEnd
             }
         }
 
-        if currentStart < fullQuery.count {
-            let remaining = String(fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)...])
+        // Cursor is in the last statement (no trailing semicolon)
+        if currentStart < length {
+            let stmtRange = NSRange(location: currentStart, length: length - currentStart)
+            return nsQuery.substring(with: stmtRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !remaining.isEmpty {
-                statements.append((text: remaining, range: currentStart..<fullQuery.count))
-            }
         }
 
-        let safePosition = min(max(0, position), fullQuery.count)
-        for statement in statements {
-            if statement.range.contains(safePosition) || statement.range.upperBound == safePosition {
-                return statement.text
-            }
-        }
-
-        return statements.last?.text ?? trimmed
+        return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Sorting
@@ -440,7 +454,7 @@ final class MainContentCoordinator: ObservableObject {
             let rows = tab.resultRows
             let tabId = tab.id
             let resultVersion = tab.resultVersion
-            let sortDirection = ascending ? SortDirection.ascending : .descending
+            let sortAscending = ascending
 
             if rows.count > 10_000 {
                 // Large dataset: sort on background thread to avoid UI freeze
@@ -454,7 +468,7 @@ final class MainContentCoordinator: ObservableObject {
                     let sorted = rows.sorted { row1, row2 in
                         let val1 = row1.values[columnIndex] ?? ""
                         let val2 = row2.values[columnIndex] ?? ""
-                        if sortDirection == .ascending {
+                        if sortAscending {
                             return val1.localizedStandardCompare(val2) == .orderedAscending
                         } else {
                             return val1.localizedStandardCompare(val2) == .orderedDescending
@@ -463,21 +477,24 @@ final class MainContentCoordinator: ObservableObject {
                     let sortDuration = Date().timeIntervalSince(sortStartTime)
 
                     await MainActor.run { [weak self] in
+                        let expectedDirection: SortDirection = sortAscending ? .ascending : .descending
                         guard let self else { return }
                         // Guard against stale completion: verify tab still expects this sort
                         guard let idx = self.tabManager.tabs.firstIndex(where: { $0.id == tabId }),
                               self.tabManager.tabs[idx].sortState.columnIndex == columnIndex,
-                              self.tabManager.tabs[idx].sortState.direction == sortDirection else {
+                              self.tabManager.tabs[idx].sortState.direction == expectedDirection else {
                             return
                         }
                         self.querySortCache[tabId] = QuerySortCacheEntry(
                             rows: sorted,
                             columnIndex: columnIndex,
-                            direction: sortDirection,
+                            direction: expectedDirection,
                             resultVersion: resultVersion
                         )
-                        self.tabManager.tabs[idx].isExecuting = false
-                        self.tabManager.tabs[idx].executionTime = sortDuration
+                        var sortedTab = self.tabManager.tabs[idx]
+                        sortedTab.isExecuting = false
+                        sortedTab.executionTime = sortDuration
+                        self.tabManager.tabs[idx] = sortedTab
                         self.toolbarState.isExecuting = false
                         self.toolbarState.lastQueryDuration = sortDuration
                         self.activeSortTasks.removeValue(forKey: tabId)

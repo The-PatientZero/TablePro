@@ -11,7 +11,7 @@ import AppKit
 private let tabPasteboardType = NSPasteboard.PasteboardType("com.TablePro.tab")
 
 /// Lightweight snapshot of a QueryTab for passing to AppKit layer
-struct TabSnapshot {
+struct TabSnapshot: Equatable {
     let id: UUID
     let title: String
     let isPinned: Bool

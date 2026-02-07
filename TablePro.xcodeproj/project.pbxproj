@@ -10,9 +10,22 @@
 		5A1091C72EF17EDC0055EA7C /* TablePro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TablePro.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5AF312BE2F36FF7500E86682 /* Exceptions for "TablePro" folder in "TablePro" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A1091C62EF17EDC0055EA7C /* TablePro */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5A1091C92EF17EDC0055EA7C /* TablePro */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5AF312BE2F36FF7500E86682 /* Exceptions for "TablePro" folder in "TablePro" target */,
+			);
 			path = TablePro;
 			sourceTree = "<group>";
 		};
@@ -271,6 +284,7 @@
 					/opt/homebrew/opt/libpq/include,
 					/usr/local/opt/libpq/include,
 				);
+				INFOPLIST_FILE = TablePro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -360,6 +374,7 @@
 					/opt/homebrew/opt/libpq/include,
 					/usr/local/opt/libpq/include,
 				);
+				INFOPLIST_FILE = TablePro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";

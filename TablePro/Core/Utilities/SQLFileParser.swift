@@ -29,7 +29,7 @@ final class SQLFileParser: Sendable {
 
     /// Characters that can start multi-character sequences (comments, escapes)
     /// and must not be processed at chunk boundaries without a lookahead character.
-    private static func isMultiCharSequenceStart(_ char: Character) -> Bool {
+    private nonisolated static func isMultiCharSequenceStart(_ char: Character) -> Bool {
         char == "-" || char == "/" || char == "\\" || char == "*"
     }
 

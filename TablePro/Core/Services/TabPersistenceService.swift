@@ -32,6 +32,7 @@ final class TabPersistenceService: ObservableObject {
     // MARK: - Private State
 
     private var saveDebounceTask: Task<Void, Never>?
+    private var lastQueryDebounceTask: Task<Void, Never>?
     private let connectionId: UUID
 
     // MARK: - Initialization
@@ -225,8 +226,18 @@ final class TabPersistenceService: ObservableObject {
         TabStateStorage.shared.loadLastQuery(for: connectionId)
     }
 
-    /// Save last query for this connection
+    /// Save last query for this connection (synchronous - use saveLastQueryDebounced for per-keystroke calls)
     func saveLastQuery(_ query: String) {
         TabStateStorage.shared.saveLastQuery(query, for: connectionId)
+    }
+
+    /// Save last query with debouncing to avoid blocking I/O on every keystroke
+    func saveLastQueryDebounced(_ query: String) {
+        lastQueryDebounceTask?.cancel()
+        lastQueryDebounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Self.saveDebounceDelay)
+            guard !Task.isCancelled, !isDismissing else { return }
+            TabStateStorage.shared.saveLastQuery(query, for: connectionId)
+        }
     }
 }

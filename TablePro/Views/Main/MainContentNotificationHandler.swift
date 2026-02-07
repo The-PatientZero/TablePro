@@ -75,6 +75,7 @@ final class MainContentNotificationHandler: ObservableObject {
         setupDatabaseOperationObservers()
         setupUndoRedoObservers()
         setupWindowObservers()
+        setupFileOpenObservers()
     }
 
     // MARK: - Row Operations
@@ -544,6 +545,43 @@ final class MainContentNotificationHandler: ObservableObject {
                 self?.coordinator?.redoLastChange()
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: - File Open Operations
+
+    private func setupFileOpenObservers() {
+        NotificationCenter.default.publisher(for: .openSQLFiles)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                self?.handleOpenSQLFiles(notification)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handleOpenSQLFiles(_ notification: Notification) {
+        guard let urls = notification.object as? [URL],
+              let coordinator = coordinator else { return }
+
+        Task {
+            for url in urls {
+                let content = await Task.detached(priority: .userInitiated) { () -> String? in
+                    do {
+                        return try String(contentsOf: url, encoding: .utf8)
+                    } catch {
+                        print("[MainContentNotificationHandler] Failed to read "
+                              + "\(url.lastPathComponent): \(error.localizedDescription)")
+                        return nil
+                    }
+                }.value
+
+                if let content {
+                    coordinator.tabManager.addTab(
+                        initialQuery: content,
+                        title: url.lastPathComponent
+                    )
+                }
+            }
+        }
     }
 
     // MARK: - Window Operations

@@ -21,6 +21,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Track windows that have been configured to avoid re-applying styles (which causes flicker)
     private var configuredWindows = Set<ObjectIdentifier>()
 
+    /// URLs queued for opening when no database connection is active yet
+    private var queuedFileURLs: [URL] = []
+
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
 
@@ -97,6 +100,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let sqlURLs = urls.filter { $0.pathExtension.lowercased() == "sql" }
+        guard !sqlURLs.isEmpty else { return }
+
+        if DatabaseManager.shared.currentSession != nil {
+            // Already connected — bring main window to front and open files
+            for window in NSApp.windows where isMainWindow(window) {
+                window.makeKeyAndOrderFront(nil)
+            }
+            // Close welcome window if it's open (user doesn't need it)
+            for window in NSApp.windows where isWelcomeWindow(window) {
+                window.close()
+            }
+            NotificationCenter.default.post(name: .openSQLFiles, object: sqlURLs)
+        } else {
+            // Not connected — queue and show welcome window
+            queuedFileURLs.append(contentsOf: sqlURLs)
+            openWelcomeWindow()
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Configure windows after app launch
         configureWelcomeWindow()
@@ -128,6 +152,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWindow.willCloseNotification,
             object: nil
         )
+
+        // Observe database connection to flush queued .sql files
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDatabaseDidConnect),
+            name: .databaseDidConnect,
+            object: nil
+        )
+    }
+
+    @objc
+    private func handleDatabaseDidConnect() {
+        guard !queuedFileURLs.isEmpty else { return }
+        let urls = queuedFileURLs
+        queuedFileURLs.removeAll()
+
+        // Small delay to allow coordinator/tab manager to finish setup
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NotificationCenter.default.post(name: .openSQLFiles, object: urls)
+        }
     }
 
     /// Attempt to auto-reconnect to the last used connection

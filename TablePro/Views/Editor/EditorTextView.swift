@@ -23,8 +23,10 @@ final class EditorTextView: NSTextView {
     /// Callback when user clicks at a different position (to dismiss completion)
     var onClickOutsideCompletion: (() -> Void)?
 
-    /// Track the last cursor position for smart invalidation
-    private var lastCursorLine: Int = -1
+    /// Track the last cursor Y position for smart invalidation (O(1) comparison)
+    private var lastCursorLineY: CGFloat = -.greatestFiniteMagnitude
+    /// Cached rect of the last cursor line for invalidation
+    private var lastCursorLineRect: NSRect?
 
     /// Margin to expand invalidation rect to ensure borders/effects are redrawn
     private let lineInvalidationMargin: CGFloat = 2
@@ -37,16 +39,23 @@ final class EditorTextView: NSTextView {
         "{": "}",
     ]
 
-    private let reverseBracketPairs: [Character: Character] = [
-        ")": "(",
-        "]": "[",
-        "}": "{",
-    ]
-
     private let quotePairs: [Character: Character] = [
         "'": "'",
         "\"": "\"",
         "`": "`",
+    ]
+
+    // UTF-16 bracket pair maps for O(1) bracket matching without Array(string)
+    private let bracketPairMap: [unichar: unichar] = [
+        unichar(UnicodeScalar("(").value): unichar(UnicodeScalar(")").value),
+        unichar(UnicodeScalar("[").value): unichar(UnicodeScalar("]").value),
+        unichar(UnicodeScalar("{").value): unichar(UnicodeScalar("}").value),
+    ]
+
+    private let reverseBracketPairMap: [unichar: unichar] = [
+        unichar(UnicodeScalar(")").value): unichar(UnicodeScalar("(").value),
+        unichar(UnicodeScalar("]").value): unichar(UnicodeScalar("[").value),
+        unichar(UnicodeScalar("}").value): unichar(UnicodeScalar("{").value),
     ]
 
     // MARK: - Initialization
@@ -81,8 +90,12 @@ final class EditorTextView: NSTextView {
     @objc private func textDidChange(_ notification: Notification) {
         // Invalidate line cache when text changes
         lineCache = nil
-        // Reset last cursor line to avoid stale line numbers from previous document state
-        lastCursorLine = -1
+        // NOTE: Do NOT reset lastCursorLineY here. Resetting it forces
+        // invalidateLineHighlightIfNeeded() to query the layout manager on
+        // every single keystroke, even when typing on the same line. For 40MB
+        // files this triggers expensive layout computation per keystroke.
+        // The selectionDidChange handler naturally detects line changes via
+        // Y-position comparison, so the highlight stays correct without reset.
     }
 
     deinit {
@@ -95,77 +108,94 @@ final class EditorTextView: NSTextView {
         invalidateLineHighlightIfNeeded()
     }
 
-    /// Invalidate only the current and previous line regions for redraw
+    /// Invalidate only the current and previous line regions for redraw.
+    /// Uses O(1) layout manager glyph lookup + Y-position comparison instead of
+    /// iterating all lines before the cursor.
+    ///
+    /// Key optimization for large files: `textDidChange` does NOT reset
+    /// `lastCursorLineY`, so typing on the same line is a no-op here
+    /// (the Y comparison short-circuits). Layout manager queries for the
+    /// visible area are O(1) since layout is already cached.
     private func invalidateLineHighlightIfNeeded() {
         guard let layoutManager = layoutManager,
-              let textContainer = textContainer else {
+              layoutManager.numberOfGlyphs > 0 else {
+            needsDisplay = true
+            return
+        }
+
+        let charCount = (string as NSString).length
+        guard charCount > 0 else {
             needsDisplay = true
             return
         }
 
         let cursorPos = selectedRange().location
+        let clampedPos = min(max(cursorPos, 0), charCount)
 
-        // Calculate current line by iterating line-by-line with NSString's line APIs
-        // (more efficient than manual per-character scanning, but still linear in the
-        // number of lines before the cursor)
-        let currentLine: Int
-        if string.isEmpty {
-            currentLine = 0
+        // Get the Y position of the current cursor line via layout manager.
+        // For the visible area, these calls are O(1) — layout is already cached
+        // by the text view's display cycle. No ensureLayout needed.
+        let currentLineY: CGFloat
+        var currentRect: NSRect?
+
+        // O(1) trailing newline check via NSString UTF-16 access
+        let nsText = string as NSString
+        if clampedPos >= charCount && nsText.character(at: charCount - 1) == 0x0A {
+            // Cursor on empty last line after trailing newline
+            let lastGlyph = layoutManager.numberOfGlyphs - 1
+            guard lastGlyph >= 0 else { needsDisplay = true; return }
+            let lastRect = layoutManager.lineFragmentRect(forGlyphAt: lastGlyph, effectiveRange: nil)
+            currentLineY = lastRect.maxY + textContainerOrigin.y
+            // Compute currentRect so lastCursorLineRect is set — otherwise the
+            // old highlight can never be invalidated when the cursor moves away.
+            let emptyLineRect = NSRect(
+                x: textContainerOrigin.x,
+                y: lastRect.maxY + textContainerOrigin.y,
+                width: bounds.width - textContainerOrigin.x * 2,
+                height: lastRect.height
+            )
+            currentRect = emptyLineRect
         } else {
-            let nsString = string as NSString
-            let length = nsString.length
-
-            // Clamp cursor position to valid UTF-16 range
-            let clampedCursorPos = min(max(cursorPos, 0), length)
-
-            var lineNumber = 0
-            var index = 0
-
-            // Walk line by line until we reach or pass the cursor position
-            while index < clampedCursorPos {
-                var lineStart = 0
-                var lineEnd = 0
-                var contentsEnd = 0
-
-                nsString.getLineStart(&lineStart,
-                                      end: &lineEnd,
-                                      contentsEnd: &contentsEnd,
-                                      for: NSRange(location: index, length: 0))
-
-                // If we've reached the last line, stop
-                if lineEnd <= index {
-                    break
-                }
-
-                if lineEnd > clampedCursorPos {
-                    break
-                }
-
-                lineNumber += 1
-                index = lineEnd
+            let safePos = min(clampedPos, max(charCount - 1, 0))
+            let glyphIndex = layoutManager.glyphIndexForCharacter(at: safePos)
+            guard glyphIndex < layoutManager.numberOfGlyphs else {
+                needsDisplay = true
+                return
             }
-
-            currentLine = lineNumber
+            let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+            currentLineY = lineRect.origin.y + textContainerOrigin.y
+            var adjustedRect = lineRect
+            adjustedRect.origin.x = textContainerOrigin.x
+            adjustedRect.origin.y += textContainerOrigin.y
+            adjustedRect.size.width = bounds.width - textContainerOrigin.x * 2
+            currentRect = adjustedRect
         }
 
-        // Skip if cursor is on the same line
-        if currentLine == lastCursorLine {
+        // Skip if cursor is on the same line (compare Y positions).
+        // This is the fast path for typing — since textDidChange does NOT
+        // reset lastCursorLineY, consecutive keystrokes on the same line
+        // hit this early return and skip all invalidation work.
+        if abs(currentLineY - lastCursorLineY) < 1.0 {
             return
         }
 
-        // Invalidate the previous line rect
-        if lastCursorLine >= 0 {
-            if let rect = lineRectForLine(lastCursorLine, layoutManager: layoutManager, textContainer: textContainer) {
-                setNeedsDisplay(rect.insetBy(dx: -lineInvalidationMargin, dy: -lineInvalidationMargin))
-            }
+        // Invalidate the previous line rect so super.drawBackground clears
+        // the old highlight. If lastCursorLineRect is nil (rare — should be
+        // initialized by initializeCursorLineTracking), fall back to a full
+        // redraw to ensure the stale highlight is cleared.
+        if let prevRect = lastCursorLineRect {
+            setNeedsDisplay(prevRect.insetBy(dx: -lineInvalidationMargin, dy: -lineInvalidationMargin))
+        } else {
+            needsDisplay = true
         }
 
         // Invalidate the current line rect
-        if let rect = lineRectForLine(currentLine, layoutManager: layoutManager, textContainer: textContainer) {
+        if let rect = currentRect {
             setNeedsDisplay(rect.insetBy(dx: -lineInvalidationMargin, dy: -lineInvalidationMargin))
         }
 
-        lastCursorLine = currentLine
+        lastCursorLineY = currentLineY
+        lastCursorLineRect = currentRect
     }
 
     /// Simple cache for line lookups to avoid repeated O(n) scans for consecutive lines.
@@ -239,8 +269,8 @@ final class EditorTextView: NSTextView {
         // If we reached the target line, charIndex is already set to its start
         // Otherwise it was clamped to the last valid position
 
-        layoutManager.ensureLayout(for: textContainer)
-
+        // Do NOT call ensureLayout — with allowsNonContiguousLayout = true,
+        // glyphIndexForCharacter triggers local layout lazily as needed.
         let glyphIndex = layoutManager.glyphIndexForCharacter(at: charIndex)
         guard glyphIndex < layoutManager.numberOfGlyphs else { return nil }
 
@@ -255,26 +285,77 @@ final class EditorTextView: NSTextView {
         return lineRect
     }
 
+    /// Initialize cursor line tracking state.
+    /// Must be called after the delegate is set up so that the first cursor
+    /// movement can properly invalidate the initial highlight position.
+    /// Without this, `lastCursorLineRect` stays nil and the stale highlight
+    /// drawn at the initial cursor position (end of text) is never cleared.
+    func initializeCursorLineTracking() {
+        guard let layoutManager = layoutManager,
+              layoutManager.numberOfGlyphs > 0 else { return }
+
+        let charCount = (string as NSString).length
+        guard charCount > 0 else { return }
+
+        let cursorPos = selectedRange().location
+        let clampedPos = min(max(cursorPos, 0), charCount)
+
+        let nsText = string as NSString
+        if clampedPos >= charCount && nsText.character(at: charCount - 1) == 0x0A {
+            let lastGlyph = layoutManager.numberOfGlyphs - 1
+            guard lastGlyph >= 0 else { return }
+            let lastRect = layoutManager.lineFragmentRect(
+                forGlyphAt: lastGlyph, effectiveRange: nil
+            )
+            lastCursorLineY = lastRect.maxY + textContainerOrigin.y
+            lastCursorLineRect = NSRect(
+                x: textContainerOrigin.x,
+                y: lastRect.maxY + textContainerOrigin.y,
+                width: bounds.width - textContainerOrigin.x * 2,
+                height: lastRect.height
+            )
+        } else {
+            let safePos = min(clampedPos, max(charCount - 1, 0))
+            let glyphIndex = layoutManager.glyphIndexForCharacter(at: safePos)
+            guard glyphIndex < layoutManager.numberOfGlyphs else { return }
+            let lineRect = layoutManager.lineFragmentRect(
+                forGlyphAt: glyphIndex, effectiveRange: nil
+            )
+            lastCursorLineY = lineRect.origin.y + textContainerOrigin.y
+            var adjustedRect = lineRect
+            adjustedRect.origin.x = textContainerOrigin.x
+            adjustedRect.origin.y += textContainerOrigin.y
+            adjustedRect.size.width = bounds.width - textContainerOrigin.x * 2
+            lastCursorLineRect = adjustedRect
+        }
+    }
+
     // MARK: - Drawing
 
     /// Draw background elements (current line highlight, bracket matching)
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
 
-        // Draw visual features after background
-        drawCurrentLineHighlight()
+        // Draw visual features after background, clipped to the dirty rect.
+        // Only draw the highlight if it intersects the area being redrawn —
+        // otherwise we'd re-paint a stale highlight in a region that
+        // super.drawBackground didn't clear.
+        drawCurrentLineHighlight(in: rect)
         drawBracketHighlights()
     }
 
-    /// Draw highlight for the current line
-    private func drawCurrentLineHighlight() {
-        guard let layoutManager = layoutManager,
-              let textContainer = textContainer else { return }
+    /// Draw highlight for the current line, clipped to the given dirty rect.
+    /// If the highlight rect does not intersect `dirtyRect`, drawing is skipped
+    /// to prevent re-painting a stale highlight in a region that was not cleared.
+    private func drawCurrentLineHighlight(in dirtyRect: NSRect) {
+        guard let layoutManager = layoutManager else { return }
 
         let cursorPos = selectedRange().location
+        let nsString = string as NSString
+        let textLength = nsString.length
 
         // Handle empty document
-        if string.isEmpty {
+        if textLength == 0 {
             let origin = textContainerOrigin
             let lineRect = NSRect(
                 x: origin.x,
@@ -282,28 +363,31 @@ final class EditorTextView: NSTextView {
                 width: bounds.width - origin.x * 2,
                 height: 17
             )
+            guard lineRect.intersects(dirtyRect) else { return }
             SQLEditorTheme.currentLineHighlight.setFill()
-            NSBezierPath(roundedRect: lineRect, xRadius: SQLEditorTheme.highlightCornerRadius, yRadius: SQLEditorTheme.highlightCornerRadius).fill()
+            NSBezierPath(
+                roundedRect: lineRect,
+                xRadius: SQLEditorTheme.highlightCornerRadius,
+                yRadius: SQLEditorTheme.highlightCornerRadius
+            ).fill()
             return
         }
 
-        layoutManager.ensureLayout(for: textContainer)
-
+        // Do NOT call ensureLayout — with allowsNonContiguousLayout = true,
+        // glyphIndexForCharacter / lineFragmentRect trigger local layout lazily.
         guard layoutManager.numberOfGlyphs > 0 else { return }
 
         var lineRect: NSRect
 
         // Handle cursor at end of document
-        if cursorPos >= string.count {
-            // Cursor is at or past the end
-            if string.hasSuffix("\n") {
-                // Trailing newline - cursor on new empty line
-                let lastGlyphIndex = layoutManager.numberOfGlyphs - 1
+        if cursorPos >= textLength {
+            // O(1) check for trailing newline using NSString UTF-16 access
+            let hasTrailingNewline = nsString.character(at: textLength - 1) == 0x0A
+            let lastGlyphIndex = layoutManager.numberOfGlyphs - 1
+            if hasTrailingNewline {
                 let lastLineRect = layoutManager.lineFragmentRect(forGlyphAt: lastGlyphIndex, effectiveRange: nil)
                 lineRect = NSRect(x: 0, y: lastLineRect.maxY, width: bounds.width, height: lastLineRect.height)
             } else {
-                // No trailing newline - cursor on same line as last character
-                let lastGlyphIndex = layoutManager.numberOfGlyphs - 1
                 lineRect = layoutManager.lineFragmentRect(forGlyphAt: lastGlyphIndex, effectiveRange: nil)
             }
         } else {
@@ -319,52 +403,78 @@ final class EditorTextView: NSTextView {
         lineRect.origin.y += origin.y
         lineRect.size.width = bounds.width - origin.x * 2
 
+        // Only draw the highlight if it intersects the dirty rect.
+        // When the cursor moves, only the old and new line rects are
+        // invalidated. If drawBackground is called for a dirty rect that
+        // does NOT include the current cursor line (e.g., the old line
+        // being cleared), we must skip drawing here — otherwise we'd
+        // re-paint the highlight at the cursor position in a region whose
+        // old content was not cleared by super.drawBackground.
+        guard lineRect.intersects(dirtyRect) else { return }
+
         SQLEditorTheme.currentLineHighlight.setFill()
-        NSBezierPath(roundedRect: lineRect, xRadius: SQLEditorTheme.highlightCornerRadius, yRadius: SQLEditorTheme.highlightCornerRadius).fill()
+        NSBezierPath(
+            roundedRect: lineRect,
+            xRadius: SQLEditorTheme.highlightCornerRadius,
+            yRadius: SQLEditorTheme.highlightCornerRadius
+        ).fill()
     }
 
     /// Draw highlights for matching brackets
     private func drawBracketHighlights() {
         guard let layoutManager = layoutManager,
-              let textContainer = textContainer,
+              textContainer != nil,
               !string.isEmpty,
               layoutManager.numberOfGlyphs > 0 else { return }
 
+        let nsString = string as NSString
+        let length = nsString.length
+
+        // Skip bracket highlighting for very large documents — the layout manager
+        // queries and bracket search add overhead that causes lag during editing.
+        if length > 1_000_000 { return }
+
         let cursorPos = selectedRange().location
-        let chars = Array(string)
 
-        // Find bracket at or before cursor
+        // Find bracket at or before cursor using UTF-16 access (O(1) per char)
         var bracketPos: Int?
-        var bracket: Character?
+        var bracketUnichar: unichar?
 
-        if cursorPos < chars.count {
-            let char = chars[cursorPos]
-            if bracketPairs[char] != nil || reverseBracketPairs[char] != nil {
+        if cursorPos < length {
+            let ch = nsString.character(at: cursorPos)
+            if bracketPairMap[ch] != nil || reverseBracketPairMap[ch] != nil {
                 bracketPos = cursorPos
-                bracket = char
+                bracketUnichar = ch
             }
         }
 
-        if bracket == nil && cursorPos > 0 && cursorPos - 1 < chars.count {
-            let char = chars[cursorPos - 1]
-            if bracketPairs[char] != nil || reverseBracketPairs[char] != nil {
+        if bracketUnichar == nil && cursorPos > 0 && cursorPos - 1 < length {
+            let ch = nsString.character(at: cursorPos - 1)
+            if bracketPairMap[ch] != nil || reverseBracketPairMap[ch] != nil {
                 bracketPos = cursorPos - 1
-                bracket = char
+                bracketUnichar = ch
             }
         }
 
         guard let foundPos = bracketPos,
-              let foundBracket = bracket,
-              let matchPos = findMatchingBracket(at: foundPos, bracket: foundBracket, in: chars) else { return }
+              let foundBracket = bracketUnichar,
+              let matchPos = findMatchingBracketUTF16(
+                  at: foundPos, bracket: foundBracket, in: nsString
+              ) else { return }
 
-        layoutManager.ensureLayout(for: textContainer)
+        // Do NOT call ensureLayout — with allowsNonContiguousLayout = true,
+        // the layout manager handles lazy layout for glyph queries.
 
         // Draw highlight for both brackets
         SQLEditorTheme.bracketMatchHighlight.setFill()
 
         for pos in [foundPos, matchPos] {
             if let rect = rectForCharacter(at: pos) {
-                NSBezierPath(roundedRect: rect, xRadius: SQLEditorTheme.highlightCornerRadius, yRadius: SQLEditorTheme.highlightCornerRadius).fill()
+                NSBezierPath(
+                    roundedRect: rect,
+                    xRadius: SQLEditorTheme.highlightCornerRadius,
+                    yRadius: SQLEditorTheme.highlightCornerRadius
+                ).fill()
             }
         }
     }
@@ -460,32 +570,39 @@ final class EditorTextView: NSTextView {
 
     // MARK: - Auto-Indent
 
-    /// Override newline to auto-indent based on previous line
+    /// Override newline to auto-indent based on previous line.
+    /// Uses NSString range scanning to avoid O(n) String allocation for large files.
     override func insertNewline(_ sender: Any?) {
         guard SQLEditorTheme.autoIndent else {
             super.insertNewline(sender)
             return
         }
 
-        let text = self.string
-        let cursorPos = selectedRange().location
+        let nsText = string as NSString
+        let cursorPos = min(selectedRange().location, nsText.length)
 
-        // Find start of current line
-        let textBeforeCursor = String(text.prefix(cursorPos))
-        guard let lastNewline = textBeforeCursor.lastIndex(of: "\n") else {
+        // Find the last newline before cursor using NSString backwards search (O(line length))
+        let searchRange = NSRange(location: 0, length: cursorPos)
+        let newlineRange = nsText.range(of: "\n", options: .backwards, range: searchRange)
+
+        guard newlineRange.location != NSNotFound else {
             // First line, no indent to copy
             super.insertNewline(sender)
             return
         }
 
-        let lineStart = textBeforeCursor.index(after: lastNewline)
-        let currentLine = String(textBeforeCursor[lineStart...])
-
-        // Extract leading whitespace
+        // Extract leading whitespace from the line after the newline
+        let lineStart = newlineRange.location + 1
         var indent = ""
-        for char in currentLine {
-            if char == " " || char == "\t" {
-                indent.append(char)
+        var pos = lineStart
+        while pos < cursorPos {
+            let ch = nsText.character(at: pos)
+            if ch == 0x20 { // space
+                indent.append(" ")
+                pos += 1
+            } else if ch == 0x09 { // tab
+                indent.append("\t")
+                pos += 1
             } else {
                 break
             }
@@ -516,32 +633,27 @@ final class EditorTextView: NSTextView {
 
     private func shouldSkipClosingQuote(_ quote: Character) -> Bool {
         let pos = selectedRange().location
-        let utf16View = string.utf16
-        guard pos < utf16View.count else { return false }
-        let index = utf16View.index(utf16View.startIndex, offsetBy: pos)
-        guard let scalar = UnicodeScalar(utf16View[index]) else { return false }
+        let nsString = string as NSString
+        guard pos < nsString.length else { return false }
+        guard let scalar = UnicodeScalar(nsString.character(at: pos)) else { return false }
         return Character(scalar) == quote
     }
 
     private func shouldSkipClosingBracket(_ bracket: Character) -> Bool {
         let pos = selectedRange().location
-        let utf16View = string.utf16
-        guard pos < utf16View.count else { return false }
-        let index = utf16View.index(utf16View.startIndex, offsetBy: pos)
-        guard let scalar = UnicodeScalar(utf16View[index]) else { return false }
+        let nsString = string as NSString
+        guard pos < nsString.length else { return false }
+        guard let scalar = UnicodeScalar(nsString.character(at: pos)) else { return false }
         return Character(scalar) == bracket
     }
 
     private func shouldDeletePair() -> Bool {
         let pos = selectedRange().location
-        let utf16View = string.utf16
-        guard pos > 0, pos < utf16View.count else { return false }
+        let nsString = string as NSString
+        guard pos > 0, pos < nsString.length else { return false }
 
-        let prevIndex = utf16View.index(utf16View.startIndex, offsetBy: pos - 1)
-        let nextIndex = utf16View.index(utf16View.startIndex, offsetBy: pos)
-
-        guard let prevScalar = UnicodeScalar(utf16View[prevIndex]),
-              let nextScalar = UnicodeScalar(utf16View[nextIndex]) else { return false }
+        guard let prevScalar = UnicodeScalar(nsString.character(at: pos - 1)),
+              let nextScalar = UnicodeScalar(nsString.character(at: pos)) else { return false }
 
         let prevChar = Character(prevScalar)
         let nextChar = Character(nextScalar)
@@ -568,30 +680,38 @@ final class EditorTextView: NSTextView {
 
     // MARK: - Bracket Matching
 
-    private func findMatchingBracket(at position: Int, bracket: Character, in chars: [Character]) -> Int? {
-        let isOpening = bracketPairs[bracket] != nil
-        let matchingBracket: Character
+    /// Maximum distance to search for matching bracket (prevents scanning 170k chars)
+    private static let maxBracketSearchDistance = 5_000
+
+    /// UTF-16 bracket matching using NSString — avoids O(n) Array(string) allocation.
+    /// Caps search at ±5000 characters to stay responsive on large files.
+    private func findMatchingBracketUTF16(at position: Int, bracket: unichar, in nsString: NSString) -> Int? {
+        let isOpening = bracketPairMap[bracket] != nil
+        let matchingBracket: unichar
         let direction: Int
 
         if isOpening {
-            guard let match = bracketPairs[bracket] else { return nil }
+            guard let match = bracketPairMap[bracket] else { return nil }
             matchingBracket = match
             direction = 1
         } else {
-            guard let match = reverseBracketPairs[bracket] else { return nil }
+            guard let match = reverseBracketPairMap[bracket] else { return nil }
             matchingBracket = match
             direction = -1
         }
 
+        let length = nsString.length
+        let limit = Self.maxBracketSearchDistance
         var depth = 1
         var pos = position + direction
+        var searched = 0
 
-        while pos >= 0 && pos < chars.count {
-            let char = chars[pos]
+        while pos >= 0 && pos < length && searched < limit {
+            let ch = nsString.character(at: pos)
 
-            if char == bracket {
+            if ch == bracket {
                 depth += 1
-            } else if char == matchingBracket {
+            } else if ch == matchingBracket {
                 depth -= 1
                 if depth == 0 {
                     return pos
@@ -599,15 +719,16 @@ final class EditorTextView: NSTextView {
             }
 
             pos += direction
+            searched += 1
         }
 
-        return nil // No matching bracket found
+        return nil
     }
 
     private func rectForCharacter(at index: Int) -> NSRect? {
         guard let layoutManager = layoutManager,
               let container = textContainer,
-              index < string.count,
+              index < (string as NSString).length,
               layoutManager.numberOfGlyphs > 0 else { return nil }
 
         let glyphIndex = layoutManager.glyphIndexForCharacter(at: index)

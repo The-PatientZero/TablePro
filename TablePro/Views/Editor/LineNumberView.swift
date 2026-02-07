@@ -19,11 +19,11 @@ final class LineNumberView: NSView {
     /// Cached line start indices (character positions)
     private var lineStartIndices: [Int] = [0]
 
-    /// Last known text length (to detect changes)
-    private var lastTextLength: Int = 0
-
     /// Current width of the view
     private var currentWidth: CGFloat = SQLEditorTheme.lineNumberRulerMinThickness
+
+    /// Debounce work item for line cache rebuild (avoids rebuilding 170k line cache per keystroke)
+    private var lineCacheDebounceItem: DispatchWorkItem?
 
     // MARK: - Initialization
 
@@ -53,9 +53,21 @@ final class LineNumberView: NSView {
             object: clipView
         )
 
-        // Initial cache build
-        updateLineCache(for: textView.string)
-        updateWidth()
+        // Initial cache build — defer for large documents to avoid blocking main thread
+        let nsText = textView.string as NSString
+        let textLength = nsText.length
+        if textLength > 100_000 {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let tv = self.textView else { return }
+                let currentNSText = tv.string as NSString
+                self.rebuildLineCache(for: currentNSText)
+                self.updateWidth()
+                self.needsDisplay = true
+            }
+        } else {
+            rebuildLineCache(for: nsText)
+            updateWidth()
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -81,9 +93,30 @@ final class LineNumberView: NSView {
 
     @objc private func textDidChange(_ notification: Notification) {
         guard let textView = textView else { return }
-        updateLineCache(for: textView.string)
-        updateWidth()
-        needsDisplay = true
+        let nsText = textView.string as NSString
+        let textLength = nsText.length
+
+        // For large documents, debounce the full line cache rebuild.
+        // draw() enumerates line fragments from the layout manager directly
+        // (not from lineStartIndices), so stale cache only affects the
+        // first-visible-line NUMBER — off by ±1 during the debounce window.
+        if textLength > 10_000 {
+            lineCacheDebounceItem?.cancel()
+            let item = DispatchWorkItem { [weak self] in
+                guard let self, let tv = self.textView else { return }
+                let currentNSText = tv.string as NSString
+                self.rebuildLineCache(for: currentNSText)
+                self.updateWidth()
+                self.needsDisplay = true
+            }
+            lineCacheDebounceItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: item)
+            needsDisplay = true
+        } else {
+            rebuildLineCache(for: nsText)
+            updateWidth()
+            needsDisplay = true
+        }
     }
 
     @objc private func boundsDidChange(_ notification: Notification) {
@@ -93,35 +126,21 @@ final class LineNumberView: NSView {
 
     // MARK: - Line Cache Management
 
-    /// Update cached line start indices
-    private func updateLineCache(for text: String) {
-        // If text is empty, reset to single line
-        guard !text.isEmpty else {
-            lineStartIndices = [0]
-            lastTextLength = 0
-            return
-        }
-
-        // If length changed significantly, rebuild cache
-        let textLength = text.count
-        if abs(textLength - lastTextLength) > 100 || lineStartIndices.isEmpty {
-            rebuildLineCache(for: text)
-        } else {
-            // For simplicity, rebuild (still fast for typical edits)
-            rebuildLineCache(for: text)
-        }
-
-        lastTextLength = textLength
-    }
-
-    /// Rebuild line cache from scratch
-    private func rebuildLineCache(for text: String) {
+    /// Rebuild line cache from scratch using fast NSString scanning.
+    /// Accepts NSString directly to avoid String<->NSString bridging overhead.
+    private func rebuildLineCache(for nsString: NSString) {
         lineStartIndices = [0]
 
-        for (index, char) in text.enumerated() {
-            if char == "\n" {
-                lineStartIndices.append(index + 1)
-            }
+        let length = nsString.length
+        var searchStart = 0
+        while searchStart < length {
+            let range = nsString.range(
+                of: "\n",
+                range: NSRange(location: searchStart, length: length - searchStart)
+            )
+            if range.location == NSNotFound { break }
+            lineStartIndices.append(range.location + 1)
+            searchStart = range.location + 1
         }
     }
 
@@ -157,10 +176,11 @@ final class LineNumberView: NSView {
               let textContainer = textView.textContainer,
               let scrollView = scrollView else { return }
 
-        let text = textView.string
+        let nsText = textView.string as NSString
+        let textLength = nsText.length
 
         // Handle empty document
-        guard !text.isEmpty else {
+        guard textLength > 0 else {
             drawLineNumber(1, at: textView.textContainerOrigin.y)
             return
         }
@@ -169,55 +189,98 @@ final class LineNumberView: NSView {
         let visibleRect = scrollView.contentView.bounds
         let textContainerOrigin = textView.textContainerOrigin
 
-        // Ensure layout
-        layoutManager.ensureLayout(for: textContainer)
-
-        guard layoutManager.numberOfGlyphs > 0 else { return }
-
-        // Get visible glyph range
-        let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
-        guard visibleGlyphRange.location != NSNotFound else { return }
+        // Get visible glyph range (triggers lazy layout for visible area only,
+        // avoids forcing full-document layout which freezes on large files)
+        let visibleGlyphRange = layoutManager.glyphRange(
+            forBoundingRect: visibleRect, in: textContainer
+        )
+        guard visibleGlyphRange.location != NSNotFound,
+              visibleGlyphRange.length > 0 else { return }
 
         // Get character range for visible glyphs
-        let visibleCharRange = layoutManager.characterRange(forGlyphRange: visibleGlyphRange, actualGlyphRange: nil)
+        let visibleCharRange = layoutManager.characterRange(
+            forGlyphRange: visibleGlyphRange, actualGlyphRange: nil
+        )
 
-        // Find first visible line using binary search on cached indices
-        let firstVisibleLine = lineStartIndices.lastIndex { $0 <= visibleCharRange.location } ?? 0
+        // Get the first visible line NUMBER from the (possibly stale) cache.
+        // During the 200ms debounce window this may be off by ±1 which is
+        // imperceptible. The cache is never used for character POSITIONS —
+        // we enumerate line fragments from the layout manager instead.
+        let firstVisibleLineIdx = binarySearchLastIndex(
+            in: lineStartIndices, atOrBefore: visibleCharRange.location
+        )
+        var lineNumber = firstVisibleLineIdx + 1
 
-        // Draw line numbers for visible lines
-        var lineNumber = firstVisibleLine + 1
-        var currentIndex = firstVisibleLine
-        var lastDrawnY: CGFloat = -1_000 // Track last Y position to avoid duplicates
+        // Enumerate line fragments in the visible glyph range.
+        // This uses the layout manager's current state (always accurate)
+        // and only touches the already-laid-out visible region — O(visible lines).
+        var glyphIdx = visibleGlyphRange.location
+        var lastDrawnY: CGFloat = -1_000
 
-        while currentIndex < lineStartIndices.count {
-            let lineStart = lineStartIndices[currentIndex]
+        while glyphIdx < NSMaxRange(visibleGlyphRange) {
+            var effectiveRange = NSRange()
+            let lineRect = layoutManager.lineFragmentRect(
+                forGlyphAt: glyphIdx, effectiveRange: &effectiveRange
+            )
 
-            // Stop if we've gone past visible range
-            if lineStart >= NSMaxRange(visibleCharRange) {
-                break
+            // Check if this fragment starts a real line (not a wrapped continuation).
+            // A real line start is at character 0 or right after a newline.
+            let charIdx = layoutManager.characterIndexForGlyph(at: glyphIdx)
+            let isRealLineStart = charIdx == 0
+                || nsText.character(at: charIdx - 1) == 0x0A // '\n'
+
+            if isRealLineStart {
+                let yPos = floor(
+                    lineRect.origin.y + textContainerOrigin.y - visibleRect.origin.y
+                )
+                if abs(yPos - lastDrawnY) > 1.0 {
+                    drawLineNumber(lineNumber, at: yPos)
+                    lastDrawnY = yPos
+                }
+                lineNumber += 1
             }
 
-            // Get glyph index for this line
-            let glyphIndex = layoutManager.glyphIndexForCharacter(at: lineStart)
-            guard glyphIndex < layoutManager.numberOfGlyphs else { break }
+            // Advance past this fragment. Safety: always advance by at least 1
+            // to prevent infinite loop if effectiveRange is zero-length.
+            let nextGlyph = NSMaxRange(effectiveRange)
+            glyphIdx = nextGlyph > glyphIdx ? nextGlyph : glyphIdx + 1
+        }
 
-            // Get line fragment rect (this gives us the first line fragment for wrapped lines)
-            var effectiveRange = NSRange()
-            let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &effectiveRange)
-
-            // Calculate Y position in line number view coordinates
-            // Pixel-align for crisp rendering
-            let yPos = floor(lineRect.origin.y + textContainerOrigin.y - visibleRect.origin.y)
-
-            // Only draw if this is a new Y position (avoid drawing for wrapped line fragments)
+        // Handle trailing empty line: if text ends with \n, the last line
+        // has no glyphs so it wasn't covered by the fragment enumeration.
+        if nsText.character(at: textLength - 1) == 0x0A {
+            let lastGlyph = layoutManager.numberOfGlyphs
+            guard lastGlyph > 0 else { return }
+            let lastRect = layoutManager.lineFragmentRect(
+                forGlyphAt: lastGlyph - 1, effectiveRange: nil
+            )
+            let yPos = floor(
+                lastRect.maxY + textContainerOrigin.y - visibleRect.origin.y
+            )
             if abs(yPos - lastDrawnY) > 1.0 {
                 drawLineNumber(lineNumber, at: yPos)
-                lastDrawnY = yPos
             }
-
-            lineNumber += 1
-            currentIndex += 1
         }
+    }
+
+    /// Binary search for the last index in a sorted array whose value is ≤ target.
+    /// Returns 0 if no element satisfies the condition.
+    private func binarySearchLastIndex(in array: [Int], atOrBefore target: Int) -> Int {
+        var low = 0
+        var high = array.count - 1
+        var result = 0
+
+        while low <= high {
+            let mid = low + (high - low) / 2
+            if array[mid] <= target {
+                result = mid
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+
+        return result
     }
 
     /// Draw a single line number at the specified Y position

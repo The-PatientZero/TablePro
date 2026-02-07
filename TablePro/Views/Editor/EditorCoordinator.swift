@@ -35,6 +35,13 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
     // Prevent SwiftUI -> NSTextView feedback loop
     private var isUpdatingFromTextView: Bool = false
 
+    // Debounce text binding updates to avoid O(n) string copy per keystroke
+    private var textUpdateTask: Task<Void, Never>?
+
+    // Generation counter to skip O(n) string comparison in updateTextViewIfNeeded
+    private var textVersion: UInt64 = 0
+    private var lastAppliedTextVersion: UInt64 = 0
+
     // MARK: - Initialization
 
     init(
@@ -70,8 +77,22 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
         // Create syntax highlighter
         syntaxHighlighter = SyntaxHighlighter(textStorage: textStorage)
 
-        // Apply initial highlighting
-        syntaxHighlighter?.highlightFullDocument()
+        // Attach scroll view for viewport-based highlighting on large documents
+        if let scrollView = textView.enclosingScrollView {
+            syntaxHighlighter?.attachScrollView(scrollView, textView: textView)
+        }
+
+        // Apply initial highlighting.
+        // For large documents, defer to next run loop so the scroll view has valid bounds
+        // for viewport-based highlighting. During makeNSView, bounds are still zero.
+        let textLength = textStorage.length
+        if textLength > 50_000 {
+            DispatchQueue.main.async { [weak self] in
+                self?.syntaxHighlighter?.highlightFullDocument()
+            }
+        } else {
+            syntaxHighlighter?.highlightFullDocument()
+        }
 
         // Set up callbacks
         textView.onExecute = { [weak self] in
@@ -105,6 +126,14 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
             name: .clearSelection,
             object: nil
         )
+
+        // Initialize cursor line tracking state so the first cursor movement
+        // can properly invalidate the initial highlight. Deferred to next run
+        // loop because during makeNSView the scroll view bounds are still zero
+        // and layout may not be ready.
+        DispatchQueue.main.async { [weak textView] in
+            textView?.initializeCursorLineTracking()
+        }
     }
 
     deinit {
@@ -112,8 +141,28 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
     }
 
     @objc private func handleTabSwitch() {
+        // Flush pending debounced text update before tab switch
+        flushTextUpdate()
         // Dismiss completion when switching tabs to prevent duplicates
         dismissCompletion()
+
+        // Desync version counter so the next updateTextViewIfNeeded() performs
+        // string comparison. The flush above triggers @Published which schedules
+        // a new SwiftUI update cycle — in that cycle, updateNSView passes the
+        // NEW tab's text, and the desynced versions ensure it actually applies.
+        textVersion &+= 1
+    }
+
+    /// Flush any pending debounced text update immediately
+    private func flushTextUpdate() {
+        guard let textView = textView else { return }
+        textUpdateTask?.cancel()
+        textUpdateTask = nil
+        isUpdatingFromTextView = true
+        textVersion &+= 1
+        lastAppliedTextVersion = textVersion
+        text = textView.string
+        isUpdatingFromTextView = false
     }
 
     @objc private func handleClearSelection() {
@@ -126,11 +175,19 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
     func textDidChange(_ notification: Notification) {
         guard let textView = notification.object as? NSTextView else { return }
 
-        // Update SwiftUI bindings
-        isUpdatingFromTextView = true
-        text = textView.string
-        cursorPosition = textView.selectedRange().location
-        isUpdatingFromTextView = false
+        // Debounce both cursor position and text binding updates to avoid
+        // publishing changes during view updates (which causes undefined behavior).
+        textUpdateTask?.cancel()
+        textUpdateTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            guard let self, let textView = self.textView, !Task.isCancelled else { return }
+            self.isUpdatingFromTextView = true
+            self.textVersion &+= 1
+            self.lastAppliedTextVersion = self.textVersion
+            self.cursorPosition = textView.selectedRange().location
+            self.text = textView.string
+            self.isUpdatingFromTextView = false
+        }
 
         // Note: Syntax highlighting happens automatically via NSTextStorageDelegate
         // No need to manually trigger it here
@@ -142,10 +199,13 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
     func textViewDidChangeSelection(_ notification: Notification) {
         guard let textView = notification.object as? NSTextView else { return }
 
-        // Update cursor position binding
-        isUpdatingFromTextView = true
-        cursorPosition = textView.selectedRange().location
-        isUpdatingFromTextView = false
+        // Defer cursor position update to avoid publishing during view updates
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.isUpdatingFromTextView = true
+            self.cursorPosition = textView.selectedRange().location
+            self.isUpdatingFromTextView = false
+        }
     }
 
     // MARK: - SwiftUI -> NSTextView Updates
@@ -153,13 +213,34 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
     /// Update text view from SwiftUI (prevents feedback loop)
     func updateTextViewIfNeeded(with newText: String) {
         guard !isUpdatingFromTextView,
-              let textView = textView,
-              textView.string != newText else { return }
+              let textView = textView else { return }
+
+        // Use version counter to skip O(n) string comparison when the change
+        // originated from this coordinator (textDidChange increments version)
+        if lastAppliedTextVersion == textVersion {
+            return
+        }
+
+        // External update (e.g. tab switch) — fall back to string comparison
+        guard textView.string != newText else {
+            lastAppliedTextVersion = textVersion
+            return
+        }
 
         // Update without breaking undo stack
         // Since this is coming from SwiftUI (external update), we use direct assignment
         textView.string = newText
-        syntaxHighlighter?.highlightFullDocument()
+        lastAppliedTextVersion = textVersion
+        // Highlighting is handled by SyntaxHighlighter's NSTextStorageDelegate,
+        // which defers to async chunked processing for large documents.
+
+        // Re-initialize cursor line tracking after external text change (e.g. tab
+        // switch). Setting .string moves the cursor to the end but may not fire
+        // selectionDidChange through the delegate, leaving lastCursorLineRect
+        // stale. Defer so layout is ready.
+        DispatchQueue.main.async { [weak textView] in
+            textView?.initializeCursorLineTracking()
+        }
     }
 
     // MARK: - Completion
@@ -245,21 +326,22 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
 
         let text = textView.string
         let cursorPosition = textView.selectedRange().location
+        let textLength = (text as NSString).length
 
-        guard !text.isEmpty else { return nil }
+        guard textLength > 0 else { return nil }
 
-        // Ensure cursor position is valid
-        let safePosition = min(max(0, cursorPosition), text.count)
+        // Ensure cursor position is valid (use O(1) NSString.length)
+        let safePosition = min(max(0, cursorPosition), textLength)
 
-        // Ensure layout is up to date
-        layoutManager.ensureLayout(forCharacterRange: NSRange(location: 0, length: text.count))
+        // Do NOT call ensureLayout — with allowsNonContiguousLayout = true,
+        // the layout manager handles lazy layout. Forcing layout freezes on large files.
 
         // Get glyph count safely
         let glyphCount = layoutManager.numberOfGlyphs
         guard glyphCount > 0 else { return nil }
 
         // Safe glyph index calculation
-        let charIndex = min(safePosition, text.count - 1)
+        let charIndex = min(safePosition, textLength - 1)
         let glyphIndex = min(layoutManager.glyphIndexForCharacter(at: max(0, charIndex)), glyphCount - 1)
 
         // Get line rect safely

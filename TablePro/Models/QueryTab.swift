@@ -319,12 +319,24 @@ struct QueryTab: Identifiable, Equatable {
         self.tableCreationOptions = nil
     }
 
+    /// Maximum query size to persist (500KB). Queries larger than this are typically
+    /// imported SQL dumps — serializing them to JSON blocks the main thread.
+    private static let maxPersistableQuerySize = 500_000
+
     /// Convert tab to persisted format for storage
     func toPersistedTab() -> PersistedTab {
-        PersistedTab(
+        // Truncate very large queries to prevent JSON encoding from blocking main thread
+        let persistedQuery: String
+        if (query as NSString).length > Self.maxPersistableQuerySize {
+            persistedQuery = ""
+        } else {
+            persistedQuery = query
+        }
+
+        return PersistedTab(
             id: id,
             title: title,
-            query: query,
+            query: persistedQuery,
             isPinned: isPinned,
             tabType: tabType,
             tableName: tableName
@@ -359,9 +371,10 @@ final class QueryTabManager: ObservableObject {
 
     // MARK: - Tab Management
 
-    func addTab(initialQuery: String? = nil) {
+    func addTab(initialQuery: String? = nil, title: String? = nil) {
         let queryCount = tabs.filter { $0.tabType == .query }.count
-        var newTab = QueryTab(title: "Query \(queryCount + 1)", tabType: .query)
+        let tabTitle = title ?? "Query \(queryCount + 1)"
+        var newTab = QueryTab(title: tabTitle, tabType: .query)
 
         // If initialQuery provided, use it; otherwise tab starts empty
         if let query = initialQuery {

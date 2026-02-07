@@ -38,7 +38,7 @@ struct ConnectionSidebarHeader: View {
                                         .renderingMode(.template)
                                         .foregroundStyle(session.connection.displayColor)
 
-                                    Text(session.connection.database)
+                                    Text(session.connection.name)
 
                                     Spacer()
 
@@ -112,7 +112,9 @@ struct ConnectionSidebarHeader: View {
                         if let session = currentSession {
                             Circle()
                                 .fill(statusColor(for: session))
-                                .frame(width: DesignConstants.IconSize.tinyDot, height: DesignConstants.IconSize.tinyDot)
+                                .frame(
+                                    width: DesignConstants.IconSize.tinyDot,
+                                    height: DesignConstants.IconSize.tinyDot)
                         }
 
                         Image(systemName: "chevron.down")
@@ -141,7 +143,9 @@ struct ConnectionSidebarHeader: View {
         HStack(spacing: 4) {
             Circle()
                 .fill(statusColor(for: session))
-                .frame(width: DesignConstants.IconSize.tinyDot, height: DesignConstants.IconSize.tinyDot)
+                .frame(
+                    width: DesignConstants.IconSize.tinyDot,
+                    height: DesignConstants.IconSize.tinyDot)
 
             if case .connecting = session.status {
                 ProgressView()
@@ -185,7 +189,7 @@ struct ConnectionSidebarHeader: View {
 
     let savedConnections = [
         DatabaseConnection(name: "Development DB", type: .mysql),
-        DatabaseConnection(name: "Staging DB", type: .postgresql)
+        DatabaseConnection(name: "Staging DB", type: .postgresql),
     ]
 
     return VStack(spacing: 0) {

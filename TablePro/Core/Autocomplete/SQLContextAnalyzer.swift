@@ -89,6 +89,26 @@ struct SQLContext {
 
 /// Analyzes SQL query to determine completion context
 final class SQLContextAnalyzer {
+    // MARK: - UTF-16 Character Constants
+
+    private static let singleQuote = UInt16(UnicodeScalar("'").value)
+    private static let doubleQuote = UInt16(UnicodeScalar("\"").value)
+    private static let backslash = UInt16(UnicodeScalar("\\").value)
+    private static let semicolon = UInt16(UnicodeScalar(";").value)
+    private static let dash = UInt16(UnicodeScalar("-").value)
+    private static let newline = UInt16(UnicodeScalar("\n").value)
+    private static let openParen = UInt16(UnicodeScalar("(").value)
+    private static let closeParen = UInt16(UnicodeScalar(")").value)
+    private static let dot = UInt16(UnicodeScalar(".").value)
+    private static let backtick = UInt16(UnicodeScalar("`").value)
+    private static let underscore = UInt16(UnicodeScalar("_").value)
+    private static let comma = UInt16(UnicodeScalar(",").value)
+    private static let space = UInt16(UnicodeScalar(" ").value)
+    private static let tab = UInt16(UnicodeScalar("\t").value)
+    private static let cr = UInt16(UnicodeScalar("\r").value)
+    private static let slash = UInt16(UnicodeScalar("/").value)
+    private static let star = UInt16(UnicodeScalar("*").value)
+
     // MARK: - Cached Regex Patterns (Compiled Once at Class Load)
 
     /// Pre-compiled clause detection patterns for performance
@@ -96,26 +116,20 @@ final class SQLContextAnalyzer {
     private static let clauseRegexes: [(regex: NSRegularExpression, clause: SQLClauseType)] = {
         let patterns: [(String, SQLClauseType)] = [
             // DDL patterns (most specific first)
-            // Match AFTER/BEFORE keyword in ALTER TABLE ADD COLUMN context
-            ("\\bADD\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+.*?\\b(?:AFTER|BEFORE)(?:\\s+\\w*)?$", .alterTableColumn),
-            // Match AFTER/BEFORE in general ALTER TABLE context
+            ("\\bADD\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+.*?\\b(?:AFTER|BEFORE)(?:\\s+\\w*)?$",
+             .alterTableColumn),
             ("\\b(?:AFTER|BEFORE)(?:\\s+\\w*)?$", .alterTableColumn),
-            // Match FIRST keyword for column positioning
             ("\\bFIRST\\s*$", .alterTable),
-            // Match ADD keyword immediately after ALTER TABLE tablename (expecting COLUMN, INDEX, etc.)
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+ADD\\s+\\w*$", .alterTable),
-            // Match column definition after ADD/MODIFY/CHANGE with data type
             (
                 "\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+(?:\\([^)]*\\))?" +
-                "(?:\\s+(?:NOT\\s+)?NULL|\\s+DEFAULT(?:\\s+[^\\s]+)?|\\s+AUTO_INCREMENT|\\s+UNSIGNED|\\s+COMMENT(?:\\s+'[^']*')?)*\\s*$",
+                "(?:\\s+(?:NOT\\s+)?NULL|\\s+DEFAULT(?:\\s+[^\\s]+)?|\\s+AUTO_INCREMENT" +
+                "|\\s+UNSIGNED|\\s+COMMENT(?:\\s+'[^']*')?)*\\s*$",
                 .columnDef
             ),
-            // Match column name after ADD/MODIFY/CHANGE (before data type)
-            // Only match if we have COLUMN keyword or it's after ALTER TABLE
             ("\\b(?:ADD|MODIFY|CHANGE)\\s+COLUMN\\s+\\w+\\s*$", .columnDef),
-            // Match DROP/MODIFY/CHANGE/RENAME with column name
-            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+(?:DROP|MODIFY|CHANGE|RENAME)\\s+(?:COLUMN\\s+)?[`\"']?\\w*[`\"']?\\s*$", .alterTableColumn),
-            // General ALTER TABLE operations
+            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+(?:DROP|MODIFY|CHANGE|RENAME)" +
+             "\\s+(?:COLUMN\\s+)?[`\"']?\\w*[`\"']?\\s*$", .alterTableColumn),
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+\\w*$", .alterTable),
             ("\\bCREATE\\s+TABLE\\s+[^(]*\\([^)]*$", .createTable),
             // Enhanced context patterns
@@ -134,7 +148,8 @@ final class SQLContextAnalyzer {
             ("\\bWHERE\\s+[^;]*$", .where_),
             ("\\bON\\s+[^;]*$", .on),
             // JOIN patterns
-            ("(?:LEFT|RIGHT|INNER|OUTER|FULL|CROSS)?\\s*(?:OUTER)?\\s*JOIN\\s+[`\"']?\\w+[`\"']?(?:\\s+(?:AS\\s+)?\\w+)?\\s*$", .join),
+            ("(?:LEFT|RIGHT|INNER|OUTER|FULL|CROSS)?\\s*(?:OUTER)?\\s*JOIN\\s+[`\"']?\\w+[`\"']?" +
+             "(?:\\s+(?:AS\\s+)?\\w+)?\\s*$", .join),
             ("\\bJOIN\\s+[`\"']?\\w*[`\"']?\\s*$", .join),
             // FROM patterns
             ("\\bFROM\\s+[`\"']?\\w+[`\"']?(?:\\s+(?:AS\\s+)?\\w+)?\\s*$", .from),
@@ -143,7 +158,9 @@ final class SQLContextAnalyzer {
             ("\\bSELECT\\s+[^;]*$", .select),
         ]
         return patterns.compactMap { pattern, clause in
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+            guard let regex = try? NSRegularExpression(
+                pattern: pattern, options: .caseInsensitive
+            ) else {
                 assertionFailure("Invalid SQL clause regex pattern: \(pattern)")
                 return nil
             }
@@ -151,13 +168,12 @@ final class SQLContextAnalyzer {
         }
     }()
 
-    /// Pre-compiled regex for removing strings and comments (force-unwrap safe: simple patterns)
+    /// Pre-compiled regex for removing strings and comments
     private static let singleQuoteStringRegex: NSRegularExpression = {
         if let regex = try? NSRegularExpression(pattern: "'[^']*'") {
             return regex
         }
         assertionFailure("Failed to compile singleQuoteStringRegex - invalid pattern")
-        // Fallback to a regex that matches nothing
         return try! NSRegularExpression(pattern: "(?!)")
     }()
 
@@ -166,7 +182,6 @@ final class SQLContextAnalyzer {
             return regex
         }
         assertionFailure("Failed to compile doubleQuoteStringRegex - invalid pattern")
-        // Fallback to a regex that matches nothing
         return try! NSRegularExpression(pattern: "(?!)")
     }()
 
@@ -175,7 +190,6 @@ final class SQLContextAnalyzer {
             return regex
         }
         assertionFailure("Failed to compile blockCommentRegex - invalid pattern")
-        // Fallback to a regex that matches nothing
         return try! NSRegularExpression(pattern: "(?!)")
     }()
 
@@ -184,21 +198,43 @@ final class SQLContextAnalyzer {
             return regex
         }
         assertionFailure("Failed to compile lineCommentRegex - invalid pattern")
-        // Fallback to a regex that matches nothing
         return try! NSRegularExpression(pattern: "(?!)")
     }()
+
+    // MARK: - UTF-16 Helpers
+
+    /// Check if a UTF-16 code unit is a letter or digit (ASCII fast path + fallback)
+    private static func isIdentifierChar(_ ch: UInt16) -> Bool {
+        // ASCII letters
+        if (ch >= 0x41 && ch <= 0x5A) || (ch >= 0x61 && ch <= 0x7A) { return true }
+        // ASCII digits
+        if ch >= 0x30 && ch <= 0x39 { return true }
+        // underscore
+        if ch == underscore { return true }
+        return false
+    }
+
+    /// Check if a UTF-16 code unit is whitespace (space, tab, newline, CR)
+    private static func isWhitespace(_ ch: UInt16) -> Bool {
+        ch == space || ch == tab || ch == newline || ch == cr
+    }
 
     // MARK: - Main Analysis
 
     /// Analyze the query at the given cursor position
     func analyze(query: String, cursorPosition: Int) -> SQLContext {
-        let safePosition = min(cursorPosition, query.count)
+        let nsQuery = query as NSString
+        let safePosition = min(cursorPosition, nsQuery.length)
 
         // Extract the current statement for multi-statement queries
-        let (currentStatement, statementOffset) = extractCurrentStatement(from: query, cursorPosition: safePosition)
+        let (currentStatement, statementOffset) = extractCurrentStatement(
+            from: nsQuery, cursorPosition: safePosition
+        )
         let adjustedPosition = safePosition - statementOffset
 
-        let textBeforeCursor = String(currentStatement.prefix(max(0, adjustedPosition)))
+        let nsStatement = currentStatement as NSString
+        let clampedPosition = max(0, min(adjustedPosition, nsStatement.length))
+        let textBeforeCursor = nsStatement.substring(to: clampedPosition)
 
         // Check if inside string or comment
         if isInsideString(textBeforeCursor) {
@@ -260,7 +296,11 @@ final class SQLContextAnalyzer {
         let isAfterComma = checkIfAfterComma(textBeforeCursor)
 
         // Determine clause type
-        let clauseType = determineClauseType(textBeforeCursor: textBeforeCursor, dotPrefix: dotPrefix, currentFunction: currentFunction)
+        let clauseType = determineClauseType(
+            textBeforeCursor: textBeforeCursor,
+            dotPrefix: dotPrefix,
+            currentFunction: currentFunction
+        )
 
         return SQLContext(
             clauseType: clauseType,
@@ -279,58 +319,74 @@ final class SQLContextAnalyzer {
 
     // MARK: - Multi-Statement Support
 
-    /// Extract the current SQL statement containing the cursor
-    private func extractCurrentStatement(from query: String, cursorPosition: Int) -> (statement: String, offset: Int) {
-        // Find statement boundaries (semicolons not inside strings/comments)
-        var statements: [(range: Range<Int>, text: String)] = []
-        var currentStart = 0
+    /// Extract the current SQL statement containing the cursor.
+    /// Uses NSString UTF-16 character access for O(1) per character instead of
+    /// O(n) Swift String.index(offsetBy:).
+    private func extractCurrentStatement(
+        from nsQuery: NSString,
+        cursorPosition: Int
+    ) -> (statement: String, offset: Int) {
+        let length = nsQuery.length
+        guard length > 0 else { return ("", 0) }
+
+        // Scan through to find semicolons not inside strings/comments
+        var statementStart = 0
         var inString = false
         var inComment = false
-        var prevChar: Character = "\0"
+        var prevChar: UInt16 = 0
 
-        for (index, char) in query.enumerated() {
+        // Track the statement that contains the cursor
+        var foundStatement: String?
+        var foundOffset = 0
+
+        for i in 0..<length {
+            let ch = nsQuery.character(at: i)
+
             // Track string state
-            if char == "'" && prevChar != "\\" && !inComment {
+            if ch == Self.singleQuote && prevChar != Self.backslash && !inComment {
                 inString.toggle()
             }
 
-            // Track comment state (simple line comment detection)
-            if char == "-" && prevChar == "-" && !inString {
+            // Track line comment state
+            if ch == Self.dash && prevChar == Self.dash && !inString {
                 inComment = true
             }
-            if char == "\n" && inComment {
+            if ch == Self.newline && inComment {
                 inComment = false
             }
 
             // Found statement boundary
-            if char == ";" && !inString && !inComment {
-                let startIndex = query.index(query.startIndex, offsetBy: currentStart)
-                let endIndex = query.index(query.startIndex, offsetBy: index + 1)
-                let statementText = String(query[startIndex..<endIndex])
-                statements.append((range: currentStart..<(index + 1), text: statementText))
-                currentStart = index + 1
+            if ch == Self.semicolon && !inString && !inComment {
+                let stmtEnd = i + 1
+                let stmtRange = NSRange(location: statementStart, length: stmtEnd - statementStart)
+
+                // Check if cursor is within this statement
+                if cursorPosition >= statementStart && cursorPosition < stmtEnd {
+                    foundStatement = nsQuery.substring(with: stmtRange)
+                    foundOffset = statementStart
+                    break
+                }
+                statementStart = stmtEnd
             }
 
-            prevChar = char
+            prevChar = ch
         }
 
-        // Add the last statement (may not end with ;)
-        if currentStart < query.count {
-            let startIndex = query.index(query.startIndex, offsetBy: currentStart)
-            let statementText = String(query[startIndex...])
-            statements.append((range: currentStart..<query.count, text: statementText))
+        // If found during scan, return it
+        if let stmt = foundStatement {
+            return (stmt, foundOffset)
         }
 
-        // Find which statement contains the cursor
-        for stmt in statements {
-            if stmt.range.contains(cursorPosition) ||
-                (cursorPosition == stmt.range.upperBound && stmt.range.upperBound == query.count) {
-                return (stmt.text, stmt.range.lowerBound)
+        // Check the last statement (may not end with ;)
+        if statementStart < length {
+            let stmtRange = NSRange(location: statementStart, length: length - statementStart)
+            if cursorPosition >= statementStart {
+                return (nsQuery.substring(with: stmtRange), statementStart)
             }
         }
 
         // Fallback: return entire query
-        return (query, 0)
+        return (nsQuery as String, 0)
     }
 
     // MARK: - CTE Support
@@ -340,26 +396,31 @@ final class SQLContextAnalyzer {
         var cteNames: [String] = []
 
         // Pattern: WITH name AS (...), name2 AS (...)
-        // Handle both simple and recursive CTEs
         let pattern = "(?i)\\bWITH\\s+(?:RECURSIVE\\s+)?([\\w]+)\\s+AS\\s*\\("
         let commaPattern = "(?i),\\s*([\\w]+)\\s+AS\\s*\\("
 
+        let nsRange = NSRange(location: 0, length: (query as NSString).length)
+
         // Find first CTE
         if let regex = try? NSRegularExpression(pattern: pattern) {
-            let range = NSRange(query.startIndex..., in: query)
-            if let match = regex.firstMatch(in: query, range: range),
-               let nameRange = Range(match.range(at: 1), in: query) {
-                cteNames.append(String(query[nameRange]))
+            if let match = regex.firstMatch(in: query, range: nsRange) {
+                let nameNSRange = match.range(at: 1)
+                if nameNSRange.location != NSNotFound {
+                    cteNames.append((query as NSString).substring(with: nameNSRange))
+                }
             }
         }
 
         // Find additional CTEs (comma-separated)
         if let regex = try? NSRegularExpression(pattern: commaPattern) {
-            let range = NSRange(query.startIndex..., in: query)
-            regex.enumerateMatches(in: query, range: range) { match, _, _ in
-                if let match = match,
-                   let nameRange = Range(match.range(at: 1), in: query) {
-                    cteNames.append(String(query[nameRange]))
+            regex.enumerateMatches(in: query, range: nsRange) { match, _, _ in
+                if let match = match {
+                    let nameNSRange = match.range(at: 1)
+                    if nameNSRange.location != NSNotFound {
+                        cteNames.append(
+                            (query as NSString).substring(with: nameNSRange)
+                        )
+                    }
                 }
             }
         }
@@ -369,26 +430,30 @@ final class SQLContextAnalyzer {
 
     // MARK: - Subquery Support
 
-    /// Calculate the nesting level (subquery depth) at cursor position
+    /// Calculate the nesting level (subquery depth) at cursor position.
+    /// Uses NSString character-at-index for O(1) access per character.
     private func calculateNestingLevel(in textBeforeCursor: String) -> Int {
+        let ns = textBeforeCursor as NSString
+        let length = ns.length
         var level = 0
         var inString = false
-        var prevChar: Character = "\0"
+        var prevChar: UInt16 = 0
 
-        for char in textBeforeCursor {
-            if char == "'" && prevChar != "\\" {
+        for i in 0..<length {
+            let ch = ns.character(at: i)
+            if ch == Self.singleQuote && prevChar != Self.backslash {
                 inString.toggle()
             }
 
             if !inString {
-                if char == "(" {
+                if ch == Self.openParen {
                     level += 1
-                } else if char == ")" {
+                } else if ch == Self.closeParen {
                     level = max(0, level - 1)
                 }
             }
 
-            prevChar = char
+            prevChar = ch
         }
 
         return level
@@ -396,32 +461,40 @@ final class SQLContextAnalyzer {
 
     // MARK: - Function Context
 
-    /// Detect if cursor is inside a function call and return the function name
+    /// Detect if cursor is inside a function call and return the function name.
+    /// Uses NSString character-at-index for O(1) access per character.
     private func detectFunctionContext(in textBeforeCursor: String) -> String? {
+        let ns = textBeforeCursor as NSString
+        let length = ns.length
         var parenStack: [(position: Int, precedingWord: String?)] = []
         var inString = false
-        var prevChar: Character = "\0"
+        var prevChar: UInt16 = 0
         var currentWord = ""
         var lastWord: String?
 
-        for (index, char) in textBeforeCursor.enumerated() {
-            if char == "'" && prevChar != "\\" {
+        for i in 0..<length {
+            let ch = ns.character(at: i)
+            if ch == Self.singleQuote && prevChar != Self.backslash {
                 inString.toggle()
             }
 
             if !inString {
-                if char.isLetter || char.isNumber || char == "_" {
-                    currentWord.append(char)
+                if Self.isIdentifierChar(ch) {
+                    // Append ASCII character directly (safe: isIdentifierChar
+                    // only matches ASCII letters, digits, underscore)
+                    if let scalar = UnicodeScalar(ch) {
+                        currentWord.append(Character(scalar))
+                    }
                 } else {
                     if !currentWord.isEmpty {
                         lastWord = currentWord
                         currentWord = ""
                     }
 
-                    if char == "(" {
-                        parenStack.append((position: index, precedingWord: lastWord))
+                    if ch == Self.openParen {
+                        parenStack.append((position: i, precedingWord: lastWord))
                         lastWord = nil
-                    } else if char == ")" {
+                    } else if ch == Self.closeParen {
                         if !parenStack.isEmpty {
                             parenStack.removeLast()
                         }
@@ -429,22 +502,26 @@ final class SQLContextAnalyzer {
                 }
             }
 
-            prevChar = char
+            prevChar = ch
         }
 
         // If we're inside parentheses, check if it's a function call
         if let lastParen = parenStack.last,
            let funcName = lastParen.precedingWord {
-            // Check if it looks like a function (not a subquery)
             let upperFunc = funcName.uppercased()
-            let sqlFunctions = ["COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "IFNULL",
-                                "CONCAT", "SUBSTRING", "UPPER", "LOWER", "NOW", "DATE",
-                                "CAST", "CONVERT", "ROUND", "ABS", "LENGTH", "TRIM",
-                                "GROUP_CONCAT", "DATE_FORMAT", "YEAR", "MONTH", "DAY"]
+            let sqlFunctions: Set<String> = [
+                "COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "IFNULL",
+                "CONCAT", "SUBSTRING", "UPPER", "LOWER", "NOW", "DATE",
+                "CAST", "CONVERT", "ROUND", "ABS", "LENGTH", "TRIM",
+                "GROUP_CONCAT", "DATE_FORMAT", "YEAR", "MONTH", "DAY"
+            ]
 
-            // Either known function or doesn't look like SELECT/subquery keywords
+            let subqueryKeywords: Set<String> = [
+                "SELECT", "FROM", "WHERE", "IN", "EXISTS", "NOT"
+            ]
+
             if sqlFunctions.contains(upperFunc) ||
-                (!["SELECT", "FROM", "WHERE", "IN", "EXISTS", "NOT"].contains(upperFunc)) {
+                !subqueryKeywords.contains(upperFunc) {
                 return funcName
             }
         }
@@ -454,109 +531,173 @@ final class SQLContextAnalyzer {
 
     // MARK: - Comma Detection
 
-    /// Check if the cursor is immediately after a comma (for multi-column contexts)
+    /// Check if the cursor is immediately after a comma (for multi-column contexts).
+    /// Scans backwards using NSString for O(1) character access.
     private func checkIfAfterComma(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.hasSuffix(",")
+        let ns = text as NSString
+        let length = ns.length
+        // Scan backwards past whitespace
+        var i = length - 1
+        while i >= 0 {
+            let ch = ns.character(at: i)
+            if Self.isWhitespace(ch) {
+                i -= 1
+                continue
+            }
+            return ch == Self.comma
+        }
+        return false
     }
 
     // MARK: - Helper Methods
 
-    /// Check if cursor is inside a string literal
+    /// Check if cursor is inside a string literal.
+    /// Uses NSString character-at-index for O(1) access per character.
     private func isInsideString(_ text: String) -> Bool {
+        let ns = text as NSString
+        let length = ns.length
         var inSingleQuote = false
         var inDoubleQuote = false
-        var prevChar: Character = "\0"
+        var prevChar: UInt16 = 0
 
-        for char in text {
-            if char == "'" && prevChar != "\\" && !inDoubleQuote {
+        for i in 0..<length {
+            let ch = ns.character(at: i)
+            if ch == Self.singleQuote && prevChar != Self.backslash && !inDoubleQuote {
                 inSingleQuote.toggle()
-            } else if char == "\"" && prevChar != "\\" && !inSingleQuote {
+            } else if ch == Self.doubleQuote && prevChar != Self.backslash && !inSingleQuote {
                 inDoubleQuote.toggle()
             }
-            prevChar = char
+            prevChar = ch
         }
 
         return inSingleQuote || inDoubleQuote
     }
 
-    /// Check if cursor is inside a comment
+    /// Check if cursor is inside a comment.
+    /// Uses NSString operations for O(1) character access.
     private func isInsideComment(_ text: String) -> Bool {
-        // Check for line comment
-        if let lastNewline = text.lastIndex(of: "\n") {
-            let lineStart = text.index(after: lastNewline)
-            let currentLine = String(text[lineStart...])
-            if currentLine.contains("--"), let dashRange = currentLine.range(of: "--") {
-                let dashIndex = dashRange.lowerBound
-                // Check if -- is before current position in line
-                if currentLine[..<dashIndex].trimmingCharacters(in: .whitespaces).isEmpty ||
-                    !currentLine[..<dashIndex].contains("'") {
-                    return true
+        let ns = text as NSString
+        let length = ns.length
+        guard length > 0 else { return false }
+
+        // Find last newline position using NSString range search
+        let lastNewlineRange = ns.range(
+            of: "\n", options: .backwards, range: NSRange(location: 0, length: length)
+        )
+
+        if lastNewlineRange.location != NSNotFound {
+            let lineStart = lastNewlineRange.location + 1
+            if lineStart < length {
+                let currentLineRange = NSRange(
+                    location: lineStart, length: length - lineStart
+                )
+                let currentLine = ns.substring(with: currentLineRange)
+                let nsLine = currentLine as NSString
+                let dashRange = nsLine.range(of: "--")
+                if dashRange.location != NSNotFound {
+                    let beforeDash = nsLine.substring(to: dashRange.location)
+                    if beforeDash.trimmingCharacters(in: .whitespaces).isEmpty ||
+                        !beforeDash.contains("'") {
+                        return true
+                    }
                 }
             }
-        } else if text.contains("--") {
-            // First line and contains --
-            if let range = text.range(of: "--") {
-                let before = text[..<range.lowerBound]
-                // Not inside a string before --
-                if !isInsideString(String(before)) {
+        } else {
+            // First line — check for line comment
+            let dashRange = ns.range(of: "--")
+            if dashRange.location != NSNotFound {
+                let before = ns.substring(to: dashRange.location)
+                if !isInsideString(before) {
                     return true
                 }
             }
         }
 
-        // Check for block comment
-        let openCount = text.components(separatedBy: "/*").count - 1
-        let closeCount = text.components(separatedBy: "*/").count - 1
+        // Check for block comment: count /* and */ occurrences
+        var openCount = 0
+        var closeCount = 0
+        var searchStart = 0
+        while searchStart < length - 1 {
+            let remaining = NSRange(
+                location: searchStart, length: length - searchStart
+            )
+            let openRange = ns.range(of: "/*", range: remaining)
+            if openRange.location == NSNotFound { break }
+            openCount += 1
+            searchStart = openRange.location + 2
+        }
+
+        searchStart = 0
+        while searchStart < length - 1 {
+            let remaining = NSRange(
+                location: searchStart, length: length - searchStart
+            )
+            let closeRange = ns.range(of: "*/", range: remaining)
+            if closeRange.location == NSNotFound { break }
+            closeCount += 1
+            searchStart = closeRange.location + 2
+        }
+
         return openCount > closeCount
     }
 
-    /// Extract the current word prefix and any dot prefix (table.column)
-    private func extractPrefix(from text: String) -> (prefix: String, start: Int, dotPrefix: String?) {
-        guard !text.isEmpty else {
+    /// Extract the current word prefix and any dot prefix (table.column).
+    /// Uses NSString character-at-index for O(1) access instead of Array(text).
+    private func extractPrefix(
+        from text: String
+    ) -> (prefix: String, start: Int, dotPrefix: String?) {
+        let ns = text as NSString
+        let length = ns.length
+        guard length > 0 else {
             return ("", 0, nil)
         }
 
-        // Find start of current identifier
-        var prefixStart = text.count
+        // Scan backwards to find start of identifier
+        var prefixStart = length
         var foundDot = false
         var dotPosition = -1
 
-        // Scan backwards to find start of identifier
-        let chars = Array(text)
-        for i in stride(from: chars.count - 1, through: 0, by: -1) {
-            let char = chars[i]
+        var i = length - 1
+        while i >= 0 {
+            let ch = ns.character(at: i)
 
-            if char == "." && !foundDot {
+            if ch == Self.dot && !foundDot {
                 foundDot = true
                 dotPosition = i
+                i -= 1
                 continue
             }
 
-            if char.isLetter || char.isNumber || char == "_" || char == "`" {
-                prefixStart = i
-            } else if foundDot && (char.isLetter || char.isNumber || char == "_" || char == "`") {
+            if Self.isIdentifierChar(ch) || ch == Self.backtick {
                 prefixStart = i
             } else {
                 break
             }
-        }
 
-        let prefix: String
-        let dotPrefix: String?
+            i -= 1
+        }
 
         if foundDot && dotPosition > prefixStart {
             // Has dot prefix like "users.na" or "u.na"
-            let beforeDot = String(text[text.index(text.startIndex, offsetBy: prefixStart)..<text.index(text.startIndex, offsetBy: dotPosition)])
-            let afterDot = String(text[text.index(text.startIndex, offsetBy: dotPosition + 1)...])
+            let beforeDotRange = NSRange(
+                location: prefixStart, length: dotPosition - prefixStart
+            )
+            let beforeDot = ns.substring(with: beforeDotRange)
+            let afterDotRange = NSRange(
+                location: dotPosition + 1, length: length - dotPosition - 1
+            )
+            let afterDot = ns.substring(with: afterDotRange)
 
-            dotPrefix = beforeDot.trimmingCharacters(in: CharacterSet(charactersIn: "`"))
-            prefix = afterDot
-            return (prefix, dotPosition + 1, dotPrefix)
+            let cleanDotPrefix = beforeDot.trimmingCharacters(
+                in: CharacterSet(charactersIn: "`")
+            )
+            return (afterDot, dotPosition + 1, cleanDotPrefix)
         } else {
             // No dot, just a regular prefix
-            prefix = String(text[text.index(text.startIndex, offsetBy: prefixStart)...])
-            dotPrefix = nil
+            let prefixRange = NSRange(
+                location: prefixStart, length: length - prefixStart
+            )
+            let prefix = ns.substring(with: prefixRange)
             return (prefix, prefixStart, nil)
         }
     }
@@ -571,46 +712,53 @@ final class SQLContextAnalyzer {
             "JOIN", "ON", "AND", "OR", "WHERE", "SELECT", "FROM", "AS"
         ]
 
-        // Pattern for FROM/JOIN table references with optional alias
-        // Updated to handle: LEFT JOIN table, INNER JOIN table, etc.
         let patterns = [
-            // FROM table [AS] alias
-            "(?i)\\bFROM\\s+[`\"']?([\\w]+)[`\"']?(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
-            // All types of JOINs: (LEFT|RIGHT|INNER|OUTER|CROSS|FULL)? (OUTER)? JOIN table [AS] alias
-            "(?i)(?:LEFT|RIGHT|INNER|OUTER|CROSS|FULL)?\\s*(?:OUTER)?\\s*JOIN\\s+[`\"']?([\\w]+)[`\"']?(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
-            // UPDATE table [AS] alias
-            "(?i)\\bUPDATE\\s+[`\"']?([\\w]+)[`\"']?(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?"
+            "(?i)\\bFROM\\s+[`\"']?([\\w]+)[`\"']?" +
+            "(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
+            "(?i)(?:LEFT|RIGHT|INNER|OUTER|CROSS|FULL)?\\s*(?:OUTER)?\\s*JOIN\\s+" +
+            "[`\"']?([\\w]+)[`\"']?(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
+            "(?i)\\bUPDATE\\s+[`\"']?([\\w]+)[`\"']?" +
+            "(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?"
         ]
 
-        for pattern in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+        let nsRange = NSRange(location: 0, length: (query as NSString).length)
 
-            let range = NSRange(query.startIndex..., in: query)
-            regex.enumerateMatches(in: query, range: range) { match, _, _ in
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else {
+                continue
+            }
+
+            regex.enumerateMatches(
+                in: query, range: nsRange
+            ) { match, _, _ in
                 guard let match = match else { return }
 
-                // Group 1: table name
-                if let tableRange = Range(match.range(at: 1), in: query) {
-                    let tableName = String(query[tableRange])
+                let tableNSRange = match.range(at: 1)
+                guard tableNSRange.location != NSNotFound else { return }
 
-                    // Skip SQL keywords
-                    guard !sqlKeywords.contains(tableName.uppercased()) else { return }
+                let tableName = (query as NSString).substring(with: tableNSRange)
 
-                    // Group 2: alias (optional)
-                    var alias: String?
-                    if match.numberOfRanges > 2, let aliasRange = Range(match.range(at: 2), in: query) {
-                        let aliasCandidate = String(query[aliasRange])
-                        // Skip SQL keywords as aliases
+                // Skip SQL keywords
+                guard !sqlKeywords.contains(tableName.uppercased()) else { return }
+
+                // Group 2: alias (optional)
+                var alias: String?
+                if match.numberOfRanges > 2 {
+                    let aliasNSRange = match.range(at: 2)
+                    if aliasNSRange.location != NSNotFound {
+                        let aliasCandidate = (query as NSString).substring(
+                            with: aliasNSRange
+                        )
                         if !sqlKeywords.contains(aliasCandidate.uppercased()) {
                             alias = aliasCandidate
                         }
                     }
+                }
 
-                    // Don't add duplicates
-                    let ref = TableReference(tableName: tableName, alias: alias)
-                    if !references.contains(ref) {
-                        references.append(ref)
-                    }
+                // Don't add duplicates
+                let ref = TableReference(tableName: tableName, alias: alias)
+                if !references.contains(ref) {
+                    references.append(ref)
                 }
             }
         }
@@ -620,7 +768,6 @@ final class SQLContextAnalyzer {
 
     /// Pre-compiled regex for extracting table name from ALTER TABLE statements
     private static let alterTableRegex: NSRegularExpression? = {
-        // Pattern: ALTER TABLE tablename (supports optional quoting)
         let pattern = "(?i)\\bALTER\\s+TABLE\\s+[`\"']?(\\w+)[`\"']?"
         return try? NSRegularExpression(pattern: pattern)
     }()
@@ -629,17 +776,23 @@ final class SQLContextAnalyzer {
     private func extractAlterTableName(from query: String) -> String? {
         guard let regex = Self.alterTableRegex else { return nil }
 
-        let range = NSRange(query.startIndex..., in: query)
-        if let match = regex.firstMatch(in: query, range: range),
-           let tableRange = Range(match.range(at: 1), in: query) {
-            return String(query[tableRange])
+        let nsRange = NSRange(location: 0, length: (query as NSString).length)
+        if let match = regex.firstMatch(in: query, range: nsRange) {
+            let tableNSRange = match.range(at: 1)
+            if tableNSRange.location != NSNotFound {
+                return (query as NSString).substring(with: tableNSRange)
+            }
         }
 
         return nil
     }
 
     /// Determine the clause type based on text before cursor
-    private func determineClauseType(textBeforeCursor: String, dotPrefix: String?, currentFunction: String? = nil) -> SQLClauseType {
+    private func determineClauseType(
+        textBeforeCursor: String,
+        dotPrefix: String?,
+        currentFunction: String? = nil
+    ) -> SQLClauseType {
         // If we have a dot prefix, we're looking for columns
         if dotPrefix != nil {
             return .select // Column context
@@ -656,7 +809,7 @@ final class SQLContextAnalyzer {
         let cleaned = removeStringsAndComments(from: upper)
 
         // Use pre-compiled regex patterns for performance
-        let range = NSRange(cleaned.startIndex..., in: cleaned)
+        let range = NSRange(location: 0, length: (cleaned as NSString).length)
         for (regex, clause) in Self.clauseRegexes {
             if regex.firstMatch(in: cleaned, range: range) != nil {
                 return clause
@@ -670,28 +823,27 @@ final class SQLContextAnalyzer {
     private func removeStringsAndComments(from text: String) -> String {
         var result = text
 
-        // Use pre-compiled regex patterns for performance
         result = Self.singleQuoteStringRegex.stringByReplacingMatches(
             in: result,
-            range: NSRange(result.startIndex..., in: result),
+            range: NSRange(location: 0, length: (result as NSString).length),
             withTemplate: "''"
         )
 
         result = Self.doubleQuoteStringRegex.stringByReplacingMatches(
             in: result,
-            range: NSRange(result.startIndex..., in: result),
+            range: NSRange(location: 0, length: (result as NSString).length),
             withTemplate: "\"\""
         )
 
         result = Self.blockCommentRegex.stringByReplacingMatches(
             in: result,
-            range: NSRange(result.startIndex..., in: result),
+            range: NSRange(location: 0, length: (result as NSString).length),
             withTemplate: ""
         )
 
         result = Self.lineCommentRegex.stringByReplacingMatches(
             in: result,
-            range: NSRange(result.startIndex..., in: result),
+            range: NSRange(location: 0, length: (result as NSString).length),
             withTemplate: ""
         )
 
