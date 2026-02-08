@@ -27,6 +27,7 @@ final class FilterStateManager: ObservableObject {
     @Published var appliedFilters: [TableFilter] = []
     @Published var focusedFilterId: UUID?
     @Published var quickSearchText: String = ""
+    @Published var shouldFocusQuickSearch: Bool = false
     @Published var filterLogicMode: FilterLogicMode = .and  // AND or OR logic
 
     /// Settings storage reference
@@ -170,8 +171,12 @@ final class FilterStateManager: ObservableObject {
 
     /// Toggle filter panel visibility
     func toggle() {
+        let willOpen = !isVisible
         withAnimation(.easeInOut(duration: 0.2)) {
             isVisible.toggle()
+        }
+        if willOpen {
+            shouldFocusQuickSearch = true
         }
     }
 
@@ -180,6 +185,7 @@ final class FilterStateManager: ObservableObject {
         withAnimation(.easeInOut(duration: 0.2)) {
             isVisible = true
         }
+        shouldFocusQuickSearch = true
     }
 
     /// Close panel

@@ -2,13 +2,13 @@
 //  FilterPanelView.swift
 //  TablePro
 //
-//  Bottom filter panel for table data filtering.
+//  Filter panel for table data filtering.
 //  Child views extracted to separate files for maintainability.
 //
 
 import SwiftUI
 
-/// Bottom filter panel for table data filtering
+/// Filter panel for table data filtering
 struct FilterPanelView: View {
     @ObservedObject var filterState: FilterStateManager
     let columns: [String]
@@ -32,24 +32,19 @@ struct FilterPanelView: View {
             Divider()
                 .foregroundStyle(Color(nsColor: .separatorColor))
 
-            // Quick Search field (when no filters or alongside filters)
-            if filterState.hasActiveQuickSearch || filterState.filters.isEmpty {
-                QuickSearchField(
-                    searchText: $filterState.quickSearchText,
-                    hasActiveSearch: filterState.hasActiveQuickSearch,
-                    onSubmit: { onQuickSearch?(filterState.quickSearchText) },
-                    onClear: { filterState.clearQuickSearch() }
-                )
-                Divider()
-                    .foregroundStyle(Color(nsColor: .separatorColor))
-            }
+            // Quick Search field (always visible)
+            QuickSearchField(
+                searchText: $filterState.quickSearchText,
+                hasActiveSearch: filterState.hasActiveQuickSearch,
+                shouldFocus: $filterState.shouldFocusQuickSearch,
+                onSubmit: { onQuickSearch?(filterState.quickSearchText) },
+                onClear: { filterState.clearQuickSearch() }
+            )
+            Divider()
+                .foregroundStyle(Color(nsColor: .separatorColor))
 
-            // Filter rows
-            if filterState.filters.isEmpty {
-                if !filterState.hasActiveQuickSearch {
-                    emptyState
-                }
-            } else {
+            // Filter rows (only when filters exist)
+            if !filterState.filters.isEmpty {
                 filterList
             }
 
@@ -171,34 +166,6 @@ struct FilterPanelView: View {
         .onAppear {
             loadPresets()
         }
-    }
-
-    // MARK: - Empty State
-
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "line.3.horizontal.decrease.circle")
-                .font(.system(size: DesignConstants.IconSize.huge))
-                .foregroundStyle(.tertiary)
-
-            Text("No filters active")
-                .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 8) {
-                Button("Add Filter") {
-                    filterState.addFilter(columns: columns, primaryKeyColumn: primaryKeyColumn)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-
-                Text("or use Quick Search above")
-                    .font(.system(size: DesignConstants.FontSize.small))
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
     }
 
     // MARK: - Filter List

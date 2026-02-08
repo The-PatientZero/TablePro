@@ -12,8 +12,11 @@ import SwiftUI
 struct QuickSearchField: View {
     @Binding var searchText: String
     let hasActiveSearch: Bool
+    @Binding var shouldFocus: Bool
     let onSubmit: () -> Void
     let onClear: () -> Void
+
+    @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
         HStack(spacing: 8) {
@@ -24,6 +27,7 @@ struct QuickSearchField: View {
             TextField("Quick search across all columns...", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: DesignConstants.FontSize.medium))
+                .focused($isTextFieldFocused)
                 .onSubmit {
                     if !searchText.isEmpty {
                         onSubmit()
@@ -43,5 +47,11 @@ struct QuickSearchField: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(nsColor: .textBackgroundColor))
+        .onChange(of: shouldFocus) { _, newValue in
+            if newValue {
+                isTextFieldFocused = true
+                shouldFocus = false
+            }
+        }
     }
 }

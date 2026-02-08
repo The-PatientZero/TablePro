@@ -217,6 +217,7 @@ struct MainEditorContentView: View {
         VStack(spacing: 0) {
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
+                    .id(tableName)
                     .frame(maxHeight: .infinity)
             } else if tab.resultColumns.isEmpty && tab.errorMessage == nil && tab.lastExecutedAt != nil && !tab.isExecuting {
                 QuerySuccessView(
@@ -224,22 +225,22 @@ struct MainEditorContentView: View {
                     executionTime: tab.executionTime
                 )
             } else {
-                dataGridView(tab: tab)
-            }
+                // Filter panel (collapsible, above data grid)
+                if filterStateManager.isVisible && tab.tabType == .table {
+                    FilterPanelView(
+                        filterState: filterStateManager,
+                        columns: tab.resultColumns,
+                        primaryKeyColumn: changeManager.primaryKeyColumn,
+                        databaseType: connection.type,
+                        onApply: onApplyFilters,
+                        onUnset: onClearFilters,
+                        onQuickSearch: onQuickSearch
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    Divider()
+                }
 
-            // Filter panel (collapsible, at bottom)
-            if filterStateManager.isVisible && tab.tabType == .table {
-                Divider()
-                FilterPanelView(
-                    filterState: filterStateManager,
-                    columns: tab.resultColumns,
-                    primaryKeyColumn: changeManager.primaryKeyColumn,
-                    databaseType: connection.type,
-                    onApply: onApplyFilters,
-                    onUnset: onClearFilters,
-                    onQuickSearch: onQuickSearch
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                dataGridView(tab: tab)
             }
 
             statusBar(tab: tab)

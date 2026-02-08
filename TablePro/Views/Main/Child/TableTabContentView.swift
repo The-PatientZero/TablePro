@@ -47,8 +47,24 @@ struct TableTabContentView: View {
             // Show structure view or data view based on toggle
             if showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
+                    .id(tableName)
                     .frame(maxHeight: .infinity)
             } else {
+                // Filter panel (collapsible, above data grid)
+                if filterStateManager.isVisible && tab.tabType == .table {
+                    FilterPanelView(
+                        filterState: filterStateManager,
+                        columns: tab.resultColumns,
+                        primaryKeyColumn: changeManager.primaryKeyColumn,
+                        databaseType: connection.type,
+                        onApply: onApplyFilters,
+                        onUnset: onClearFilters,
+                        onQuickSearch: onQuickSearch
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    Divider()
+                }
+
                 DataGridView(
                     rowProvider: InMemoryRowProvider(
                         rows: sortedRows,
@@ -70,21 +86,6 @@ struct TableTabContentView: View {
                     editingCell: $editingCell
                 )
                 .frame(maxHeight: .infinity, alignment: .top)
-            }
-
-            // Filter panel (collapsible, at bottom)
-            if filterStateManager.isVisible && tab.tabType == .table {
-                Divider()
-                FilterPanelView(
-                    filterState: filterStateManager,
-                    columns: tab.resultColumns,
-                    primaryKeyColumn: changeManager.primaryKeyColumn,
-                    databaseType: connection.type,
-                    onApply: onApplyFilters,
-                    onUnset: onClearFilters,
-                    onQuickSearch: onQuickSearch
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             // Status bar
