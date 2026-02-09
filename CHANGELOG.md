@@ -7,16 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-02-09
+
 ### Added
 
 - Auto-update support via Sparkle 2 framework (EdDSA signed)
 - "Check for Updates..." menu item in TablePro menu
 - Software Update section in Settings > General with auto-check toggle
 - CI appcast generation and auto-deploy on tagged releases
-
-## [0.1.1] - 2026-02-09
-
-### Added
 
 - Migrate SQL editor to CodeEditSourceEditor (tree-sitter powered)
 - Multi-statement SQL execution support
