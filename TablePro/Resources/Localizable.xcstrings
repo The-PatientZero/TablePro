@@ -3259,6 +3259,16 @@
         }
       }
     },
+    "Help improve TablePro by sharing anonymous usage statistics (no personal data or queries)." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giúp cải thiện TablePro bằng cách chia sẻ thống kê sử dụng ẩn danh (không có dữ liệu cá nhân hay truy vấn nào)."
+          }
+        }
+      }
+    },
     "Higher values create fewer INSERT statements, resulting in smaller files and faster imports" : {
       "localizations" : {
         "vi" : {
@@ -4721,6 +4731,16 @@
         }
       }
     },
+    "Privacy" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quyền riêng tư"
+          }
+        }
+      }
+    },
     "Preview" : {
       "localizations" : {
         "vi" : {
@@ -5447,6 +5467,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đặt giá trị"
+          }
+        }
+      }
+    },
+    "Share anonymous usage data" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chia sẻ dữ liệu sử dụng ẩn danh"
           }
         }
       }

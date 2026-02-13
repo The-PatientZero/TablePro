@@ -1,0 +1,155 @@
+//
+//  AnalyticsService.swift
+//  TablePro
+//
+//  Lightweight heartbeat analytics — sends anonymous usage data to help improve TablePro
+//
+
+import CryptoKit
+import Foundation
+import os
+
+/// Sends periodic anonymous usage heartbeats to the TablePro analytics API
+@MainActor
+final class AnalyticsService {
+    static let shared = AnalyticsService()
+
+    private static let logger = Logger(subsystem: "com.TablePro", category: "AnalyticsService")
+
+    // swiftlint:disable:next force_unwrapping
+    private let analyticsURL = URL(string: "https://api.tablepro.app/v1/analytics")!
+
+    /// Heartbeat interval: 24 hours
+    private let heartbeatInterval: TimeInterval = 24 * 60 * 60
+
+    /// Initial delay before first heartbeat (let connections establish)
+    private let initialDelay: TimeInterval = 10
+
+    /// HMAC-SHA256 shared secret for analytics request signing
+    private let hmacSecret = "tp_analytics_8f3k2m9x4v7b1n6j5h0w"
+
+    private var heartbeatTimer: Timer?
+
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        return URLSession(configuration: config)
+    }()
+
+    private let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        return encoder
+    }()
+
+    private init() {}
+
+    // MARK: - Public API
+
+    /// Start periodic heartbeat. Call from AppDelegate.applicationDidFinishLaunching.
+    func startPeriodicHeartbeat() {
+        // Send first heartbeat after initial delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + initialDelay) { [weak self] in
+            Task { @MainActor in
+                await self?.sendHeartbeat()
+            }
+        }
+
+        // Schedule periodic timer
+        heartbeatTimer?.invalidate()
+        heartbeatTimer = Timer.scheduledTimer(
+            withTimeInterval: heartbeatInterval,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.sendHeartbeat()
+            }
+        }
+    }
+
+    // MARK: - Private
+
+    private func sendHeartbeat() async {
+        // Check opt-out setting
+        guard AppSettingsStorage.shared.loadGeneral().shareAnalytics else {
+            Self.logger.debug("Analytics disabled by user, skipping heartbeat")
+            return
+        }
+
+        let payload = buildPayload()
+
+        do {
+            var request = URLRequest(url: analyticsURL)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try encoder.encode(payload)
+
+            // Sign request body with HMAC-SHA256
+            if let body = request.httpBody {
+                let key = SymmetricKey(data: Data(hmacSecret.utf8))
+                let signature = HMAC<SHA256>.authenticationCode(for: body, using: key)
+                let signatureHex = signature.map { String(format: "%02x", $0) }.joined()
+                request.setValue(signatureHex, forHTTPHeaderField: "X-Signature")
+            }
+
+            let (_, response) = try await session.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                Self.logger.debug("Analytics heartbeat sent, status: \(httpResponse.statusCode)")
+            }
+        } catch {
+            Self.logger.debug("Analytics heartbeat failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func buildPayload() -> AnalyticsPayload {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+
+        let osVersion: String = {
+            let version = ProcessInfo.processInfo.operatingSystemVersion
+            return "macOS \(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+        }()
+
+        let architecture: String = {
+            #if arch(arm64)
+            return "arm64"
+            #else
+            return "x86_64"
+            #endif
+        }()
+
+        let generalSettings = AppSettingsStorage.shared.loadGeneral()
+        let locale = generalSettings.language.rawValue
+
+        let sessions = DatabaseManager.shared.activeSessions
+        let databaseTypes = Array(Set(sessions.values.compactMap { $0.connection.type.rawValue }))
+        let connectionCount = sessions.count
+
+        let licenseKey = LicenseStorage.shared.loadLicenseKey()
+
+        return AnalyticsPayload(
+            machineId: LicenseStorage.shared.machineId,
+            appVersion: appVersion,
+            osVersion: osVersion,
+            architecture: architecture,
+            locale: locale,
+            databaseTypes: databaseTypes.isEmpty ? nil : databaseTypes,
+            connectionCount: connectionCount,
+            licenseKey: licenseKey
+        )
+    }
+}
+
+// MARK: - Payload
+
+private struct AnalyticsPayload: Encodable {
+    let machineId: String
+    let appVersion: String?
+    let osVersion: String
+    let architecture: String
+    let locale: String
+    let databaseTypes: [String]?
+    let connectionCount: Int
+    let licenseKey: String?
+}

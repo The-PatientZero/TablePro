@@ -65,6 +65,14 @@ struct GeneralSettingsView: View {
                 }
                 .disabled(!updaterBridge.canCheckForUpdates)
             }
+
+            Section("Privacy") {
+                Toggle("Share anonymous usage data", isOn: $settings.shareAnalytics)
+
+                Text("Help improve TablePro by sharing anonymous usage statistics (no personal data or queries).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

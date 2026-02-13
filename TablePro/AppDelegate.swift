@@ -163,6 +163,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             LicenseManager.shared.startPeriodicValidation()
         }
 
+        // Start anonymous usage analytics heartbeat
+        AnalyticsService.shared.startPeriodicHeartbeat()
+
         // Configure windows after app launch
         configureWelcomeWindow()
 

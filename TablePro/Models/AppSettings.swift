@@ -60,23 +60,29 @@ struct GeneralSettings: Codable, Equatable {
     /// Query execution timeout in seconds (0 = no limit)
     var queryTimeoutSeconds: Int
 
+    /// Whether to share anonymous usage analytics
+    var shareAnalytics: Bool
+
     static let `default` = GeneralSettings(
         startupBehavior: .showWelcome,
         language: .system,
         automaticallyCheckForUpdates: true,
-        queryTimeoutSeconds: 60
+        queryTimeoutSeconds: 60,
+        shareAnalytics: true
     )
 
     init(
         startupBehavior: StartupBehavior = .showWelcome,
         language: AppLanguage = .system,
         automaticallyCheckForUpdates: Bool = true,
-        queryTimeoutSeconds: Int = 60
+        queryTimeoutSeconds: Int = 60,
+        shareAnalytics: Bool = true
     ) {
         self.startupBehavior = startupBehavior
         self.language = language
         self.automaticallyCheckForUpdates = automaticallyCheckForUpdates
         self.queryTimeoutSeconds = queryTimeoutSeconds
+        self.shareAnalytics = shareAnalytics
     }
 
     init(from decoder: Decoder) throws {
@@ -85,6 +91,7 @@ struct GeneralSettings: Codable, Equatable {
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .system
         automaticallyCheckForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyCheckForUpdates) ?? true
         queryTimeoutSeconds = try container.decodeIfPresent(Int.self, forKey: .queryTimeoutSeconds) ?? 60
+        shareAnalytics = try container.decodeIfPresent(Bool.self, forKey: .shareAnalytics) ?? true
     }
 }
 
