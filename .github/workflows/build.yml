@@ -78,9 +78,9 @@ jobs:
             echo "✅ libpq already installed"
           fi
 
-          # Link packages with --force (needed for keg-only formulas)
-          brew link --force mariadb-connector-c
-          brew link --force libpq
+          # Link packages with --force and --overwrite (needed for keg-only formulas)
+          brew link --force --overwrite mariadb-connector-c
+          brew link --force --overwrite libpq
 
           # Verify installations
           if ! brew list mariadb-connector-c >/dev/null 2>&1; then
