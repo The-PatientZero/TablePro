@@ -34,6 +34,7 @@ extension MainContentCoordinator {
         let slash = UInt16(UnicodeScalar("/").value)
         let star = UInt16(UnicodeScalar("*").value)
         let newline = UInt16(UnicodeScalar("\n").value)
+        let backslash = UInt16(UnicodeScalar("\\").value)
 
         var statements: [String] = []
         var currentStart = 0
@@ -71,6 +72,12 @@ extension MainContentCoordinator {
             if !inString && ch == slash && i + 1 < length && nsQuery.character(at: i + 1) == star {
                 inBlockComment = true
                 i += 2
+                continue
+            }
+
+            // Handle backslash escapes inside strings (e.g., \' \" \\)
+            if inString && ch == backslash && i + 1 < length {
+                i += 2 // Skip the backslash and the escaped character
                 continue
             }
 

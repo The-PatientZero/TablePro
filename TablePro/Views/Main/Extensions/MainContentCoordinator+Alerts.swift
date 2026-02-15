@@ -42,6 +42,34 @@ extension MainContentCoordinator {
         return String(localized: "This query may permanently modify or delete data.")
     }
 
+    /// Check multiple queries for dangerous operations and show a single batch confirmation
+    /// - Parameter statements: Array of dangerous SQL statements
+    /// - Returns: true if user confirmed, false if cancelled
+    func confirmDangerousQueries(_ statements: [String]) async -> Bool {
+        guard !statements.isEmpty else { return true }
+
+        let querySummaries = statements.map { stmt -> String in
+            let trimmed = stmt.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Show first 80 chars of each query
+            if trimmed.count > 80 {
+                return String(trimmed.prefix(80)) + "..."
+            }
+            return trimmed
+        }
+
+        let queryList = querySummaries.joined(separator: "\n")
+        let message = String(
+            localized: "The following \(statements.count) queries may permanently modify or delete data. This action cannot be undone.\n\n\(queryList)"
+        )
+
+        return await AlertHelper.confirmCritical(
+            title: String(localized: "Potentially Dangerous Queries"),
+            message: message,
+            confirmButton: String(localized: "Execute All"),
+            cancelButton: String(localized: "Cancel")
+        )
+    }
+
     // MARK: - Discard Changes Confirmation
 
     /// Confirm discarding unsaved changes

@@ -244,10 +244,11 @@ final class MainContentCoordinator: ObservableObject {
                 executeQueryInternal(statements[0])
             }
         } else {
-            // Multiple statements — check all for dangerous queries, then execute sequentially
+            // Multiple statements — batch-check dangerous queries, then execute sequentially
             Task { @MainActor in
-                for stmt in statements {
-                    guard await confirmDangerousQueryIfNeeded(stmt) else { return }
+                let dangerousStatements = statements.filter { isDangerousQuery($0) }
+                if !dangerousStatements.isEmpty {
+                    guard await confirmDangerousQueries(dangerousStatements) else { return }
                 }
                 executeMultipleStatements(statements)
             }
@@ -570,6 +571,7 @@ final class MainContentCoordinator: ObservableObject {
         let slash = UInt16(UnicodeScalar("/").value)
         let star = UInt16(UnicodeScalar("*").value)
         let newline = UInt16(UnicodeScalar("\n").value)
+        let backslash = UInt16(UnicodeScalar("\\").value)
 
         let safePosition = min(max(0, position), length)
         var currentStart = 0
@@ -612,6 +614,12 @@ final class MainContentCoordinator: ObservableObject {
             // Detect block comment start (/*)
             if !inString && ch == slash && i + 1 < length && nsQuery.character(at: i + 1) == star {
                 inBlockComment = true
+                i += 2
+                continue
+            }
+
+            // Handle backslash escapes inside strings (e.g., \' \" \\)
+            if inString && ch == backslash && i + 1 < length {
                 i += 2
                 continue
             }

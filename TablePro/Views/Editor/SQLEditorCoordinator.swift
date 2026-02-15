@@ -3,14 +3,14 @@
 //  TablePro
 //
 //  TextViewCoordinator for the CodeEditSourceEditor-based SQL editor.
-//  Handles find panel workarounds only — key bindings are handled by
-//  SwiftUI .keyboardShortcut modifiers on QueryEditorView toolbar buttons.
+//  Handles find panel workarounds and horizontal scrolling fix.
 //
 
 import AppKit
 import CodeEditSourceEditor
+import CodeEditTextView
 
-/// Coordinator for the SQL editor — manages find panel workarounds
+/// Coordinator for the SQL editor — manages find panel, horizontal scrolling, and scroll-to-match
 @MainActor
 final class SQLEditorCoordinator: TextViewCoordinator {
     // MARK: - Properties
@@ -37,6 +37,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         DispatchQueue.main.async { [weak self] in
             guard self != nil else { return }
             self?.fixFindPanelHitTesting(controller: controller)
+            self?.applyHorizontalScrollFix(controller: controller)
         }
     }
 
@@ -46,16 +47,122 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         // Deferring a frame-change notification to the next run loop ensures
         // the layout manager has updated, so the visible range is accurate
         // and the highlighter re-evaluates any unhighlighted ranges.
-        DispatchQueue.main.async { [weak controller] in
-            guard let textView = controller?.textView else { return }
+        DispatchQueue.main.async { [weak self, weak controller] in
+            guard let self, let controller, let textView = controller.textView else { return }
             NotificationCenter.default.post(
                 name: NSView.frameDidChangeNotification,
                 object: textView
             )
+            // Re-check horizontal scroll fix after each text change.
+            // Layout has processed the new text by now, so estimatedWidth is current.
+            self.ensureHorizontalScrollFix(controller: controller)
+        }
+    }
+
+    func textViewDidChangeSelection(controller: TextViewController, newPositions: [CursorPosition]) {
+        // When the find panel navigates to a match, it changes the selection
+        // but the editor is not first responder. Scroll to the match manually
+        // because CodeEditTextView's scrollSelectionToVisible() fails for
+        // off-screen matches (TextSelection.boundingRect is .zero until drawn).
+        guard !isEditorFirstResponder else { return }
+        guard let range = newPositions.first?.range, range.location != NSNotFound else { return }
+
+        // Defer to next run loop to let EmphasisManager finish its work first.
+        DispatchQueue.main.async { [weak controller] in
+            controller?.textView.scrollToRange(range)
         }
     }
 
     func destroy() {}
+
+    // MARK: - Horizontal Scrolling Fix
+
+    /// Enable horizontal scrolling when word wrap is off.
+    ///
+    /// **Root cause:** CodeEditSourceEditor sets
+    /// `textView.translatesAutoresizingMaskIntoConstraints = false` in `styleTextView()`
+    /// but adds no explicit width constraint. Per Apple docs, when Auto Layout constraints
+    /// don't fully define the NSScrollView document view's size, the scroll view infers
+    /// the document view's width equals the visible area — preventing horizontal scrolling.
+    ///
+    /// **Fix:** Switch the text view back to autoresize-mask mode and remove `.width` from
+    /// the mask so `updateFrameIfNeeded()` can freely expand the frame for long lines.
+    /// Only `.height` is kept so the text view tracks the clip view's height changes.
+    ///
+    /// **Persistence:** `reloadUI()` (called on settings change) re-calls `styleTextView()`
+    /// which resets `translatesAutoresizingMaskIntoConstraints = false`. We re-apply the
+    /// fix via multiple safety nets:
+    /// 1. `.editorSettingsDidChange` observer — catches settings-triggered `reloadUI()`
+    /// 2. `textViewDidChangeText` — re-checks after every text change
+    /// 3. Delayed initial check — catches the first layout pass after view setup
+    private func applyHorizontalScrollFix(controller: TextViewController) {
+        setHorizontalScrollProperties(controller: controller)
+
+        // Re-apply after reloadUI() resets translatesAutoresizingMaskIntoConstraints.
+        // reloadUI() is called when editor settings change (font, theme, etc.).
+        NotificationCenter.default.addObserver(
+            forName: .editorSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self, weak controller] _ in
+            guard let self, let controller else { return }
+            // Defer so it runs AFTER reloadUI() → styleTextView()
+            DispatchQueue.main.async {
+                self.setHorizontalScrollProperties(controller: controller)
+            }
+        }
+
+        // The initial fix runs before text layout — estimatedWidth ≈ 0 at that point.
+        // After layout completes (asynchronously), maxLineWidth is updated and the
+        // layout delegate calls updateFrameIfNeeded(). However, if a timing race caused
+        // updateFrameIfNeeded() to run while translatesAutoresizing was still false,
+        // the frame wouldn't expand, and maxLineWidth won't change again (didSet won't
+        // re-fire). This delayed check ensures the frame is expanded after initial layout.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak controller] in
+            guard let self, let controller else { return }
+            self.ensureHorizontalScrollFix(controller: controller)
+        }
+    }
+
+    private func setHorizontalScrollProperties(controller: TextViewController) {
+        guard !controller.wrapLines else { return }
+        guard let textView = controller.textView,
+              let scrollView = controller.scrollView else { return }
+
+        // Switch from Auto Layout to autoresize-mask mode
+        textView.translatesAutoresizingMaskIntoConstraints = true
+        // Only track height (vertical resize). Do NOT include .width — that would
+        // lock the text view to the clip view's width, preventing horizontal scroll.
+        textView.autoresizingMask = [.height]
+        scrollView.hasHorizontalScroller = true
+        textView.updateFrameIfNeeded()
+    }
+
+    /// Verify horizontal scroll fix is still active and the frame width is correct.
+    /// Re-applies the fix if `translatesAutoresizingMaskIntoConstraints` was reset,
+    /// and force-expands the frame if it doesn't match the estimated content width.
+    private func ensureHorizontalScrollFix(controller: TextViewController) {
+        guard !controller.wrapLines else { return }
+        guard let textView = controller.textView,
+              let scrollView = controller.scrollView else { return }
+
+        // Re-apply if something reset translatesAutoresizingMaskIntoConstraints
+        if !textView.translatesAutoresizingMaskIntoConstraints {
+            setHorizontalScrollProperties(controller: controller)
+            return
+        }
+
+        // Fix is in place — verify the frame width matches the content width.
+        // updateFrameIfNeeded() may have been called before our fix was applied
+        // (during initial layout), so the frame might still be clipped to the
+        // visible area. Force-expand it based on the current estimated width.
+        let estimatedW = textView.layoutManager.estimatedWidth()
+        let clipW = scrollView.contentView.bounds.width
+        let targetW = max(estimatedW, clipW)
+        if abs(textView.frame.width - targetW) > 0.5 {
+            textView.setFrameSize(NSSize(width: targetW, height: textView.frame.height))
+        }
+    }
 
     // MARK: - CodeEditSourceEditor Workarounds
 

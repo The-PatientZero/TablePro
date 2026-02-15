@@ -68,8 +68,8 @@ struct SidebarView: View {
             previousSelectedTables = newTables
         }
         .onChange(of: tables) { newTables in
-            if newTables.isEmpty && DatabaseManager.shared.status != .disconnected {
-                isLoading = true
+            if newTables.isEmpty && DatabaseManager.shared.status != .disconnected && !isLoading {
+                loadTables()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in

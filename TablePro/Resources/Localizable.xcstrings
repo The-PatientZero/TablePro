@@ -2696,6 +2696,9 @@
         }
       }
     },
+    "Execute All" : {
+
+    },
     "Execute all statements in a single transaction. If any statement fails, all changes are rolled back." : {
       "localizations" : {
         "vi" : {
@@ -4654,6 +4657,9 @@
         }
       }
     },
+    "Potentially Dangerous Queries" : {
+
+    },
     "Potentially Dangerous Query" : {
       "localizations" : {
         "vi" : {
@@ -5986,6 +5992,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kiểm tra kết nối"
+          }
+        }
+      }
+    },
+    "The following %lld queries may permanently modify or delete data. This action cannot be undone.\n\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The following %1$lld queries may permanently modify or delete data. This action cannot be undone.\n\n%2$@"
           }
         }
       }

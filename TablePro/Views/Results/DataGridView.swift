@@ -177,24 +177,7 @@ struct DataGridView: NSViewRepresentable {
 
         coordinator.rebuildVisualStateCache()
 
-        // Capture current column layout before any rebuilds
-        if tableView.tableColumns.count > 1 {
-            var currentWidths: [String: CGFloat] = [:]
-            var currentOrder: [String] = []
-            for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
-                currentWidths[column.title] = column.width
-                currentOrder.append(column.title)
-            }
-            if !currentWidths.isEmpty && currentWidths != columnLayout.columnWidths {
-                DispatchQueue.main.async {
-                    self.columnLayout.columnWidths.merge(currentWidths) { _, new in new }
-                    if !currentOrder.isEmpty {
-                        self.columnLayout.columnOrder = currentOrder
-                    }
-                }
-            }
-        }
-
+        // Capture current column layout before any rebuilds (only if not about to rebuild)
         // Check if columns changed (by name or structure)
         let currentDataColumns = tableView.tableColumns.dropFirst()
         let currentColumnNames = currentDataColumns.map { $0.title }
@@ -244,6 +227,29 @@ struct DataGridView: NSViewRepresentable {
             // Always sync column editability (e.g., view tabs reusing table columns)
             for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
                 column.isEditable = isEditable
+            }
+
+            // Capture current column layout from user interactions (resize/reorder)
+            // Only done in the non-rebuild path to avoid feedback loops
+            if tableView.tableColumns.count > 1 {
+                var currentWidths: [String: CGFloat] = [:]
+                var currentOrder: [String] = []
+                for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
+                    currentWidths[column.title] = column.width
+                    currentOrder.append(column.title)
+                }
+                let widthsChanged = !currentWidths.isEmpty && currentWidths != columnLayout.columnWidths
+                let orderChanged = !currentOrder.isEmpty && columnLayout.columnOrder != currentOrder
+                if widthsChanged || orderChanged {
+                    DispatchQueue.main.async {
+                        if widthsChanged {
+                            self.columnLayout.columnWidths = currentWidths
+                        }
+                        if orderChanged {
+                            self.columnLayout.columnOrder = currentOrder
+                        }
+                    }
+                }
             }
         }
 

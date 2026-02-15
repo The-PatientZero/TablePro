@@ -23,6 +23,7 @@ struct SQLEditorView: View {
     @State private var completionAdapter: SQLCompletionAdapter?
     @State private var coordinator = SQLEditorCoordinator()
     @State private var editorConfiguration = makeConfiguration()
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         SourceEditor(
@@ -57,6 +58,9 @@ struct SQLEditorView: View {
                 let fullRange = NSRange(location: 0, length: (controller.textView.string as NSString).length)
                 controller.textView.replaceCharacters(in: fullRange, with: newValue)
             }
+        }
+        .onChange(of: colorScheme) { _ in
+            editorConfiguration = Self.makeConfiguration()
         }
         .onReceive(NotificationCenter.default.publisher(for: .editorSettingsDidChange)) { _ in
             editorConfiguration = Self.makeConfiguration()
