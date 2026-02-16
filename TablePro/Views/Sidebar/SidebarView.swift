@@ -473,6 +473,32 @@ struct SidebarView: View {
             let fetchedTables = try await driver.fetchTables()
             await MainActor.run {
                 tables = fetchedTables
+
+                // Clean up stale entries for tables that no longer exist
+                let fetchedNames = Set(fetchedTables.map(\.name))
+
+                let staleSelections = selectedTables.filter { !fetchedNames.contains($0.name) }
+                if !staleSelections.isEmpty {
+                    isRestoringSelection = true
+                    selectedTables.subtract(staleSelections)
+                    isRestoringSelection = false
+                }
+
+                let stalePendingDeletes = pendingDeletes.subtracting(fetchedNames)
+                let stalePendingTruncates = pendingTruncates.subtracting(fetchedNames)
+                if !stalePendingDeletes.isEmpty {
+                    pendingDeletes.subtract(stalePendingDeletes)
+                    for name in stalePendingDeletes {
+                        tableOperationOptions.removeValue(forKey: name)
+                    }
+                }
+                if !stalePendingTruncates.isEmpty {
+                    pendingTruncates.subtract(stalePendingTruncates)
+                    for name in stalePendingTruncates {
+                        tableOperationOptions.removeValue(forKey: name)
+                    }
+                }
+
                 // Only restore selection if it was cleared (prevent reopening tabs)
                 if let name = previousSelectedName {
                     let currentNames = Set(selectedTables.map { $0.name })
