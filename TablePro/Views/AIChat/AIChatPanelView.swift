@@ -13,6 +13,7 @@ struct AIChatPanelView: View {
     let connection: DatabaseConnection
     let tables: [TableInfo]
     var currentQuery: String?
+    var queryResults: String?
 
     @ObservedObject var viewModel: AIChatViewModel
     @ObservedObject private var settingsManager = AppSettingsManager.shared
@@ -59,6 +60,31 @@ struct AIChatPanelView: View {
                   let feature = AIFeature(rawValue: featureRaw) else { return }
             updateContext()
             viewModel.sendWithContext(prompt: prompt, feature: feature)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .aiFixError)) { notification in
+            guard let userInfo = notification.userInfo,
+                  let query = userInfo["query"] as? String,
+                  let error = userInfo["error"] as? String else { return }
+            viewModel.startNewConversation()
+            updateContext()
+            let prompt = "Fix this SQL query error:\n\nQuery:\n```sql\n\(query)\n```\n\nError: \(error)"
+            viewModel.sendWithContext(prompt: prompt, feature: .fixError)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .aiExplainSelection)) { notification in
+            let selectedText = notification.userInfo?["selectedText"] as? String ?? currentQuery ?? ""
+            guard !selectedText.isEmpty else { return }
+            viewModel.startNewConversation()
+            updateContext()
+            let prompt = "Explain this SQL:\n```sql\n\(selectedText)\n```"
+            viewModel.sendWithContext(prompt: prompt, feature: .explainQuery)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .aiOptimizeSelection)) { notification in
+            let selectedText = notification.userInfo?["selectedText"] as? String ?? currentQuery ?? ""
+            guard !selectedText.isEmpty else { return }
+            viewModel.startNewConversation()
+            updateContext()
+            let prompt = "Optimize this SQL query:\n```sql\n\(selectedText)\n```"
+            viewModel.sendWithContext(prompt: prompt, feature: .optimizeQuery)
         }
         .alert(
             String(localized: "Allow AI Access"),
@@ -338,6 +364,7 @@ struct AIChatPanelView: View {
 
     private func updateContext() {
         viewModel.currentQuery = currentQuery
+        viewModel.queryResults = queryResults
     }
 
     private func shouldShowRetry(for message: AIChatMessage) -> Bool {

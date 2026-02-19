@@ -518,8 +518,37 @@ struct MainContentView: View {
             selectedRowData: selectedRowDataForSidebar,
             isEditable: isSidebarEditable,
             isRowDeleted: isSelectedRowDeleted,
-            currentQuery: coordinator.tabManager.selectedTab?.query
+            currentQuery: coordinator.tabManager.selectedTab?.query,
+            queryResults: buildQueryResultsSummary()
         )
+    }
+
+    private func buildQueryResultsSummary() -> String? {
+        guard let tab = currentTab,
+              !tab.resultColumns.isEmpty,
+              !tab.resultRows.isEmpty
+        else { return nil }
+
+        let columns = tab.resultColumns
+        let rows = tab.resultRows
+        let maxRows = 10
+        let displayRows = Array(rows.prefix(maxRows))
+
+        var lines: [String] = []
+        lines.append(columns.joined(separator: " | "))
+
+        for row in displayRows {
+            let values = columns.indices.map { i in
+                i < row.values.count ? (row.values[i] ?? "NULL") : "NULL"
+            }
+            lines.append(values.joined(separator: " | "))
+        }
+
+        if rows.count > maxRows {
+            lines.append("(showing \(maxRows) of \(rows.count) rows)")
+        }
+
+        return lines.joined(separator: "\n")
     }
 }
 

@@ -29,8 +29,8 @@ struct AIChatMessageView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
 
-                Text(message.content)
-                    .font(.system(size: 13, weight: .medium))
+                Markdown(message.content)
+                    .markdownTheme(.tableProChat)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 8)

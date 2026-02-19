@@ -7270,6 +7270,7 @@
 
     },
     "Toggle AI Chat" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {

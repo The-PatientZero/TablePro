@@ -16,6 +16,7 @@ struct InspectorContext {
     let isEditable: Bool
     let isRowDeleted: Bool
     let currentQuery: String?
+    let queryResults: String?
 
     static let empty = InspectorContext(
         tableName: nil,
@@ -23,6 +24,7 @@ struct InspectorContext {
         selectedRowData: nil,
         isEditable: false,
         isRowDeleted: false,
-        currentQuery: nil
+        currentQuery: nil,
+        queryResults: nil
     )
 }

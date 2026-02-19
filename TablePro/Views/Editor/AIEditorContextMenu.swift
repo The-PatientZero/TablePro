@@ -11,6 +11,7 @@ import AppKit
 final class AIEditorContextMenu: NSMenu, NSMenuDelegate {
     /// Closure provided by the coordinator to check if text is selected
     var hasSelection: (() -> Bool)?
+    var selectedText: (() -> String?)?
 
     override init(title: String) {
         super.init(title: title)
@@ -69,10 +70,18 @@ final class AIEditorContextMenu: NSMenu, NSMenuDelegate {
     // MARK: - AI Actions
 
     @objc private func handleExplainWithAI() {
-        NotificationCenter.default.post(name: .aiExplainSelection, object: nil)
+        NotificationCenter.default.post(
+            name: .aiExplainSelection,
+            object: nil,
+            userInfo: selectedText?().map { ["selectedText": $0] }
+        )
     }
 
     @objc private func handleOptimizeWithAI() {
-        NotificationCenter.default.post(name: .aiOptimizeSelection, object: nil)
+        NotificationCenter.default.post(
+            name: .aiOptimizeSelection,
+            object: nil,
+            userInfo: selectedText?().map { ["selectedText": $0] }
+        )
     }
 }

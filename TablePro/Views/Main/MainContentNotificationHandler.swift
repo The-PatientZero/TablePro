@@ -671,13 +671,6 @@ final class MainContentNotificationHandler: ObservableObject {
             }
             .store(in: &cancellables)
 
-        NotificationCenter.default.publisher(for: .toggleAIChatPanel)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleToggleAIChat()
-            }
-            .store(in: &cancellables)
-
     }
 
     private func handleClearSelection() {
@@ -689,25 +682,7 @@ final class MainContentNotificationHandler: ObservableObject {
     }
 
     private func handleToggleRightSidebar() {
-        if rightPanelState.isPresented && rightPanelState.activeTab == .details {
-            rightPanelState.isPresented = false
-        } else {
-            rightPanelState.isPresented = true
-            rightPanelState.activeTab = .details
-            if let tableName = coordinator?.tabManager.selectedTab?.tableName,
-               coordinator?.tableMetadata?.tableName != tableName {
-                Task { await coordinator?.loadTableMetadata(tableName: tableName) }
-            }
-        }
-    }
-
-    private func handleToggleAIChat() {
-        if rightPanelState.isPresented && rightPanelState.activeTab == .aiChat {
-            rightPanelState.isPresented = false
-        } else {
-            rightPanelState.isPresented = true
-            rightPanelState.activeTab = .aiChat
-        }
+        rightPanelState.isPresented.toggle()
     }
 
     // MARK: - Database Operations

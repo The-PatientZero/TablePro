@@ -92,6 +92,12 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             guard let controller else { return false }
             return controller.cursorPositions.contains { $0.range.length > 0 }
         }
+        menu.selectedText = { [weak controller] in
+            guard let controller, let textView = controller.textView else { return nil }
+            let range = textView.selectedRange()
+            guard range.length > 0 else { return nil }
+            return (textView.string as NSString).substring(with: range)
+        }
         contextMenu = menu
 
         // CodeEditTextView's TextView overrides menu(for:) with a hardcoded

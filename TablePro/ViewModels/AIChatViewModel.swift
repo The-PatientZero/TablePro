@@ -42,6 +42,9 @@ final class AIChatViewModel: ObservableObject {
     /// Current query text from the active editor tab
     var currentQuery: String?
 
+    /// Query results summary from the active tab
+    var queryResults: String?
+
     // MARK: - Private
 
     private var streamingTask: Task<Void, Never>?
@@ -371,7 +374,7 @@ final class AIChatViewModel: ObservableObject {
             columnsByTable: columnsByTable,
             foreignKeys: foreignKeysByTable,
             currentQuery: settings.includeCurrentQuery ? currentQuery : nil,
-            queryResults: nil,
+            queryResults: settings.includeQueryResults ? queryResults : nil,
             settings: settings
         )
     }

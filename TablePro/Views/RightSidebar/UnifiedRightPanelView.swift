@@ -44,6 +44,7 @@ struct UnifiedRightPanelView: View {
                     connection: connection,
                     tables: tables,
                     currentQuery: inspectorContext.currentQuery,
+                    queryResults: inspectorContext.queryResults,
                     viewModel: state.aiViewModel
                 )
             }

@@ -382,11 +382,6 @@ struct TableProApp: App {
                 .optionalKeyboardShortcut(shortcut(for: .toggleHistory))
                 .disabled(!appState.isConnected)
 
-                Button("Toggle AI Chat") {
-                    NotificationCenter.default.post(name: .toggleAIChatPanel, object: nil)
-                }
-                .keyboardShortcut("l", modifiers: [.command, .shift])
-                .disabled(!appState.isConnected)
             }
 
             // Tab navigation shortcuts
@@ -475,9 +470,6 @@ extension Notification.Name {
 
     // History panel notifications
     static let toggleHistoryPanel = Notification.Name("toggleHistoryPanel")
-
-    // AI chat panel notifications
-    static let toggleAIChatPanel = Notification.Name("toggleAIChatPanel")
 
     // Database switcher notifications
     static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
