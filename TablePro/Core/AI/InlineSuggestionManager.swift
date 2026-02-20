@@ -102,7 +102,7 @@ final class InlineSuggestionManager {
         guard let controller else { return }
 
         let cursorOffset = controller.cursorPositions.first?.range.location ?? NSNotFound
-        if cursorOffset != suggestionOffset || !suggestion.isEmpty == false {
+        if cursorOffset != suggestionOffset {
             dismissSuggestion()
         }
     }
@@ -165,18 +165,25 @@ final class InlineSuggestionManager {
         var columns: [String: [ColumnInfo]] = [:]
         var foreignKeys: [String: [ForeignKeyInfo]] = [:]
 
-        for table in tablesToFetch {
-            do {
-                let cols = try await driver.fetchColumns(table: table.name)
-                columns[table.name] = cols
+        await withTaskGroup(of: (String, [ColumnInfo]?, [ForeignKeyInfo]?).self) { group in
+            for table in tablesToFetch {
+                group.addTask {
+                    do {
+                        let cols = try await driver.fetchColumns(table: table.name)
+                        let fks = try await driver.fetchForeignKeys(table: table.name)
+                        return (table.name, cols, fks)
+                    } catch {
+                        Self.logger.debug(
+                            "Failed to fetch schema for table '\(table.name)': \(error.localizedDescription)"
+                        )
+                        return (table.name, nil, nil)
+                    }
+                }
+            }
 
-                let fks = try await driver.fetchForeignKeys(table: table.name)
-                foreignKeys[table.name] = fks
-            } catch {
-                Self.logger.debug(
-                    "Failed to fetch schema for table '\(table.name)': \(error.localizedDescription)"
-                )
-                continue
+            for await (name, cols, fks) in group {
+                if let cols { columns[name] = cols }
+                if let fks { foreignKeys[name] = fks }
             }
         }
 
@@ -350,19 +357,21 @@ final class InlineSuggestionManager {
         return result
     }
 
+    /// Precompiled regex for stripping `<think>...</think>` blocks
+    private static let thinkingRegex: NSRegularExpression? = try? NSRegularExpression(
+        pattern: "<think>.*?</think>|<think>.*$",
+        options: [.caseInsensitive, .dotMatchesLineSeparators]
+    )
+
     /// Remove `<think>...</think>` blocks (case-insensitive) from AI output.
     /// Handles partial/unclosed tags too — if a `<think>` opens but never closes,
     /// everything from that tag onward is stripped.
     private func stripThinkingBlocks(_ text: String) -> String {
-        let nsText = text as NSString
-        guard let regex = try? NSRegularExpression(
-            pattern: "<think>.*?</think>|<think>.*$",
-            options: [.caseInsensitive, .dotMatchesLineSeparators]
-        ) else { return text }
+        guard let regex = Self.thinkingRegex else { return text }
 
         return regex.stringByReplacingMatches(
             in: text,
-            range: NSRange(location: 0, length: nsText.length),
+            range: NSRange(location: 0, length: (text as NSString).length),
             withTemplate: ""
         )
     }
