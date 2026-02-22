@@ -467,6 +467,13 @@ struct DataGridView: NSViewRepresentable {
         }
     }
 
+    static func dismantleNSView(_ nsView: NSScrollView, coordinator: TableViewCoordinator) {
+        if let observer = coordinator.settingsObserver {
+            NotificationCenter.default.removeObserver(observer)
+            coordinator.settingsObserver = nil
+        }
+    }
+
     func makeCoordinator() -> TableViewCoordinator {
         TableViewCoordinator(
             rowProvider: rowProvider,
@@ -526,7 +533,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var cellFactory: DataGridCellFactory?
 
     // Settings observer for real-time updates
-    private var settingsObserver: NSObjectProtocol?
+    fileprivate var settingsObserver: NSObjectProtocol?
 
     @Binding var selectedRowIndices: Set<Int>
 
