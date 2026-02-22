@@ -1094,15 +1094,13 @@ final class MainContentCoordinator: ObservableObject {
         // This avoids the race condition of async updateSession
         let restoreNotificationName = Notification.Name("RestorePendingTableOperations_\(conn.id)")
 
-        Task {
+        Task { @MainActor in
             let overallStartTime = Date()
 
             do {
                 guard let driver = DatabaseManager.shared.activeDriver else {
-                    await MainActor.run {
-                        if let index = tabManager.selectedTabIndex {
-                            tabManager.tabs[index].errorMessage = "Not connected to database"
-                        }
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = "Not connected to database"
                     }
                     throw DatabaseError.notConnected
                 }
@@ -1119,42 +1117,38 @@ final class MainContentCoordinator: ObservableObject {
 
                     let executionTime = Date().timeIntervalSince(statementStartTime)
 
-                    await MainActor.run {
-                        QueryHistoryManager.shared.recordQuery(
-                            query: statement.sql.trimmingCharacters(in: .whitespacesAndNewlines),
-                            connectionId: conn.id,
-                            databaseName: conn.database,
-                            executionTime: executionTime,
-                            rowCount: 0,
-                            wasSuccessful: true,
-                            errorMessage: nil
-                        )
-                    }
+                    QueryHistoryManager.shared.recordQuery(
+                        query: statement.sql.trimmingCharacters(in: .whitespacesAndNewlines),
+                        connectionId: conn.id,
+                        databaseName: conn.database,
+                        executionTime: executionTime,
+                        rowCount: 0,
+                        wasSuccessful: true,
+                        errorMessage: nil
+                    )
                 }
 
-                await MainActor.run {
-                    changeManager.clearChanges()
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].pendingChanges = TabPendingChanges()
-                        tabManager.tabs[index].errorMessage = nil
-                    }
+                changeManager.clearChanges()
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].pendingChanges = TabPendingChanges()
+                    tabManager.tabs[index].errorMessage = nil
+                }
 
-                    if clearTableOps {
-                        // Close tabs for deleted tables
-                        if !deletedTables.isEmpty {
-                            var tabsToClose: [QueryTab] = []
-                            for tab in tabManager.tabs {
-                                if let tableName = tab.tableName, deletedTables.contains(tableName) {
-                                    tabsToClose.append(tab)
-                                }
-                            }
-                            for tab in tabsToClose {
-                                tabManager.closeTab(tab)
+                if clearTableOps {
+                    // Close tabs for deleted tables
+                    if !deletedTables.isEmpty {
+                        var tabsToClose: [QueryTab] = []
+                        for tab in tabManager.tabs {
+                            if let tableName = tab.tableName, deletedTables.contains(tableName) {
+                                tabsToClose.append(tab)
                             }
                         }
-
-                        NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+                        for tab in tabsToClose {
+                            tabManager.closeTab(tab)
+                        }
                     }
+
+                    NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
                 }
 
                 if tabManager.selectedTabIndex != nil && !tabManager.tabs.isEmpty {
@@ -1174,49 +1168,47 @@ final class MainContentCoordinator: ObservableObject {
                     }
                 }
 
-                await MainActor.run {
-                    let allSQL = validStatements.map { $0.sql }.joined(separator: "; ")
-                    QueryHistoryManager.shared.recordQuery(
-                        query: allSQL,
-                        connectionId: conn.id,
-                        databaseName: conn.database,
-                        executionTime: executionTime,
-                        rowCount: 0,
-                        wasSuccessful: false,
-                        errorMessage: error.localizedDescription
+                let allSQL = validStatements.map { $0.sql }.joined(separator: "; ")
+                QueryHistoryManager.shared.recordQuery(
+                    query: allSQL,
+                    connectionId: conn.id,
+                    databaseName: conn.database,
+                    executionTime: executionTime,
+                    rowCount: 0,
+                    wasSuccessful: false,
+                    errorMessage: error.localizedDescription
+                )
+
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
+                }
+
+                // Show error alert to user
+                AlertHelper.showErrorSheet(
+                    title: String(localized: "Save Failed"),
+                    message: error.localizedDescription,
+                    window: NSApplication.shared.keyWindow
+                )
+
+                // Restore operations on failure so user can retry.
+                // Use notification to restore via MainContentView's bindings for synchronous update.
+                if clearTableOps {
+                    NotificationCenter.default.post(
+                        name: restoreNotificationName,
+                        object: nil,
+                        userInfo: [
+                            "truncates": truncatedTables,
+                            "deletes": deletedTables,
+                            "options": capturedOptions
+                        ]
                     )
 
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
-                    }
-
-                    // Show error alert to user
-                    AlertHelper.showErrorSheet(
-                        title: String(localized: "Save Failed"),
-                        message: error.localizedDescription,
-                        window: NSApplication.shared.keyWindow
-                    )
-
-                    // Restore operations on failure so user can retry.
-                    // Use notification to restore via MainContentView's bindings for synchronous update.
-                    if clearTableOps {
-                        NotificationCenter.default.post(
-                            name: restoreNotificationName,
-                            object: nil,
-                            userInfo: [
-                                "truncates": truncatedTables,
-                                "deletes": deletedTables,
-                                "options": capturedOptions
-                            ]
-                        )
-
-                        // Also update session for persistence
-                        DatabaseManager.shared.updateSession(conn.id) { session in
-                            session.pendingTruncates = truncatedTables
-                            session.pendingDeletes = deletedTables
-                            for (table, opts) in capturedOptions {
-                                session.tableOperationOptions[table] = opts
-                            }
+                    // Also update session for persistence
+                    DatabaseManager.shared.updateSession(conn.id) { session in
+                        session.pendingTruncates = truncatedTables
+                        session.pendingDeletes = deletedTables
+                        for (table, opts) in capturedOptions {
+                            session.tableOperationOptions[table] = opts
                         }
                     }
                 }
@@ -1283,15 +1275,13 @@ final class MainContentCoordinator: ObservableObject {
         }
 
         // Execute the CREATE TABLE statement
-        Task {
+        Task { @MainActor in
             let startTime = Date()
 
             do {
                 guard let driver = DatabaseManager.shared.activeDriver else {
-                    await MainActor.run {
-                        if let index = tabManager.selectedTabIndex {
-                            tabManager.tabs[index].errorMessage = "Not connected to database"
-                        }
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = "Not connected to database"
                     }
                     throw DatabaseError.notConnected
                 }
@@ -1305,38 +1295,30 @@ final class MainContentCoordinator: ObservableObject {
                 await schemaProvider.invalidateCache()
                 await loadSchema()
 
-                let needsQuery = await MainActor.run { () -> Bool in
-                    // Close the create table tab
-                    if let tabIndex = tabManager.selectedTabIndex,
-                       tabIndex < tabManager.tabs.count {
-                        let currentTab = tabManager.tabs[tabIndex]
-                        tabManager.closeTab(currentTab)
-                    }
-
-                    // Open the newly created table in a new tab
-                    let needs = tabManager.TableProTabSmart(
-                        tableName: options.tableName,
-                        hasUnsavedChanges: changeManager.hasChanges,
-                        databaseType: connection.type
-                    )
-
-                    // Refresh sidebar to show new table
-                    NotificationCenter.default.post(name: .refreshData, object: nil)
-
-                    return needs
+                // Close the create table tab
+                if let tabIndex = tabManager.selectedTabIndex,
+                   tabIndex < tabManager.tabs.count {
+                    let currentTab = tabManager.tabs[tabIndex]
+                    tabManager.closeTab(currentTab)
                 }
+
+                // Open the newly created table in a new tab
+                let needs = tabManager.TableProTabSmart(
+                    tableName: options.tableName,
+                    hasUnsavedChanges: changeManager.hasChanges,
+                    databaseType: connection.type
+                )
+
+                // Refresh sidebar to show new table
+                NotificationCenter.default.post(name: .refreshData, object: nil)
 
                 // Execute query to load table data if needed (runs async)
-                if needsQuery {
-                    await MainActor.run {
-                        runQuery()
-                    }
+                if needs {
+                    runQuery()
                 }
             } catch {
-                await MainActor.run {
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].errorMessage = "Failed to create table: \(error.localizedDescription)"
-                    }
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].errorMessage = "Failed to create table: \(error.localizedDescription)"
                 }
             }
         }

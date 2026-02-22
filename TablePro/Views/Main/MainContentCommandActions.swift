@@ -682,35 +682,31 @@ final class MainContentCommandActions: ObservableObject {
     private func handleEditViewDefinition(_ viewName: String) {
         guard let coordinator = coordinator else { return }
 
-        Task {
+        Task { @MainActor in
             do {
                 guard let driver = DatabaseManager.shared.activeDriver else { return }
                 let definition = try await driver.fetchViewDefinition(view: viewName)
 
-                await MainActor.run {
-                    coordinator.tabManager.addTab(
-                        initialQuery: definition,
-                        title: "View: \(viewName)"
-                    )
-                }
+                coordinator.tabManager.addTab(
+                    initialQuery: definition,
+                    title: "View: \(viewName)"
+                )
             } catch {
-                await MainActor.run {
-                    // Open tab with a basic ALTER template on failure
-                    let fallbackSQL: String
-                    switch connection.type {
-                    case .postgresql:
-                        fallbackSQL = "CREATE OR REPLACE VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
-                    case .mysql, .mariadb:
-                        fallbackSQL = "ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
-                    case .sqlite:
-                        fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"
-                    }
-
-                    coordinator.tabManager.addTab(
-                        initialQuery: fallbackSQL,
-                        title: "View: \(viewName)"
-                    )
+                // Open tab with a basic ALTER template on failure
+                let fallbackSQL: String
+                switch connection.type {
+                case .postgresql:
+                    fallbackSQL = "CREATE OR REPLACE VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
+                case .mysql, .mariadb:
+                    fallbackSQL = "ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
+                case .sqlite:
+                    fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"
                 }
+
+                coordinator.tabManager.addTab(
+                    initialQuery: fallbackSQL,
+                    title: "View: \(viewName)"
+                )
             }
         }
     }
@@ -727,7 +723,7 @@ final class MainContentCommandActions: ObservableObject {
     }
 
     private func handleDatabaseDidConnect() {
-        Task {
+        Task { @MainActor in
             await coordinator?.loadSchema()
             if let driver = DatabaseManager.shared.activeDriver {
                 coordinator?.toolbarState.databaseVersion = driver.serverVersion
@@ -784,7 +780,7 @@ final class MainContentCommandActions: ObservableObject {
         guard let urls = notification.object as? [URL],
               let coordinator = coordinator else { return }
 
-        Task {
+        Task { @MainActor in
             for url in urls {
                 let content = await Task.detached(priority: .userInitiated) { () -> String? in
                     do {
@@ -817,7 +813,7 @@ final class MainContentCommandActions: ObservableObject {
     }
 
     private func handleReconnect() {
-        Task {
+        Task { @MainActor in
             await DatabaseManager.shared.reconnectCurrentSession()
         }
     }
