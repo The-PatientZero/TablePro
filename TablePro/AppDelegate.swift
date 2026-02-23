@@ -476,6 +476,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if window.styleMask.contains(.resizable) {
             window.styleMask.remove(.resizable)
         }
+
+        // Enable behind-window translucency (frosted glass effect)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.titlebarAppearsTransparent = true
     }
 
     private func isConnectionFormWindow(_ window: NSWindow) -> Bool {
