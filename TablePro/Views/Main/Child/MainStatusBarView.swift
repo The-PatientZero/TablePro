@@ -95,6 +95,13 @@ struct MainStatusBarView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
+    /// Cached decimal formatter to avoid allocation on every render
+    private static let decimalFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter
+    }()
+
     /// Generate row info text based on selection and pagination state
     private func rowInfoText(for tab: QueryTab) -> String {
         let loadedCount = tab.resultRows.count
@@ -111,15 +118,12 @@ struct MainStatusBarView: View {
             }
         } else if tab.tabType == .table, let total = total, total > 0 {
             // Pagination mode (table tabs only): "201-400 of 5,000 rows"
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            let formattedTotal = formatter.string(from: NSNumber(value: total)) ?? "\(total)"
+            let formattedTotal = Self.decimalFormatter.string(from: NSNumber(value: total)) ?? "\(total)"
+            let prefix = pagination.isApproximateRowCount ? "~" : ""
 
-            return String(localized: "\(pagination.rangeStart)-\(pagination.rangeEnd) of \(formattedTotal) rows")
+            return String(localized: "\(pagination.rangeStart)-\(pagination.rangeEnd) of \(prefix)\(formattedTotal) rows")
         } else if loadedCount > 0 {
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            let formattedCount = formatter.string(from: NSNumber(value: loadedCount)) ?? "\(loadedCount)"
+            let formattedCount = Self.decimalFormatter.string(from: NSNumber(value: loadedCount)) ?? "\(loadedCount)"
             return String(localized: "\(formattedCount) rows")
         } else {
             return String(localized: "No rows")
