@@ -35,7 +35,6 @@ struct FilterPanelView: View {
             // Quick Search field (always visible)
             QuickSearchField(
                 searchText: $filterState.quickSearchText,
-                hasActiveSearch: filterState.hasActiveQuickSearch,
                 shouldFocus: $filterState.shouldFocusQuickSearch,
                 onSubmit: { onQuickSearch?(filterState.quickSearchText) },
                 onClear: { filterState.clearQuickSearch() }
@@ -178,9 +177,9 @@ struct FilterPanelView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 2) {
-                    ForEach(filterState.filters) { filter in
+                    ForEach($filterState.filters) { $filter in
                         FilterRowView(
-                            filter: filterState.binding(for: filter),
+                            filter: $filter,
                             columns: columns,
                             isFocused: filterState.focusedFilterId == filter.id,
                             onDuplicate: { filterState.duplicateFilter(filter) },
