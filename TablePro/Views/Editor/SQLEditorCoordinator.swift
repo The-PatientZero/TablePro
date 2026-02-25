@@ -20,6 +20,9 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     private var rightClickMonitor: Any?
     private var inlineSuggestionManager: InlineSuggestionManager?
     private var editorSettingsObserver: NSObjectProtocol?
+    /// Debounce work item for frame-change notification to avoid
+    /// triggering syntax highlight viewport recalculation on every keystroke.
+    private var frameChangeWorkItem: DispatchWorkItem?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -48,22 +51,27 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     }
 
     func textViewDidChangeText(controller: TextViewController) {
-        // After text changes (especially paste), the highlighter's visible
-        // range may be stale because layout hasn't processed the new text yet.
-        // Deferring a frame-change notification to the next run loop ensures
-        // the layout manager has updated, so the visible range is accurate
-        // and the highlighter re-evaluates any unhighlighted ranges.
-        DispatchQueue.main.async { [weak self, weak controller] in
+        // Notify inline suggestion manager immediately (lightweight)
+        DispatchQueue.main.async { [weak self] in
+            self?.inlineSuggestionManager?.handleTextChange()
+        }
+
+        // Throttle frame-change notification — during rapid typing, only the
+        // last notification matters. The highlighter recalculates the visible
+        // range on each notification, so coalescing saves redundant layout work.
+        frameChangeWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self, weak controller] in
             guard let self, let controller, let textView = controller.textView else { return }
             NotificationCenter.default.post(
                 name: NSView.frameDidChangeNotification,
                 object: textView
             )
-            // Re-check horizontal scroll fix after each text change.
+            // Re-check horizontal scroll fix after text change.
             // Layout has processed the new text by now, so estimatedWidth is current.
             self.ensureHorizontalScrollFix(controller: controller)
-            self.inlineSuggestionManager?.handleTextChange()
         }
+        frameChangeWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: workItem)
     }
 
     func textViewDidChangeSelection(controller: TextViewController, newPositions: [CursorPosition]) {
@@ -83,6 +91,9 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     }
 
     func destroy() {
+        frameChangeWorkItem?.cancel()
+        frameChangeWorkItem = nil
+
         inlineSuggestionManager?.uninstall()
         inlineSuggestionManager = nil
 

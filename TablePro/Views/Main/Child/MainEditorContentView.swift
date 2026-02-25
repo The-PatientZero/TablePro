@@ -18,6 +18,20 @@ private struct SortedRowsCache {
     let resultVersion: Int
 }
 
+/// Trigger struct for coalesced row-provider rebuilds.
+/// Combining selectedTabId and resultVersion into one Equatable value
+/// lets SwiftUI fire a single onChange instead of two independent ones.
+private struct RowProviderTrigger: Equatable {
+    let tabId: UUID?
+    let resultVersion: Int?
+}
+
+/// Reference-type box for lazy AnyChangeManager creation.
+/// Avoids creating Combine pipelines during SwiftUI body evaluation.
+private final class ChangeManagerBox {
+    var manager: AnyChangeManager?
+}
+
 /// Main editor content with tab bar and content switching
 struct MainEditorContentView: View {
     // MARK: - Dependencies
@@ -63,18 +77,22 @@ struct MainEditorContentView: View {
     @State private var cachedRowProvider: InMemoryRowProvider?
     @State private var cachedProviderTabId: UUID?
     @State private var cachedProviderVersion: Int = -1
-    @State private var cachedChangeManager: AnyChangeManager?
+    @State private var changeManagerBox = ChangeManagerBox()
 
     // MARK: - Environment
 
     @EnvironmentObject private var appState: AppState
 
-    /// Returns the cached AnyChangeManager, creating it on first access.
+    /// Returns the cached AnyChangeManager, creating it lazily on first access.
+    /// Uses a reference-type box so the instance is created once without
+    /// triggering a SwiftUI state change during body evaluation.
     private var currentChangeManager: AnyChangeManager {
-        if let existing = cachedChangeManager {
+        if let existing = changeManagerBox.manager {
             return existing
         }
-        return AnyChangeManager(dataManager: changeManager)
+        let manager = AnyChangeManager(dataManager: changeManager)
+        changeManagerBox.manager = manager
+        return manager
     }
 
     // MARK: - Body
@@ -119,7 +137,6 @@ struct MainEditorContentView: View {
         }
         .onAppear {
             updateHasQueryText()
-            cachedChangeManager = AnyChangeManager(dataManager: changeManager)
             if let tab = tabManager.selectedTab {
                 let provider = makeRowProvider(for: tab)
                 cachedRowProvider = provider
@@ -127,19 +144,17 @@ struct MainEditorContentView: View {
                 cachedProviderVersion = tab.resultVersion
             }
         }
-        .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
-            guard let tab = tabManager.selectedTab, let version = newVersion else { return }
-            let provider = makeRowProvider(for: tab)
-            cachedRowProvider = provider
-            cachedProviderTabId = tab.id
-            cachedProviderVersion = version
-        }
-        .onChange(of: tabManager.selectedTabId) { _, newId in
-            guard let tab = tabManager.selectedTab, let id = newId else { return }
-            if cachedProviderTabId != id {
+        .onChange(of: RowProviderTrigger(
+            tabId: tabManager.selectedTabId,
+            resultVersion: tabManager.selectedTab?.resultVersion
+        )) { _, trigger in
+            guard let tab = tabManager.selectedTab else { return }
+            if cachedProviderTabId != trigger.tabId
+                || cachedProviderVersion != (trigger.resultVersion ?? -1)
+            {
                 let provider = makeRowProvider(for: tab)
                 cachedRowProvider = provider
-                cachedProviderTabId = id
+                cachedProviderTabId = tab.id
                 cachedProviderVersion = tab.resultVersion
             }
         }

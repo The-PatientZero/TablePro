@@ -134,15 +134,34 @@ final class ConnectionToolbarState: ObservableObject {
 
     // MARK: - Query Execution
 
-    /// Whether a query is currently executing
-    @Published var isExecuting: Bool = false {
-        didSet {
-            // Automatically update connection state when execution state changes
-            if isExecuting && connectionState == .connected {
-                connectionState = .executing
-            } else if !isExecuting && connectionState == .executing {
-                connectionState = .connected
-            }
+    /// Whether a query is currently executing.
+    /// Not @Published — use `setExecuting(_:)` to update, which batches
+    /// the connectionState side-effect into a single objectWillChange.
+    private(set) var isExecuting: Bool = false
+
+    /// Set execution state and update connectionState in one publish cycle.
+    func setExecuting(_ executing: Bool) {
+        let newState: ToolbarConnectionState
+        if executing && connectionState == .connected {
+            newState = .executing
+        } else if !executing && connectionState == .executing {
+            newState = .connected
+        } else {
+            newState = connectionState
+        }
+
+        // Only fire objectWillChange if something actually changes
+        guard executing != isExecuting || newState != connectionState else { return }
+
+        // Set isExecuting first (non-Published, no notification).
+        // Then set connectionState — its @Published wrapper fires
+        // objectWillChange once, covering both mutations.
+        // If connectionState is unchanged, send manually for isExecuting.
+        isExecuting = executing
+        if newState != connectionState {
+            connectionState = newState
+        } else {
+            objectWillChange.send()
         }
     }
 

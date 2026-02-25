@@ -9,6 +9,12 @@ import SwiftUI
 
 /// Status bar at the bottom of the results section
 struct MainStatusBarView: View {
+    private static let decimalFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f
+    }()
+
     let tab: QueryTab?
     let filterStateManager: FilterStateManager
     let selectedRowIndices: Set<Int>
@@ -111,15 +117,11 @@ struct MainStatusBarView: View {
             }
         } else if tab.tabType == .table, let total = total, total > 0 {
             // Pagination mode (table tabs only): "201-400 of 5,000 rows"
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            let formattedTotal = formatter.string(from: NSNumber(value: total)) ?? "\(total)"
+            let formattedTotal = Self.decimalFormatter.string(from: NSNumber(value: total)) ?? "\(total)"
 
             return String(localized: "\(pagination.rangeStart)-\(pagination.rangeEnd) of \(formattedTotal) rows")
         } else if loadedCount > 0 {
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            let formattedCount = formatter.string(from: NSNumber(value: loadedCount)) ?? "\(loadedCount)"
+            let formattedCount = Self.decimalFormatter.string(from: NSNumber(value: loadedCount)) ?? "\(loadedCount)"
             return String(localized: "\(formattedCount) rows")
         } else {
             return String(localized: "No rows")

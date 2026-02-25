@@ -35,6 +35,13 @@ final class XLSXWriter {
     /// Whether the current sheet has a header row (used for bold styling)
     private var currentSheetHasHeader: Bool = false
 
+    /// Excel maximum rows per sheet (1,048,576 total including header).
+    /// Data rows beyond this limit are silently dropped with a log warning.
+    private static let maxRowsPerSheet = 1_048_576
+
+    /// Set to true if any rows were dropped due to the Excel row limit
+    private(set) var didTruncateRows = false
+
     enum CellValue {
         case string(String)
         case number(String)
@@ -80,20 +87,35 @@ final class XLSXWriter {
         var sheetData = sheets[sheets.count - 1].data
 
         for row in rows {
-            let cellRow: [CellValue] = row.map { value in
-                guard let val = value else {
-                    return convertNullToEmpty ? .empty : .string("NULL")
+            // Enforce Excel row limit (1,048,576 rows including header)
+            if currentRowNumber >= Self.maxRowsPerSheet {
+                if !didTruncateRows {
+                    didTruncateRows = true
+                    Self.logger.warning(
+                        "Sheet row limit reached (\(Self.maxRowsPerSheet)). Remaining rows will be dropped."
+                    )
                 }
-                if val.isEmpty {
-                    return .empty
-                }
-                // Try to detect numeric values
-                if Double(val) != nil, !val.hasPrefix("0") || val == "0" || val.contains(".") {
-                    return .number(val)
-                }
-                return .string(val)
+                break
             }
-            appendRow(cellRow, isHeader: false, to: &sheetData)
+
+            // autoreleasepool frees intermediate strings (cell value conversions)
+            // each iteration, preventing peak memory growth during large exports.
+            autoreleasepool {
+                let cellRow: [CellValue] = row.map { value in
+                    guard let val = value else {
+                        return convertNullToEmpty ? .empty : .string("NULL")
+                    }
+                    if val.isEmpty {
+                        return .empty
+                    }
+                    // Try to detect numeric values
+                    if Double(val) != nil, !val.hasPrefix("0") || val == "0" || val.contains(".") {
+                        return .number(val)
+                    }
+                    return .string(val)
+                }
+                appendRow(cellRow, isHeader: false, to: &sheetData)
+            }
         }
 
         sheets[sheets.count - 1].data = sheetData

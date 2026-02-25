@@ -543,12 +543,6 @@ final class PostgreSQLDriver: DatabaseDriver {
               AND NOT a.attisdropped
             ORDER BY a.attnum
             """
-        let columnsResult = try await execute(query: columnsQuery)
-        let columnDefs = columnsResult.rows.compactMap { $0[0] }
-
-        guard !columnDefs.isEmpty else {
-            throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
-        }
 
         // 2. Get table constraints (PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY)
         let constraintsQuery = """
@@ -563,18 +557,8 @@ final class PostgreSQLDriver: DatabaseDriver {
             ORDER BY
               CASE con.contype WHEN 'p' THEN 0 WHEN 'u' THEN 1 WHEN 'c' THEN 2 WHEN 'f' THEN 3 END
             """
-        let constraintsResult = try await execute(query: constraintsQuery)
-        let constraints = constraintsResult.rows.compactMap { $0[0] }
 
-        // 3. Build CREATE TABLE statement
-        var parts = columnDefs
-        parts.append(contentsOf: constraints)
-
-        let ddl = "CREATE TABLE public.\(quotedTable) (\n  " +
-            parts.joined(separator: ",\n  ") +
-            "\n);"
-
-        // 4. Get indexes (excluding those backing constraints)
+        // 3. Get indexes (excluding those backing constraints)
         let indexesQuery = """
             SELECT indexdef
             FROM pg_indexes
@@ -589,8 +573,33 @@ final class PostgreSQLDriver: DatabaseDriver {
               )
             ORDER BY indexname
             """
-        let indexesResult = try await execute(query: indexesQuery)
-        let indexDefs = indexesResult.rows.compactMap { $0[0] }
+
+        // Dispatch all three queries independently via async let for cleaner control flow;
+        // they execute sequentially on LibPQConnection's serial queue
+        async let columnsResult = execute(query: columnsQuery)
+        async let constraintsResult = execute(query: constraintsQuery)
+        async let indexesResult = execute(query: indexesQuery)
+
+        let (cols, cons, idxs) = try await (columnsResult, constraintsResult, indexesResult)
+
+        // Process results
+        let columnDefs = cols.rows.compactMap { $0[0] }
+
+        guard !columnDefs.isEmpty else {
+            throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
+        }
+
+        let constraints = cons.rows.compactMap { $0[0] }
+
+        // 4. Build CREATE TABLE statement
+        var parts = columnDefs
+        parts.append(contentsOf: constraints)
+
+        let ddl = "CREATE TABLE public.\(quotedTable) (\n  " +
+            parts.joined(separator: ",\n  ") +
+            "\n);"
+
+        let indexDefs = idxs.rows.compactMap { $0[0] }
 
         if indexDefs.isEmpty {
             return ddl
@@ -717,22 +726,18 @@ final class PostgreSQLDriver: DatabaseDriver {
         // Escape database name for use as a SQL string literal
         let escapedDbLiteral = SQLEscaping.escapeStringLiteral(database)
 
-        // Query for table count
-        let countQuery = """
-            SELECT COUNT(*)
-            FROM information_schema.tables
-            WHERE table_schema = 'public' AND table_catalog = '\(escapedDbLiteral)'
+        // Single query for both table count and database size
+        let query = """
+            SELECT
+                (SELECT COUNT(*)
+                 FROM information_schema.tables
+                 WHERE table_schema = 'public' AND table_catalog = '\(escapedDbLiteral)'),
+                pg_database_size('\(escapedDbLiteral)')
         """
-        let countResult = try await execute(query: countQuery)
-        let tableCount = Int(countResult.rows.first?[0] ?? "0") ?? 0
-
-        // Query for size
-        let sizeQuery = """
-            SELECT pg_database_size('\(escapedDbLiteral)')
-        """
-        let sizeResult = try await execute(query: sizeQuery)
-        let sizeString = sizeResult.rows.first?[0] ?? "0"
-        let sizeBytes = Int64(sizeString) ?? 0
+        let result = try await execute(query: query)
+        let row = result.rows.first
+        let tableCount = Int(row?[0] ?? "0") ?? 0
+        let sizeBytes = Int64(row?[1] ?? "0") ?? 0
 
         // Determine if system database
         let systemDatabases = ["postgres", "template0", "template1"]

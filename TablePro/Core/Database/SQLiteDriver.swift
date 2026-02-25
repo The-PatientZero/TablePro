@@ -256,6 +256,12 @@ final class SQLiteDriver: DatabaseDriver {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 
+    // MARK: - Cached Regex
+
+    private static let limitRegex = try? NSRegularExpression(pattern: "(?i)\\s+LIMIT\\s+\\d+")
+
+    private static let offsetRegex = try? NSRegularExpression(pattern: "(?i)\\s+OFFSET\\s+\\d+")
+
     /// Actor-isolated connection state — serializes all sqlite3 access
     private let connectionActor = SQLiteConnectionActor()
 
@@ -440,37 +446,107 @@ final class SQLiteDriver: DatabaseDriver {
         }
     }
 
+    /// Fetch columns for all tables in a single query using table-valued pragma functions.
+    /// Avoids the N+1 per-table PRAGMA calls from the default protocol implementation.
+    /// Requires SQLite 3.16.0+ (macOS 10.13+).
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
+        guard status == .connected else {
+            throw DatabaseError.notConnected
+        }
+
+        let query = """
+            SELECT m.name AS tbl, p.cid, p.name, p.type, p."notnull", p.dflt_value, p.pk
+            FROM sqlite_master m, pragma_table_info(m.name) p
+            WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite_%'
+            ORDER BY m.name, p.cid
+            """
+        let result = try await execute(query: query)
+
+        var allColumns: [String: [ColumnInfo]] = [:]
+
+        for row in result.rows {
+            guard row.count >= 7,
+                  let tableName = row[0],
+                  let columnName = row[2],
+                  let dataType = row[3] else {
+                continue
+            }
+
+            let isNullable = row[4] == "0"   // notnull=0 means nullable
+            let defaultValue = row[5]
+            let isPrimaryKey = row[6] == "1"
+
+            let column = ColumnInfo(
+                name: columnName,
+                dataType: dataType,
+                isNullable: isNullable,
+                isPrimaryKey: isPrimaryKey,
+                defaultValue: defaultValue,
+                extra: nil,
+                charset: nil,
+                collation: nil,
+                comment: nil
+            )
+
+            allColumns[tableName, default: []].append(column)
+        }
+
+        return allColumns
+    }
+
     func fetchIndexes(table: String) async throws -> [IndexInfo] {
         guard status == .connected else {
             throw DatabaseError.notConnected
         }
 
-        // Get list of indexes for this table
-        let indexListQuery = "PRAGMA index_list('\(SQLEscaping.escapeStringLiteral(table))')"
-        let indexListResult = try await execute(query: indexListQuery)
+        // Use table-valued pragma functions to fetch all index info in a single query
+        // instead of N+1 separate PRAGMA calls. Requires SQLite 3.16.0+ (macOS 10.13+).
+        let safeTable = SQLEscaping.escapeStringLiteral(table)
+        let query = """
+            SELECT il.name, il."unique", il.origin, ii.name AS col_name
+            FROM pragma_index_list('\(safeTable)') il
+            LEFT JOIN pragma_index_info(il.name) ii ON 1=1
+            ORDER BY il.seq, ii.seqno
+            """
+        let result = try await execute(query: query)
 
-        var indexes: [IndexInfo] = []
+        // Group columns by index name, preserving order
+        var indexMap: [(name: String, isUnique: Bool, isPrimary: Bool, columns: [String])] = []
+        var indexLookup: [String: Int] = [:]
 
-        for row in indexListResult.rows {
-            guard row.count >= 3,
-                  let indexName = row[1] else { continue }
+        for row in result.rows {
+            guard row.count >= 4,
+                  let indexName = row[0] else { continue }
 
-            let isUnique = row[2] == "1"
-            let origin = row.count >= 4 ? (row[3] ?? "c") : "c"  // c=CREATE INDEX, pk=PRIMARY KEY
+            let isUnique = row[1] == "1"
+            let origin = row[2] ?? "c"
 
-            // Get columns for this index
-            let indexInfoQuery = "PRAGMA index_info('\(SQLEscaping.escapeStringLiteral(indexName))')"
-            let indexInfoResult = try await execute(query: indexInfoQuery)
+            if let idx = indexLookup[indexName] {
+                // Append column to existing index
+                if let colName = row[3] {
+                    indexMap[idx].columns.append(colName)
+                }
+            } else {
+                // New index entry
+                let columns: [String] = row[3].map { [$0] } ?? []
+                indexLookup[indexName] = indexMap.count
+                indexMap.append((
+                    name: indexName,
+                    isUnique: isUnique,
+                    isPrimary: origin == "pk",
+                    columns: columns
+                ))
+            }
+        }
 
-            let columns = indexInfoResult.rows.compactMap { $0.count >= 3 ? $0[2] : nil }
-
-            indexes.append(IndexInfo(
-                name: indexName,
-                columns: columns,
-                isUnique: isUnique,
-                isPrimary: origin == "pk",
+        let indexes = indexMap.map { entry in
+            IndexInfo(
+                name: entry.name,
+                columns: entry.columns,
+                isUnique: entry.isUnique,
+                isPrimary: entry.isPrimary,
                 type: "BTREE"
-            ))
+            )
         }
 
         return indexes.sorted { $0.isPrimary && !$1.isPrimary }
@@ -690,8 +766,8 @@ final class SQLiteDriver: DatabaseDriver {
         // Escape table name to prevent SQL injection (escape double quotes for identifier quoting)
         let safeTableName = tableName.replacingOccurrences(of: "\"", with: "\"\"")
 
-        // Get row count
-        let countQuery = "SELECT COUNT(*) FROM \"\(safeTableName)\""
+        // Get row count — cap scan at 100k rows to avoid full table scan on large tables
+        let countQuery = "SELECT COUNT(*) FROM (SELECT 1 FROM \"\(safeTableName)\" LIMIT 100001)"
         let countResult = try await execute(query: countQuery)
         let rowCount: Int64? = {
             guard let row = countResult.rows.first, let countStr = row.first else { return nil }
@@ -718,16 +794,14 @@ final class SQLiteDriver: DatabaseDriver {
     private func stripLimitOffset(from query: String) -> String {
         var result = query
 
-        let limitPattern = "(?i)\\s+LIMIT\\s+\\d+"
-        if let regex = try? NSRegularExpression(pattern: limitPattern) {
+        if let limitRegex = Self.limitRegex {
             let range = NSRange(result.startIndex..., in: result)
-            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
+            result = limitRegex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
         }
 
-        let offsetPattern = "(?i)\\s+OFFSET\\s+\\d+"
-        if let regex = try? NSRegularExpression(pattern: offsetPattern) {
+        if let offsetRegex = Self.offsetRegex {
             let range = NSRange(result.startIndex..., in: result)
-            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
+            result = offsetRegex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
         }
 
         return result.trimmingCharacters(in: .whitespacesAndNewlines)

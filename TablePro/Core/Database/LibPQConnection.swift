@@ -185,14 +185,20 @@ final class LibPQConnection: @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
                 // Build connection string
-                var connStr = "host='\(host)' port='\(port)' dbname='\(database)' connect_timeout='10'"
+                // Escape values for libpq key=value format (backslash and single quote)
+                func escapeConnParam(_ value: String) -> String {
+                    value.replacingOccurrences(of: "\\", with: "\\\\")
+                         .replacingOccurrences(of: "'", with: "\\'")
+                }
+
+                var connStr = "host='\(escapeConnParam(host))' port='\(port)' dbname='\(escapeConnParam(database))' connect_timeout='10'"
 
                 if !user.isEmpty {
-                    connStr += " user='\(user)'"
+                    connStr += " user='\(escapeConnParam(user))'"
                 }
 
                 if let password = password, !password.isEmpty {
-                    connStr += " password='\(password)'"
+                    connStr += " password='\(escapeConnParam(password))'"
                 }
 
                 // SSL/TLS configuration
@@ -210,13 +216,13 @@ final class LibPQConnection: @unchecked Sendable {
                 }
 
                 if !self.sslConfig.caCertificatePath.isEmpty {
-                    connStr += " sslrootcert='\(self.sslConfig.caCertificatePath)'"
+                    connStr += " sslrootcert='\(escapeConnParam(self.sslConfig.caCertificatePath))'"
                 }
                 if !self.sslConfig.clientCertificatePath.isEmpty {
-                    connStr += " sslcert='\(self.sslConfig.clientCertificatePath)'"
+                    connStr += " sslcert='\(escapeConnParam(self.sslConfig.clientCertificatePath))'"
                 }
                 if !self.sslConfig.clientKeyPath.isEmpty {
-                    connStr += " sslkey='\(self.sslConfig.clientKeyPath)'"
+                    connStr += " sslkey='\(escapeConnParam(self.sslConfig.clientKeyPath))'"
                 }
 
                 // Connect to PostgreSQL server
@@ -363,6 +369,10 @@ final class LibPQConnection: @unchecked Sendable {
         }
 
         // Execute query
+        // TODO: (DB-2) PQexec buffers the entire result set in libpq memory before
+        // the Swift-level row cap takes effect. To stream results, switch to
+        // PQsendQuery + PQsetSingleRowMode + PQgetResult loop, which delivers one
+        // row at a time. This is a significant API change — deferred for now.
         let localQuery = String(query)
         let result: OpaquePointer? = localQuery.withCString { queryPtr in
             PQexec(conn, queryPtr)
@@ -417,9 +427,12 @@ final class LibPQConnection: @unchecked Sendable {
         var paramStrings: [String] = []
 
         defer {
-            // Free allocated C strings
+            // Free strdup-allocated C strings — must use free(), not deallocate(),
+            // because strdup uses malloc internally
             for ptr in paramValues {
-                ptr?.deallocate()
+                if let ptr = ptr {
+                    free(UnsafeMutablePointer(mutating: ptr))
+                }
             }
         }
 
@@ -552,14 +565,11 @@ final class LibPQConnection: @unchecked Sendable {
                 } else if let valuePtr = PQgetvalue(result, Int32(rowIndex), Int32(colIndex)) {
                     let length = Int(PQgetlength(result, Int32(rowIndex), Int32(colIndex)))
 
-                    // Create string by explicitly copying bytes to a Swift array first
-                    // This ensures complete memory isolation from C buffers
-                    var byteArray = [UInt8](repeating: 0, count: length)
-                    if length > 0 {
-                        memcpy(&byteArray, valuePtr, length)
-                    }
+                    // Pass C pointer directly to String via UnsafeBufferPointer
+                    // Avoids intermediate [UInt8] allocation — String copies internally
+                    let bufferPtr = UnsafeRawBufferPointer(start: valuePtr, count: length)
 
-                    if let str = String(bytes: byteArray, encoding: .utf8) {
+                    if let str = String(bytes: bufferPtr, encoding: .utf8) {
                         // Boolean OID (16): convert "t"/"f" to "true"/"false"
                         if columnOids[colIndex] == 16 {
                             row.append(str == "t" ? "true" : "false")
@@ -567,8 +577,8 @@ final class LibPQConnection: @unchecked Sendable {
                             row.append(str)
                         }
                     } else {
-                        // Fallback: create string from byte array as Latin1
-                        row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
+                        // Fallback: create string from buffer as Latin1
+                        row.append(String(bytes: bufferPtr, encoding: .isoLatin1) ?? "")
                     }
                 } else {
                     row.append(nil)

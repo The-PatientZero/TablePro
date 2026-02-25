@@ -88,7 +88,27 @@ final class FilterSettingsStorage {
 
     private let settingsKey = "com.TablePro.filter.settings"
     private let lastFiltersKeyPrefix = "com.TablePro.filter.lastFilters."
+    /// Key used to persist the set of known per-table filter keys for efficient bulk removal.
+    private let knownFilterKeysKey = "com.TablePro.filter.knownFilterKeys"
     private let defaults = UserDefaults.standard
+
+    /// In-memory cache for tracked filter keys. Lazy-loaded on first access
+    /// so that `trackKey`/`removeTrackedKey` avoid redundant UserDefaults reads.
+    private var _trackedKeys: Set<String>?
+
+    private var trackedKeys: Set<String> {
+        get {
+            if let cached = _trackedKeys { return cached }
+            let array = defaults.stringArray(forKey: knownFilterKeysKey) ?? []
+            let keys = Set(array)
+            _trackedKeys = keys
+            return keys
+        }
+        set {
+            _trackedKeys = newValue
+            defaults.set(Array(newValue), forKey: knownFilterKeysKey)
+        }
+    }
 
     private init() {}
 
@@ -143,12 +163,14 @@ final class FilterSettingsStorage {
         // Only save non-empty filter configurations
         guard !filters.isEmpty else {
             defaults.removeObject(forKey: key)
+            removeTrackedKey(key)
             return
         }
 
         do {
             let data = try JSONEncoder().encode(filters)
             defaults.set(data, forKey: key)
+            trackKey(key)
         } catch {
             Self.logger.error("Failed to encode last filters for \(tableName): \(error)")
         }
@@ -158,13 +180,34 @@ final class FilterSettingsStorage {
     func clearLastFilters(for tableName: String) {
         let key = lastFiltersKeyPrefix + sanitizeTableName(tableName)
         defaults.removeObject(forKey: key)
+        removeTrackedKey(key)
     }
 
-    /// Clear all stored last filters
+    /// Clear all stored last filters using the tracked key set instead of
+    /// loading the full UserDefaults plist via `dictionaryRepresentation()`.
     func clearAllLastFilters() {
-        let allKeys = defaults.dictionaryRepresentation().keys
-        for key in allKeys where key.hasPrefix(lastFiltersKeyPrefix) {
+        for key in trackedKeys {
             defaults.removeObject(forKey: key)
+        }
+        _trackedKeys = nil
+        defaults.removeObject(forKey: knownFilterKeysKey)
+    }
+
+    // MARK: - Key Tracking
+
+    /// Add a key to the tracked set.
+    private func trackKey(_ key: String) {
+        var keys = trackedKeys
+        if keys.insert(key).inserted {
+            trackedKeys = keys
+        }
+    }
+
+    /// Remove a key from the tracked set.
+    private func removeTrackedKey(_ key: String) {
+        var keys = trackedKeys
+        if keys.remove(key) != nil {
+            trackedKeys = keys
         }
     }
 

@@ -88,15 +88,27 @@ final class MainContentCoordinator: ObservableObject {
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
 
+    /// Timestamp of last flushPendingSave call — used to debounce rapid tab switches
+    internal var lastFlushTime: CFAbsoluteTime = 0
+
     /// Set when handleTabChange is called directly (keyboard/tab bar/sidebar),
     /// so .onChange(of: selectedTabId) skips the redundant call.
     internal var skipNextTabChangeOnChange = false
 
     /// Remove sort cache and pending change entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
-        querySortCache = querySortCache.filter { openTabIds.contains($0.key) }
-        tabPendingChanges = tabPendingChanges.filter { openTabIds.contains($0.key) }
-        tabSelectionCache = tabSelectionCache.filter { openTabIds.contains($0.key) }
+        let filteredSort = querySortCache.filter { openTabIds.contains($0.key) }
+        if filteredSort.count != querySortCache.count {
+            querySortCache = filteredSort
+        }
+        let filteredPending = tabPendingChanges.filter { openTabIds.contains($0.key) }
+        if filteredPending.count != tabPendingChanges.count {
+            tabPendingChanges = filteredPending
+        }
+        let filteredSelection = tabSelectionCache.filter { openTabIds.contains($0.key) }
+        if filteredSelection.count != tabSelectionCache.count {
+            tabSelectionCache = filteredSelection
+        }
         for (tabId, task) in activeSortTasks where !openTabIds.contains(tabId) {
             task.cancel()
             activeSortTasks.removeValue(forKey: tabId)
@@ -188,6 +200,12 @@ final class MainContentCoordinator: ObservableObject {
     private static let limitClauseRegex = try? NSRegularExpression(
         pattern: "\\bLIMIT\\s+\\d+",
         options: .caseInsensitive
+    )
+
+    /// Pre-compiled regex for extracting table name from SELECT queries
+    private static let tableNameRegex = try? NSRegularExpression(
+        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#,
+        options: []
     )
 
     // MARK: - Query Execution
@@ -336,7 +354,7 @@ final class MainContentCoordinator: ObservableObject {
         tab.executionTime = nil
         tab.errorMessage = nil
         tabManager.tabs[index] = tab
-        toolbarState.isExecuting = true
+        toolbarState.setExecuting(true)
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
@@ -375,7 +393,7 @@ final class MainContentCoordinator: ObservableObject {
                         if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                             tabManager.tabs[idx].isExecuting = false
                         }
-                        toolbarState.isExecuting = false
+                        toolbarState.setExecuting(false)
                         toolbarState.lastQueryDuration = safeExecutionTime
                     }
                     return
@@ -385,7 +403,7 @@ final class MainContentCoordinator: ObservableObject {
                 await MainActor.run { [weak self] in
                     guard let self else { return }
                     currentQueryTask = nil
-                    toolbarState.isExecuting = false
+                    toolbarState.setExecuting(false)
                     toolbarState.lastQueryDuration = safeExecutionTime
 
                     guard capturedGeneration == queryGeneration else { return }
@@ -560,7 +578,7 @@ final class MainContentCoordinator: ObservableObject {
                         errTab.isExecuting = false
                         tabManager.tabs[idx] = errTab
                     }
-                    toolbarState.isExecuting = false
+                    toolbarState.setExecuting(false)
 
                     QueryHistoryManager.shared.recordQuery(
                         query: sql,
@@ -669,8 +687,7 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - SQL Parsing
 
     func extractTableName(from sql: String) -> String? {
-        let pattern = #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+        guard let regex = Self.tableNameRegex,
               let match = regex.firstMatch(in: sql, options: [], range: NSRange(sql.startIndex..., in: sql)),
               let range = Range(match.range(at: 1), in: sql) else {
             return nil
@@ -838,7 +855,7 @@ final class MainContentCoordinator: ObservableObject {
                 activeSortTasks[tabId]?.cancel()
                 activeSortTasks.removeValue(forKey: tabId)
                 tabManager.tabs[tabIndex].isExecuting = true
-                toolbarState.isExecuting = true
+                toolbarState.setExecuting(true)
                 querySortCache.removeValue(forKey: tabId)
 
                 let sortStartTime = Date()
@@ -863,7 +880,7 @@ final class MainContentCoordinator: ObservableObject {
                         sortedTab.isExecuting = false
                         sortedTab.executionTime = sortDuration
                         self.tabManager.tabs[idx] = sortedTab
-                        self.toolbarState.isExecuting = false
+                        self.toolbarState.setExecuting(false)
                         self.toolbarState.lastQueryDuration = sortDuration
                         self.activeSortTasks.removeValue(forKey: tabId)
                         self.changeManager.reloadVersion += 1

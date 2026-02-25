@@ -26,7 +26,7 @@ struct ImportProgressView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("Statement \(statementIndex) of \(totalStatements)")
+                        Text("Executed \(statementIndex) statements")
                             .font(.system(size: 13))
 
                         Spacer()
@@ -60,6 +60,6 @@ struct ImportProgressView: View {
 
     private var progressValue: Double {
         guard totalStatements > 0 else { return 0 }
-        return Double(statementIndex) / Double(totalStatements)
+        return min(1.0, Double(statementIndex) / Double(totalStatements))
     }
 }

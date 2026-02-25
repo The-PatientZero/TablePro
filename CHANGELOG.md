@@ -12,9 +12,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Add syntax highlighting to Import SQL file preview
+- XLSX export now enforces the Excel row limit (1,048,576) per sheet and uses autoreleasepool per row to reduce peak memory during large exports
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing
+- AnyChangeManager now uses a reference-type box for lazy initialization, avoiding Combine pipeline creation during SwiftUI body evaluation
+- DataGridView identity check moved before AppSettingsManager read to skip settings access when nothing has changed
+- DataGridView async column width write-back now uses an isWritingColumnLayout guard to prevent two-frame bounce
+- Tab switch flushPendingSave debounced to skip redundant saves within 100ms of rapid tab switching
+- SQL editor frame-change notification throttled to 50ms to avoid redundant syntax highlight viewport recalculation on every keystroke
+- SQL editor text binding sync now uses O(1) NSString length pre-check before O(n) full string equality comparison
+- Toolbar executing state now fires a single objectWillChange instead of double-publishing isExecuting and connectionState
+- Row provider onChange handlers coalesced into a single trigger to avoid redundant InMemoryRowProvider rebuilds
+- SQL import now uses file-size estimation instead of a separate counting pass, eliminating the double-parse overhead for large files
+- History cleanup COUNT + DELETE now wrapped in a single transaction to reduce journal flushes
+- SQLite `fetchTableMetadata` now caps row count scan at 100k rows to avoid full table scans on large tables
+- SQLite `fetchIndexes` uses table-valued pragma functions in a single query instead of N+1 separate PRAGMA calls
+- MySQL empty-result DESCRIBE fallback now only triggers for SELECT queries, avoiding redundant round-trips for non-SELECT statements
+- Remove redundant `String(query)` copy in MariaDB query execution
+- MySQL result fetching now uses `mysql_use_result` (streaming) instead of `mysql_store_result` (full buffering), so only the capped row count is held in memory instead of the entire server result set
+- Instant pagination via approximate row count — MySQL/PostgreSQL tables now show "~N rows" immediately with data, then refine to exact count in background
+- QueryTab uses value-based equality for SwiftUI diffing, eliminating unnecessary ForEach re-renders on tab array writes
+- Cached static regex for `extractTableName`, `SQLiteDriver.stripLimitOffset`, and SQL function expressions to avoid per-call compilation
+- Static NumberFormatter in status bar to avoid per-render locale resolution
+- Batch `TableProTabSmart` field writes into single array store to avoid 14 CoW copies per query execution
+- Tab persistence writes moved off main thread via `Task.detached`
+- Single history entry per SQL import instead of per-statement recording
+- WAL mode enabled for query history SQLite database
+- Merged `fetchDatabaseMetadata` into single query for MySQL and PostgreSQL
+- Health ping now uses dedicated metadata driver to avoid blocking user queries
+- SSH tunnel setup extracted into shared helper to eliminate code duplication
+- PostgreSQL DDL queries restructured with `async let` for cleaner dispatch (sequential on serial connection queue)
+- Cancel query connection now uses 5-second connect timeout
+- PostgreSQL connection parameters properly escaped for special characters
+- SQLite `fetchAllColumns` overridden with single `sqlite_master` + `pragma_table_info` query
+- Eliminated intermediate `[UInt8]` buffer in MySQL and PostgreSQL field extraction
+- Column layout sync gated behind user-resize flag to skip O(n) loop on cursor moves
+- Column width calculation uses monospace character arithmetic instead of per-row CoreText calls
+- DataChangeManager maintains change index incrementally instead of full O(n) rebuild
+- JSON export buffers writes per row instead of per field
+- `SQLFormatterService` uses NSMutableString for keyword uppercasing and integer counter for placeholders
+- SQLContextAnalyzer uses single alternation regex and single-pass state machine for string/comment detection
+- `escapeJSONString` iterates UTF-8 bytes instead of grapheme clusters
+- `AppSettingsStorage` caches JSONDecoder/JSONEncoder as stored properties
+- `AppSettingsManager` stores validated settings in memory after didSet
+- `FilterSettingsStorage` uses tracked key set instead of loading full plist
+- Keychain saves use `SecItemAdd` + `SecItemUpdate` upsert pattern instead of delete + add
+- Autocomplete `detectFunctionContext` uses index tracking instead of character-by-character string building
 
 ### Fixed
+- Fix LibPQ parameterized query using Swift `deallocate()` for `strdup`-allocated memory instead of `free()`
+- FTS5 search input now sanitized to prevent parse errors from special characters like *, OR, AND
 - Fix SQL export corrupting newline/tab/backslash characters for PostgreSQL and SQLite (MySQL-style backslash escaping was incorrectly applied to all database types)
 - Fix PostgreSQL SQL export failing to import when types/sequences already exist (`DROP IF EXISTS` now always emitted for dependent types and sequences)
 - Fix PostgreSQL SQL export missing `CREATE TYPE` definitions for enum columns, causing import errors

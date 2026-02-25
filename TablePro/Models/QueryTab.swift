@@ -446,6 +446,19 @@ struct QueryTab: Identifiable, Equatable {
 
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
         lhs.id == rhs.id
+            && lhs.title == rhs.title
+            && lhs.isPinned == rhs.isPinned
+            && lhs.isExecuting == rhs.isExecuting
+            && lhs.errorMessage == rhs.errorMessage
+            && lhs.executionTime == rhs.executionTime
+            && lhs.resultVersion == rhs.resultVersion
+            && lhs.pagination == rhs.pagination
+            && lhs.sortState == rhs.sortState
+            && lhs.showStructure == rhs.showStructure
+            && lhs.isEditable == rhs.isEditable
+            && lhs.isView == rhs.isView
+            && lhs.tabType == rhs.tabType
+            && lhs.rowsAffected == rhs.rowsAffected
     }
 }
 
@@ -578,26 +591,28 @@ final class QueryTabManager: ObservableObject {
            !tabs[selectedIndex].hasUserInteraction
         {
             // Replace the current table tab instead of creating a new one.
-            // Assign a fresh RowBuffer to avoid aliasing the old buffer (MEM-1 safety).
-            tabs[selectedIndex].rowBuffer = RowBuffer()
-            tabs[selectedIndex].title = tableName
-            tabs[selectedIndex].tableName = tableName
-            tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
-            tabs[selectedIndex].resultVersion += 1
-            tabs[selectedIndex].executionTime = nil
-            tabs[selectedIndex].errorMessage = nil
-            tabs[selectedIndex].lastExecutedAt = nil
-            tabs[selectedIndex].showStructure = false
-            tabs[selectedIndex].sortState = SortState()
-            tabs[selectedIndex].selectedRowIndices = []
-            tabs[selectedIndex].pendingChanges = TabPendingChanges()
-            tabs[selectedIndex].hasUserInteraction = false
-            tabs[selectedIndex].isView = isView
-            tabs[selectedIndex].isEditable = !isView
-            tabs[selectedIndex].filterState = TabFilterState()
-            tabs[selectedIndex].columnLayout = ColumnLayoutState()
-            tabs[selectedIndex].pagination = PaginationState(pageSize: pageSize)
-            tabs[selectedIndex].databaseName = databaseName
+            // Build locally and write back once to avoid 14 CoW copies (UI-11).
+            var tab = tabs[selectedIndex]
+            tab.rowBuffer = RowBuffer()
+            tab.title = tableName
+            tab.tableName = tableName
+            tab.query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
+            tab.resultVersion += 1
+            tab.executionTime = nil
+            tab.errorMessage = nil
+            tab.lastExecutedAt = nil
+            tab.showStructure = false
+            tab.sortState = SortState()
+            tab.selectedRowIndices = []
+            tab.pendingChanges = TabPendingChanges()
+            tab.hasUserInteraction = false
+            tab.isView = isView
+            tab.isEditable = !isView
+            tab.filterState = TabFilterState()
+            tab.columnLayout = ColumnLayoutState()
+            tab.pagination = PaginationState(pageSize: pageSize)
+            tab.databaseName = databaseName
+            tabs[selectedIndex] = tab
             return true  // Need to run query for new table
         }
 

@@ -243,7 +243,7 @@ extension View {
     state.databaseVersion = "8.0.35"
     state.connectionName = "Development"
     state.connectionState = .executing
-    state.isExecuting = true
+    state.setExecuting(true)
     state.displayColor = .orange
 
     return NavigationStack {

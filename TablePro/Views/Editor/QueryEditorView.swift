@@ -21,6 +21,8 @@ extension Notification.Name {
 struct QueryEditorView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
 
+    @EnvironmentObject private var appState: AppState
+
     @Binding var queryText: String
     @Binding var cursorPositions: [CursorPosition]
     var onExecute: () -> Void
@@ -91,7 +93,7 @@ struct QueryEditorView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .disabled(queryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(!appState.hasQueryText)
 
             // Execute button
             Button(action: onExecute) {

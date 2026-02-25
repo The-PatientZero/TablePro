@@ -373,9 +373,16 @@ final class DataGridCellFactory {
     /// Maximum column width - prevents overly wide columns
     private static let maxColumnWidth: CGFloat = 800
     /// Number of rows to sample for width calculation (for performance)
-    private static let sampleRowCount = 100
-    /// Font for measuring cell content
+    private static let sampleRowCount = 30
+    /// Maximum characters to consider per cell for width estimation
+    private static let maxMeasureChars = 50
+    /// Font for measuring cell content (monospaced — all glyphs have equal advance)
     private static let measureFont = NSFont.monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular)
+    /// Pre-computed advance width of a single monospaced glyph (avoids per-row CoreText calls)
+    private static let monoCharWidth: CGFloat = {
+        let attrs: [NSAttributedString.Key: Any] = [.font: measureFont]
+        return ("M" as NSString).size(withAttributes: attrs).width
+    }()
     /// Font for measuring header
     private static let headerFont = NSFont.systemFont(ofSize: DesignConstants.FontSize.body, weight: .semibold)
 
@@ -387,7 +394,12 @@ final class DataGridCellFactory {
         return min(max(width, Self.minColumnWidth), Self.maxColumnWidth)
     }
 
-    /// Calculate optimal column width based on header and cell content
+    /// Calculate optimal column width based on header and cell content.
+    ///
+    /// Since the cell font is monospaced, we avoid per-row CoreText measurement
+    /// and instead multiply character count by the pre-computed glyph advance width.
+    /// This reduces the cost from O(sampleRows * CoreText) to O(sampleRows * 1).
+    ///
     /// - Parameters:
     ///   - columnName: The column header name
     ///   - columnIndex: Index of the column
@@ -399,24 +411,25 @@ final class DataGridCellFactory {
         rowProvider: InMemoryRowProvider
     ) -> CGFloat {
         let headerAttributes: [NSAttributedString.Key: Any] = [.font: Self.headerFont]
-        let cellAttributes: [NSAttributedString.Key: Any] = [.font: Self.measureFont]
 
-        // Start with header width
+        // Start with header width (proportional font — needs CoreText, but only once)
         let headerSize = (columnName as NSString).size(withAttributes: headerAttributes)
         var maxWidth = headerSize.width + 48 // padding for sort indicator + margins
 
         // Sample cell content to find max width
         let totalRows = rowProvider.totalRowCount
         let step = max(1, totalRows / Self.sampleRowCount)
+        let charWidth = Self.monoCharWidth
 
         for i in stride(from: 0, to: totalRows, by: step) {
             guard let row = rowProvider.row(at: i),
                   let value = row.value(at: columnIndex) else { continue }
 
-            // Use first 100 chars for width measurement (sufficient for column sizing)
-            let displayValue = String(value.prefix(100)).sanitizedForCellDisplay
-            let size = (displayValue as NSString).size(withAttributes: cellAttributes)
-            maxWidth = max(maxWidth, size.width + 16) // cell padding
+            // Use O(1) NSString length, capped for width estimation.
+            // Monospaced font: width = charCount * glyphAdvance (no CoreText needed).
+            let charCount = min((value as NSString).length, Self.maxMeasureChars)
+            let cellWidth = CGFloat(charCount) * charWidth + 16 // 16 = cell padding
+            maxWidth = max(maxWidth, cellWidth)
 
             // Early exit if already at max
             if maxWidth >= Self.maxColumnWidth {

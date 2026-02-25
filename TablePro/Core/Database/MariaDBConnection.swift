@@ -427,6 +427,10 @@ final class MariaDBConnection: @unchecked Sendable {
         let killConn = mysql_init(nil)
         guard let killConn = killConn else { return }
 
+        // Set a 5-second connect timeout so the kill connection doesn't block indefinitely
+        var killTimeout: UInt32 = 5
+        mysql_options(killConn, MYSQL_OPT_CONNECT_TIMEOUT, &killTimeout)
+
         // Connect with same credentials
         let killResult = host.withCString { hostPtr in
             user.withCString { userPtr in
@@ -511,10 +515,9 @@ final class MariaDBConnection: @unchecked Sendable {
             throw MariaDBError.notConnected
         }
 
-        // Execute query using a local copy of the query string
-        let localQuery = String(query)
-        let queryStatus = localQuery.withCString { queryPtr in
-            mysql_real_query(mysql, queryPtr, UInt(localQuery.utf8.count))
+        // Execute query — withCString guarantees a valid null-terminated buffer
+        let queryStatus = query.withCString { queryPtr in
+            mysql_real_query(mysql, queryPtr, UInt(query.utf8.count))
         }
 
         if queryStatus != 0 {
@@ -522,8 +525,11 @@ final class MariaDBConnection: @unchecked Sendable {
         }
 
         // Try to get result set (for SELECT queries)
-        // Use mysql_store_result for full dataset (safer for multiple queries)
-        let resultPtr = mysql_store_result(mysql)
+        // Use mysql_use_result for streaming — avoids buffering the entire result
+        // set in C heap memory before the Swift-level row cap takes effect.
+        // IMPORTANT: With mysql_use_result, all rows MUST be consumed (or the
+        // result freed after draining) before issuing another query on this connection.
+        let resultPtr = mysql_use_result(mysql)
 
         if resultPtr == nil {
             // Check if this was a non-SELECT query or an error
@@ -598,6 +604,20 @@ final class MariaDBConnection: @unchecked Sendable {
             if shouldCancel { _isCancelled = false }
             stateLock.unlock()
             if shouldCancel {
+                // Drain unfetched rows before freeing — required for mysql_use_result
+                // to avoid leaving the connection in a bad state
+                while mysql_fetch_row(resultPtr) != nil {}
+                // mysql_fetch_row returns NULL for both end-of-data and errors.
+                // Check mysql_errno to detect network errors mid-drain that would
+                // leave the connection in a broken protocol state.
+                if mysql_errno(mysql) != 0 {
+                    let errorMsg = String(cString: mysql_error(mysql))
+                    mysql_free_result(resultPtr)
+                    throw MariaDBError(
+                        code: mysql_errno(mysql),
+                        message: "Error draining result set during cancellation: \(errorMsg)",
+                        sqlState: nil)
+                }
                 mysql_free_result(resultPtr)
                 throw MariaDBError(code: 0, message: "Query cancelled", sqlState: nil)
             }
@@ -619,18 +639,15 @@ final class MariaDBConnection: @unchecked Sendable {
                     let lengthValue: UInt = lengths?[i] ?? 0
                     let length = Int(lengthValue)
 
-                    // Create string by explicitly copying bytes to a Swift array first
-                    // This ensures complete memory isolation from C buffers
-                    var byteArray = [UInt8](repeating: 0, count: length)
-                    if length > 0 {
-                        memcpy(&byteArray, fieldPtr, length)
-                    }
+                    // Pass C pointer directly to String via UnsafeBufferPointer
+                    // Avoids intermediate [UInt8] allocation — String copies internally
+                    let bufferPtr = UnsafeRawBufferPointer(start: fieldPtr, count: length)
 
-                    if let str = String(bytes: byteArray, encoding: .utf8) {
+                    if let str = String(bytes: bufferPtr, encoding: .utf8) {
                         row.append(str)
                     } else {
-                        // Fallback: create string from byte array as Latin1
-                        row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
+                        // Fallback: create string from buffer as Latin1
+                        row.append(String(bytes: bufferPtr, encoding: .isoLatin1) ?? "")
                     }
                 } else {
                     row.append(nil)
@@ -641,6 +658,21 @@ final class MariaDBConnection: @unchecked Sendable {
 
         if truncated {
             logger.warning("Result set truncated at \(maxRows) rows (DriverRowLimits.defaultMax)")
+            // Drain unfetched rows — required for mysql_use_result to leave the
+            // connection in a clean state for subsequent queries. The server streams
+            // remaining rows over the wire; we discard them without copying to Swift.
+            while mysql_fetch_row(resultPtr) != nil {}
+            // mysql_fetch_row returns NULL for both end-of-data and errors.
+            // Check mysql_errno to detect network errors mid-drain that would
+            // leave the connection in a broken protocol state.
+            if mysql_errno(mysql) != 0 {
+                let errorMsg = String(cString: mysql_error(mysql))
+                mysql_free_result(resultPtr)
+                throw MariaDBError(
+                    code: mysql_errno(mysql),
+                    message: "Error draining result set: \(errorMsg)",
+                    sqlState: nil)
+            }
         }
 
         // Free result set - CRITICAL to avoid memory leaks
@@ -1108,17 +1140,15 @@ final class MariaDBStreamingResult: @unchecked Sendable {
                 let lengthValue: UInt = lengths?[i] ?? 0
                 let length = Int(lengthValue)
 
-                // Create string by explicitly copying bytes to a Swift array first
-                var byteArray = [UInt8](repeating: 0, count: length)
-                if length > 0 {
-                    memcpy(&byteArray, fieldPtr, length)
-                }
+                // Pass C pointer directly to String via UnsafeBufferPointer
+                // Avoids intermediate [UInt8] allocation — String copies internally
+                let bufferPtr = UnsafeRawBufferPointer(start: fieldPtr, count: length)
 
-                if let str = String(bytes: byteArray, encoding: .utf8) {
+                if let str = String(bytes: bufferPtr, encoding: .utf8) {
                     row.append(str)
                 } else {
-                    // Fallback: create string from byte array as Latin1
-                    row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
+                    // Fallback: create string from buffer as Latin1
+                    row.append(String(bytes: bufferPtr, encoding: .isoLatin1) ?? "")
                 }
             } else {
                 row.append(nil)

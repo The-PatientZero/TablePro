@@ -190,6 +190,13 @@ final class TabStateStorage {
 
     /// One-time migration: reads existing tab state and last-query data from UserDefaults,
     /// writes it to file storage, then clears the old UserDefaults keys.
+    ///
+    /// SVC-25: This runs synchronously at first launch but is acceptable because:
+    ///   1. The `migrationCompleteKey` boolean guard makes subsequent launches O(1).
+    ///   2. Migration only processes a handful of small JSON blobs (one per connection).
+    ///   3. It runs during `init()` before any UI is displayed, so there is no visible stall.
+    /// Making this async would require the entire public API to become async, adding
+    /// significant complexity for a one-time operation that completes in milliseconds.
     private func migrateFromUserDefaultsIfNeeded() {
         let defaults = UserDefaults.standard
 

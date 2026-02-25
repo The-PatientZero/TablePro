@@ -19,6 +19,28 @@ struct ParameterizedStatement {
 struct SQLStatementGenerator {
     private static let logger = Logger(subsystem: "com.TablePro", category: "SQLStatementGenerator")
 
+    /// Known SQL function expressions that should not be quoted/parameterized
+    private static let sqlFunctionExpressions: Set<String> = [
+        "NOW()",
+        "CURRENT_TIMESTAMP()",
+        "CURRENT_TIMESTAMP",
+        "CURDATE()",
+        "CURTIME()",
+        "UTC_TIMESTAMP()",
+        "UTC_DATE()",
+        "UTC_TIME()",
+        "LOCALTIME()",
+        "LOCALTIME",
+        "LOCALTIMESTAMP()",
+        "LOCALTIMESTAMP",
+        "SYSDATE()",
+        "UNIX_TIMESTAMP()",
+        "CURRENT_DATE()",
+        "CURRENT_DATE",
+        "CURRENT_TIME()",
+        "CURRENT_TIME",
+    ]
+
     let tableName: String
     let columns: [String]
     let primaryKeyColumn: String?
@@ -334,29 +356,6 @@ struct SQLStatementGenerator {
     /// Check if a string is a SQL function expression that should not be quoted
     private func isSQLFunctionExpression(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespaces).uppercased()
-
-        // Common SQL functions for datetime/timestamps
-        let sqlFunctions = [
-            "NOW()",
-            "CURRENT_TIMESTAMP()",
-            "CURRENT_TIMESTAMP",
-            "CURDATE()",
-            "CURTIME()",
-            "UTC_TIMESTAMP()",
-            "UTC_DATE()",
-            "UTC_TIME()",
-            "LOCALTIME()",
-            "LOCALTIME",
-            "LOCALTIMESTAMP()",
-            "LOCALTIMESTAMP",
-            "SYSDATE()",
-            "UNIX_TIMESTAMP()",
-            "CURRENT_DATE()",
-            "CURRENT_DATE",
-            "CURRENT_TIME()",
-            "CURRENT_TIME",
-        ]
-
-        return sqlFunctions.contains(trimmed)
+        return Self.sqlFunctionExpressions.contains(trimmed)
     }
 }

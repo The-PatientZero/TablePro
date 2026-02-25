@@ -165,22 +165,12 @@ struct DataGridView: NSViewRepresentable {
 
         let coordinator = context.coordinator
 
-        // Update settings-based properties dynamically
-        let settings = AppSettingsManager.shared.dataGrid
-        if tableView.rowHeight != CGFloat(settings.rowHeight.rawValue) {
-            tableView.rowHeight = CGFloat(settings.rowHeight.rawValue)
-        }
-        if tableView.usesAlternatingRowBackgroundColors != settings.showAlternateRows {
-            tableView.usesAlternatingRowBackgroundColors = settings.showAlternateRows
-        }
-
         // Don't reload while editing (field editor or overlay)
         if tableView.editedRow >= 0 { return }
         if let editor = context.coordinator.overlayEditor, editor.isActive { return }
 
-        // Identity-based early-return: skip heavy work when nothing has changed.
-        // Prevents redundant column comparison, visual-state cache rebuild, sort sync,
-        // and reloadData() during cascading onChange re-evaluations.
+        // Identity-based early-return BEFORE reading settings — avoids
+        // AppSettingsManager access on every SwiftUI re-evaluation.
         let currentIdentity = DataGridIdentity(
             reloadVersion: changeManager.reloadVersion,
             resultVersion: resultVersion,
@@ -203,6 +193,15 @@ struct DataGridView: NSViewRepresentable {
             return
         }
         coordinator.lastIdentity = currentIdentity
+
+        // Update settings-based properties dynamically (after identity check)
+        let settings = AppSettingsManager.shared.dataGrid
+        if tableView.rowHeight != CGFloat(settings.rowHeight.rawValue) {
+            tableView.rowHeight = CGFloat(settings.rowHeight.rawValue)
+        }
+        if tableView.usesAlternatingRowBackgroundColors != settings.showAlternateRows {
+            tableView.usesAlternatingRowBackgroundColors = settings.showAlternateRows
+        }
 
         let versionChanged = coordinator.lastReloadVersion != changeManager.reloadVersion
         let oldRowCount = coordinator.cachedRowCount
@@ -352,7 +351,9 @@ struct DataGridView: NSViewRepresentable {
                     newWidths[rowProvider.columns[colIndex]] = column.width
                 }
                 if !newWidths.isEmpty && newWidths != columnLayout.columnWidths {
+                    coordinator.isWritingColumnLayout = true
                     DispatchQueue.main.async {
+                        coordinator.isWritingColumnLayout = false
                         self.columnLayout.columnWidths = newWidths
                     }
                 }
@@ -363,9 +364,14 @@ struct DataGridView: NSViewRepresentable {
                 column.isEditable = isEditable
             }
 
+            // Skip layout capture when an async layout write-back is pending —
+            // prevents the two-frame bounce where stale widths are applied
+            // before the async block updates them.
+            guard !coordinator.isWritingColumnLayout else { return }
+
             // Capture current column layout from user interactions (resize/reorder)
             // Only done in the non-rebuild path to avoid feedback loops
-            if tableView.tableColumns.count > 1 {
+            if coordinator.hasUserResizedColumns, tableView.tableColumns.count > 1 {
                 var currentWidths: [String: CGFloat] = [:]
                 var currentOrder: [String] = []
                 for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
@@ -378,7 +384,9 @@ struct DataGridView: NSViewRepresentable {
                 let widthsChanged = !currentWidths.isEmpty && currentWidths != columnLayout.columnWidths
                 let orderChanged = !currentOrder.isEmpty && columnLayout.columnOrder != currentOrder
                 if widthsChanged || orderChanged {
+                    coordinator.isWritingColumnLayout = true
                     DispatchQueue.main.async {
+                        coordinator.isWritingColumnLayout = false
                         if widthsChanged {
                             self.columnLayout.columnWidths = currentWidths
                         }
@@ -387,6 +395,7 @@ struct DataGridView: NSViewRepresentable {
                         }
                     }
                 }
+                coordinator.hasUserResizedColumns = false
             }
         }
     }
@@ -603,6 +612,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var isSyncingSelection = false
     var isRebuildingColumns: Bool = false
     var hasUserResizedColumns: Bool = false
+    /// Guards against two-frame bounce when async column layout write-back triggers updateNSView
+    var isWritingColumnLayout: Bool = false
 
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
     private static let rowViewIdentifier = NSUserInterfaceItemIdentifier("TableRowView")
@@ -885,6 +896,11 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     func tableViewColumnDidResize(_ notification: Notification) {
         // Only track user-initiated resizes, not programmatic ones during column rebuilds
+        guard !isRebuildingColumns else { return }
+        hasUserResizedColumns = true
+    }
+
+    func tableViewColumnDidMove(_ notification: Notification) {
         guard !isRebuildingColumns else { return }
         hasUserResizedColumns = true
     }

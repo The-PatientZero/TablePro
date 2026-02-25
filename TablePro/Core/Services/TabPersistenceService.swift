@@ -57,18 +57,21 @@ final class TabPersistenceService: ObservableObject {
         // Capture current state to prevent stale data
         let tabsToSave = tabs
         let selectedId = selectedTabId
+        let connId = connectionId
 
-        // Create new debounce task
+        // Create new debounce task — debounce on MainActor, write on background
         saveDebounceTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: Self.saveDebounceDelay)
 
             guard !Task.isCancelled, !isDismissing else { return }
 
-            TabStateStorage.shared.saveTabState(
-                connectionId: connectionId,
-                tabs: tabsToSave,
-                selectedTabId: selectedId
-            )
+            Task.detached(priority: .utility) {
+                TabStateStorage.shared.saveTabState(
+                    connectionId: connId,
+                    tabs: tabsToSave,
+                    selectedTabId: selectedId
+                )
+            }
         }
     }
 
@@ -79,11 +82,14 @@ final class TabPersistenceService: ObservableObject {
     func saveTabsImmediately(tabs: [QueryTab], selectedTabId: UUID?) {
         guard !isRestoringTabs, !isDismissing else { return }
 
-        TabStateStorage.shared.saveTabState(
-            connectionId: connectionId,
-            tabs: tabs,
-            selectedTabId: selectedTabId
-        )
+        let connId = connectionId
+        Task.detached(priority: .utility) {
+            TabStateStorage.shared.saveTabState(
+                connectionId: connId,
+                tabs: tabs,
+                selectedTabId: selectedTabId
+            )
+        }
     }
 
     /// Handle window close - flush any pending saves
@@ -261,10 +267,14 @@ final class TabPersistenceService: ObservableObject {
     /// Save last query with debouncing to avoid blocking I/O on every keystroke
     func saveLastQueryDebounced(_ query: String) {
         lastQueryDebounceTask?.cancel()
+        let connId = connectionId
         lastQueryDebounceTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: Self.saveDebounceDelay)
             guard !Task.isCancelled, !isDismissing else { return }
-            TabStateStorage.shared.saveLastQuery(query, for: connectionId)
+
+            Task.detached(priority: .utility) {
+                TabStateStorage.shared.saveLastQuery(query, for: connId)
+            }
         }
     }
 }

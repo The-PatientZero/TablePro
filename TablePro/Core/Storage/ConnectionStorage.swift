@@ -140,33 +140,51 @@ final class ConnectionStorage {
 
     // MARK: - Keychain (Password Storage)
 
+    // Thread safety note (SVC-15): SecItemCopyMatching is synchronous but all call sites
+    // are already off the main thread:
+    //   - MySQLDriver.connect() / PostgreSQLDriver.connect() — non-@MainActor async funcs
+    //   - DatabaseManager — uses Task.detached for SSH/key passphrase loads
+    //   - ConnectionFormView — single-item lookup during form population (negligible latency)
+    // No async wrapper is needed; adding one would add complexity without measurable benefit.
+
+    /// Upsert a value into the Keychain: tries SecItemAdd first, falls back to SecItemUpdate
+    /// on duplicate. Returns true on success.
+    @discardableResult
+    private func keychainUpsert(key: String, data: Data) -> Bool {
+        let baseQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
+            kSecAttrAccount as String: key,
+        ]
+
+        let addQuery = baseQuery.merging([
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+        ]) { _, new in new }
+
+        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+
+        if addStatus == errSecDuplicateItem {
+            // Item already exists — update it
+            let updateAttrs: [String: Any] = [kSecValueData as String: data]
+            let updateStatus = SecItemUpdate(baseQuery as CFDictionary, updateAttrs as CFDictionary)
+            if updateStatus != errSecSuccess {
+                Self.logger.error("Failed to update Keychain item '\(key)': OSStatus \(updateStatus)")
+                return false
+            }
+            return true
+        } else if addStatus != errSecSuccess {
+            Self.logger.error("Failed to add Keychain item '\(key)': OSStatus \(addStatus)")
+            return false
+        }
+        return true
+    }
+
     /// Save password to Keychain
     func savePassword(_ password: String, for connectionId: UUID) {
         let key = "com.TablePro.password.\(connectionId.uuidString)"
-
-        // Delete existing
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.TablePro",
-            kSecAttrAccount as String: key,
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        // Add new
         guard let data = password.data(using: .utf8) else { return }
-
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.TablePro",
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
-
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
-        if status != errSecSuccess {
-            Self.logger.error("Failed to save password: OSStatus \(status)")
-        }
+        keychainUpsert(key: key, data: data)
     }
 
     /// Load password from Keychain
@@ -212,30 +230,8 @@ final class ConnectionStorage {
     /// Save SSH password to Keychain
     func saveSSHPassword(_ password: String, for connectionId: UUID) {
         let key = "com.TablePro.sshpassword.\(connectionId.uuidString)"
-
-        // Delete existing
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.TablePro",
-            kSecAttrAccount as String: key,
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        // Add new
         guard let data = password.data(using: .utf8) else { return }
-
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.TablePro",
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
-
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
-        if status != errSecSuccess {
-            Self.logger.error("Failed to save SSH password: OSStatus \(status)")
-        }
+        keychainUpsert(key: key, data: data)
     }
 
     /// Load SSH password from Keychain
@@ -281,30 +277,8 @@ final class ConnectionStorage {
     /// Save private key passphrase to Keychain
     func saveKeyPassphrase(_ passphrase: String, for connectionId: UUID) {
         let key = "com.TablePro.keypassphrase.\(connectionId.uuidString)"
-
-        // Delete existing
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.TablePro",
-            kSecAttrAccount as String: key,
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        // Add new
         guard let data = passphrase.data(using: .utf8) else { return }
-
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.TablePro",
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
-
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
-        if status != errSecSuccess {
-            Self.logger.error("Failed to save key passphrase: OSStatus \(status)")
-        }
+        keychainUpsert(key: key, data: data)
     }
 
     /// Load private key passphrase from Keychain

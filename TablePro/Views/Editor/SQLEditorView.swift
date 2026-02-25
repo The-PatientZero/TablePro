@@ -43,9 +43,13 @@ struct SQLEditorView: View {
             guard coordinator.isEditorFirstResponder else { return }
             // Guard against stale propagation during tab switch (.id() recreation):
             // verify the editor's text still matches the binding before propagating.
-            if let controller = coordinator.controller,
-               controller.textView.string != text {
-                return
+            // Use O(1) length pre-check to avoid O(n) string comparison on large docs.
+            if let controller = coordinator.controller {
+                let currentString = controller.textView.string as NSString
+                let bindingString = text as NSString
+                if currentString.length != bindingString.length || currentString != bindingString {
+                    return
+                }
             }
             cursorPositions = positions
         }
@@ -54,10 +58,14 @@ struct SQLEditorView: View {
         // without this. Tab switches don't need it — .id(tab.id) recreates the
         // entire SourceEditor with the correct text.
         .onChange(of: text) { _, newValue in
-            if let controller = coordinator.controller,
-               controller.textView.string != newValue {
-                let fullRange = NSRange(location: 0, length: (controller.textView.string as NSString).length)
-                controller.textView.replaceCharacters(in: fullRange, with: newValue)
+            if let controller = coordinator.controller {
+                let currentString = controller.textView.string as NSString
+                let newString = newValue as NSString
+                // Fast O(1) length check before expensive O(n) string equality
+                if currentString.length != newString.length || currentString != newString {
+                    let fullRange = NSRange(location: 0, length: currentString.length)
+                    controller.textView.replaceCharacters(in: fullRange, with: newValue)
+                }
             }
         }
         .onChange(of: colorScheme) {

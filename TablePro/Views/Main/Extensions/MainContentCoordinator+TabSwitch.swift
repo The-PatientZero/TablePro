@@ -40,7 +40,13 @@ extension MainContentCoordinator {
         isHandlingTabSwitch = true
         defer { isHandlingTabSwitch = false }
 
-        tabPersistence.flushPendingSave(tabs: tabs, selectedTabId: tabManager.selectedTabId)
+        // Debounce flush: skip if less than 100ms since last save to avoid
+        // redundant synchronous work during rapid tab switching.
+        let now = CFAbsoluteTimeGetCurrent()
+        if now - lastFlushTime >= 0.1 {
+            tabPersistence.flushPendingSave(tabs: tabs, selectedTabId: tabManager.selectedTabId)
+            lastFlushTime = now
+        }
 
         if let oldId = oldTabId,
            let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId }) {

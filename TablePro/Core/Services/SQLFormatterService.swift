@@ -231,6 +231,7 @@ struct SQLFormatterService: SQLFormatterProtocol {
     /// Extract string literals to protect from keyword replacement
     /// Handles: 'single quotes', "double quotes", `backticks`
     private func extractStringLiterals(from sql: String, dialect: SQLDialectProvider) -> (String, [(placeholder: String, content: String)]) {
+        var counter = 0
         var result = sql
         var literals: [(String, String)] = []
 
@@ -254,7 +255,8 @@ struct SQLFormatterService: SQLFormatterProtocol {
             for match in matches.reversed() {
                 if let range = safeRange(from: match.range, in: result) {
                     let literal = String(result[range])
-                    let placeholder = "__STRING_\(UUID().uuidString)__"
+                    let placeholder = "__STRING_\(counter)__"
+                    counter += 1
                     literals.insert((placeholder, literal), at: 0)
                     result.replaceSubrange(range, with: placeholder)
                 }
@@ -279,6 +281,7 @@ struct SQLFormatterService: SQLFormatterProtocol {
     private func extractComments(from sql: String) -> (String, [(placeholder: String, content: String)]) {
         var result = sql
         var comments: [(String, String)] = []
+        var counter = 0
 
         // Extract line comments (-- ...) using cached regex
         let lineMatches = Self.lineCommentRegex.matches(
@@ -288,7 +291,8 @@ struct SQLFormatterService: SQLFormatterProtocol {
         for match in lineMatches.reversed() {
             if let range = safeRange(from: match.range, in: result) {
                 let comment = String(result[range])
-                let placeholder = "__COMMENT_\(UUID().uuidString)__"  // Fix #6: UUID
+                let placeholder = "__COMMENT_\(counter)__"
+                counter += 1
                 comments.insert((placeholder, comment), at: 0)
                 result.replaceSubrange(range, with: placeholder)
             }
@@ -303,7 +307,8 @@ struct SQLFormatterService: SQLFormatterProtocol {
         for match in blockMatches.reversed() {
             if let range = safeRange(from: match.range, in: result) {
                 let comment = String(result[range])
-                let placeholder = "__COMMENT_\(UUID().uuidString)__"  // Fix #6: UUID
+                let placeholder = "__COMMENT_\(counter)__"
+                counter += 1
                 comments.insert((placeholder, comment), at: 0)
                 result.replaceSubrange(range, with: placeholder)
             }
@@ -329,18 +334,20 @@ struct SQLFormatterService: SQLFormatterProtocol {
             return sql
         }
 
-        var result = sql
-        let matches = regex.matches(in: sql, range: NSRange(sql.startIndex..., in: sql))
+        // Use NSMutableString for O(1) in-place replacement instead of
+        // reverse-iterating Swift String replaceSubrange (SVC-11)
+        let mutable = NSMutableString(string: sql)
+        let fullRange = NSRange(location: 0, length: mutable.length)
+        let matches = regex.matches(in: sql, range: fullRange)
 
-        // Process in reverse to maintain valid indices (Fix #3)
+        // Process in reverse to maintain valid indices
         for match in matches.reversed() {
-            if let range = safeRange(from: match.range, in: result) {
-                let keyword = String(result[range])
-                result.replaceSubrange(range, with: keyword.uppercased())
-            }
+            let matchRange = match.range
+            let keyword = mutable.substring(with: matchRange)
+            mutable.replaceCharacters(in: matchRange, with: keyword.uppercased())
         }
 
-        return result
+        return mutable as String
     }
 
     // MARK: - Line Breaks

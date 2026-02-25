@@ -15,6 +15,8 @@ final class AppSettingsStorage {
     private static let logger = Logger(subsystem: "com.TablePro", category: "AppSettingsStorage")
 
     private let defaults = UserDefaults.standard
+    private let decoder = JSONDecoder()
+    private let encoder = JSONEncoder()
 
     // MARK: - UserDefaults Keys
 
@@ -167,7 +169,7 @@ final class AppSettingsStorage {
         }
 
         do {
-            return try JSONDecoder().decode(T.self, from: data)
+            return try decoder.decode(T.self, from: data)
         } catch {
             Self.logger.error("Failed to decode settings for \(key): \(error)")
             return defaultValue
@@ -176,7 +178,7 @@ final class AppSettingsStorage {
 
     private func save<T: Codable>(_ value: T, key: String) {
         do {
-            let data = try JSONEncoder().encode(value)
+            let data = try encoder.encode(value)
             defaults.set(data, forKey: key)
         } catch {
             Self.logger.error("Failed to encode settings for \(key): \(error)")

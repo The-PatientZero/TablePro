@@ -139,7 +139,7 @@ extension MainContentCoordinator {
         tab.executionTime = nil
         tab.errorMessage = nil
         tabManager.tabs[index] = tab
-        toolbarState.isExecuting = true
+        toolbarState.setExecuting(true)
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
@@ -209,7 +209,7 @@ extension MainContentCoordinator {
                 // All statements succeeded — update tab with results
                 await MainActor.run {
                     currentQueryTask = nil
-                    toolbarState.isExecuting = false
+                    toolbarState.setExecuting(false)
                     toolbarState.lastQueryDuration = cumulativeTime
 
                     guard capturedGeneration == queryGeneration else { return }
@@ -269,7 +269,7 @@ extension MainContentCoordinator {
 
                 await MainActor.run {
                     currentQueryTask = nil
-                    toolbarState.isExecuting = false
+                    toolbarState.setExecuting(false)
 
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                         var errTab = tabManager.tabs[idx]

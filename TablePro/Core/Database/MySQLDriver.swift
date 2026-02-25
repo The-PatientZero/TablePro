@@ -153,13 +153,18 @@ final class MySQLDriver: DatabaseDriver {
         do {
             let result = try await conn.executeQuery(query)
 
-            // Handle empty result for SELECT queries - try to get column names from table
+            // Handle empty result for SELECT queries - try to get column names from table.
+            // Only issue the extra DESCRIBE round-trip when the MariaDB C API returned no
+            // column metadata AND the query is actually a SELECT (non-SELECT queries like
+            // INSERT/UPDATE legitimately return empty columns).
             if result.columns.isEmpty && result.rows.isEmpty {
-                if let tableName = extractTableName(from: query) {
+                let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                let isSelect = trimmed.uppercased().hasPrefix("SELECT")
+                if isSelect, let tableName = extractTableName(from: query) {
                     let columns = try await fetchColumnNames(for: tableName)
                     return QueryResult(
                         columns: columns,
-                        columnTypes: Array(repeating: .text(rawType: nil), count: columns.count),  // Default to text for empty results
+                        columnTypes: Array(repeating: .text(rawType: nil), count: columns.count),
                         rows: [],
                         rowsAffected: Int(result.affectedRows),
                         executionTime: Date().timeIntervalSince(startTime),
@@ -617,24 +622,16 @@ final class MySQLDriver: DatabaseDriver {
         // Escape database name for use as a SQL string literal in information_schema queries
         let escapedDbLiteral = SQLEscaping.escapeStringLiteral(database)
 
-        // Query for table count
-        let countQuery = """
-            SELECT COUNT(*) as table_count
+        // Single query for both table count and total size
+        let query = """
+            SELECT COUNT(*), COALESCE(SUM(DATA_LENGTH + INDEX_LENGTH), 0)
             FROM information_schema.TABLES
             WHERE TABLE_SCHEMA = '\(escapedDbLiteral)'
         """
-        let countResult = try await execute(query: countQuery)
-        let tableCount = Int(countResult.rows.first?[0] ?? "0") ?? 0
-
-        // Query for size
-        let sizeQuery = """
-            SELECT SUM(DATA_LENGTH + INDEX_LENGTH) as size
-            FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = '\(escapedDbLiteral)'
-        """
-        let sizeResult = try await execute(query: sizeQuery)
-        let sizeString = sizeResult.rows.first?[0] ?? "0"
-        let sizeBytes = Int64(sizeString) ?? 0
+        let result = try await execute(query: query)
+        let row = result.rows.first
+        let tableCount = Int(row?[0] ?? "0") ?? 0
+        let sizeBytes = Int64(row?[1] ?? "0") ?? 0
 
         // Determine if system database
         let systemDatabases = ["information_schema", "mysql", "performance_schema", "sys"]
