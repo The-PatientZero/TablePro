@@ -127,7 +127,7 @@ When approaching limits: extract into `TypeName+Category.swift` extension files 
 
 These are **non-negotiable** — never skip them:
 
-1. **CHANGELOG.md**: Update under `[Unreleased]` section (Added/Fixed/Changed) for every feature, bug fix, or notable change. Documentation-only changes (`docs/`) do **not** need a CHANGELOG entry.
+1. **CHANGELOG.md**: Update under `[Unreleased]` section (Added/Fixed/Changed) for new features and notable changes. But do **not** add a "Fixed" entry for fixing something that is itself still unreleased — if a feature under `[Unreleased]` has a bug, just fix it without adding another CHANGELOG entry. "Fixed" entries are only for bugs in already-released features. Documentation-only changes (`docs/`) do **not** need a CHANGELOG entry.
 
 2. **Localization**: Use `String(localized:)` for new user-facing strings in computed properties, AppKit code, alerts, and error descriptions. SwiftUI view literals (`Text("literal")`, `Button("literal")`) auto-localize. Do NOT localize technical terms (font names, database types, SQL keywords, encoding names).
 
