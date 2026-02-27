@@ -25,6 +25,7 @@ struct TableStructureView: View {
     @State private var ddlStatement: String = ""
     @State private var ddlFontSize: CGFloat = 13
     @State private var showCopyConfirmation = false
+    @State private var copyResetTask: Task<Void, Never>?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var loadedTabs: Set<StructureTab> = []
@@ -750,7 +751,10 @@ struct TableStructureView: View {
             showCopyConfirmation = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        copyResetTask?.cancel()
+        copyResetTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
             withAnimation {
                 showCopyConfirmation = false
             }

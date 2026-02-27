@@ -87,6 +87,9 @@ final class MainContentCoordinator: ObservableObject {
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
 
+    /// Tracks whether teardown() was called; used by deinit to log missed teardowns
+    private var didTeardown = false
+
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
         if querySortCache.keys.contains(where: { !openTabIds.contains($0) }) {
@@ -130,6 +133,7 @@ final class MainContentCoordinator: ObservableObject {
     /// Explicit cleanup called from `onDisappear`. Releases schema provider
     /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
     func teardown() {
+        didTeardown = true
         currentQueryTask?.cancel()
         currentQueryTask = nil
         changeManagerUpdateTask?.cancel()
@@ -138,13 +142,17 @@ final class MainContentCoordinator: ObservableObject {
         activeSortTasks.removeAll()
 
         Self.releaseSchemaProvider(for: connection.id)
+        Self.purgeUnusedSchemaProviders()
     }
 
     deinit {
-        // Safety net: if teardown() was not called, schedule cleanup.
         let connectionId = connection.id
+        guard !didTeardown else { return }
+        let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
+        logger.warning("teardown() was not called before deallocation for connection \(connectionId)")
         Task { @MainActor in
             MainContentCoordinator.releaseSchemaProvider(for: connectionId)
+            MainContentCoordinator.purgeUnusedSchemaProviders()
         }
     }
 
@@ -1325,6 +1333,21 @@ final class MainContentCoordinator: ObservableObject {
             }
         } else {
             schemaProviderRefCounts[connectionId] = count
+        }
+    }
+
+    /// Remove entries with zero or missing reference counts that lack pending removal tasks.
+    /// Guards against unbounded growth if releaseSchemaProvider fails to execute.
+    private static func purgeUnusedSchemaProviders() {
+        let orphanedIds = sharedSchemaProviders.keys.filter { connectionId in
+            let count = schemaProviderRefCounts[connectionId] ?? 0
+            let hasPendingRemoval = schemaProviderRemovalTasks[connectionId] != nil
+            return count <= 0 && !hasPendingRemoval
+        }
+        for connectionId in orphanedIds {
+            logger.info("Purging orphaned schema provider for connection \(connectionId)")
+            sharedSchemaProviders.removeValue(forKey: connectionId)
+            schemaProviderRefCounts.removeValue(forKey: connectionId)
         }
     }
 }

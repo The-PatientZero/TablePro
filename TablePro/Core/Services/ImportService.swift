@@ -10,6 +10,20 @@ import Combine
 import Foundation
 import os
 
+// MARK: - Import State
+
+/// Consolidated state struct to minimize @Published update overhead.
+/// A single @Published property avoids N separate objectWillChange notifications per statement.
+struct ImportState {
+    var isImporting: Bool = false
+    var progress: Double = 0.0
+    var currentStatement: String = ""
+    var currentStatementIndex: Int = 0
+    var totalStatements: Int = 0
+    var statusMessage: String = ""
+    var errorMessage: String?
+}
+
 // MARK: - Import Service
 
 /// Service responsible for importing SQL files
@@ -18,13 +32,7 @@ final class ImportService: ObservableObject {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ImportService")
     // MARK: - Published State
 
-    @Published var isImporting: Bool = false
-    @Published var progress: Double = 0.0
-    @Published var currentStatement: String = ""
-    @Published var currentStatementIndex: Int = 0
-    @Published var totalStatements: Int = 0
-    @Published var statusMessage: String = ""
-    @Published var errorMessage: String?
+    @Published var state = ImportState()
 
     // MARK: - Cancellation
 
@@ -70,14 +78,11 @@ final class ImportService: ObservableObject {
         from url: URL,
         config: ImportConfiguration
     ) async throws -> ImportResult {
-        isImporting = true
+        state = ImportState(isImporting: true)
         isCancelled = false
-        progress = 0.0
-        currentStatementIndex = 0
-        errorMessage = nil
 
         defer {
-            isImporting = false
+            state.isImporting = false
         }
 
         // 1. Decompress .gz if needed
@@ -102,7 +107,7 @@ final class ImportService: ObservableObject {
         // so a smaller divisor (e.g. 200) grossly overestimates the count and causes the
         // progress bar to crawl and never visually reach 100%.
         let estimatedStatements = max(1, Int(fileSizeBytes / 500))
-        totalStatements = estimatedStatements
+        state.totalStatements = estimatedStatements
 
         try checkCancellation()
 
@@ -137,14 +142,14 @@ final class ImportService: ObservableObject {
                 try checkCancellation()
 
                 let nsStmt = statement as NSString
-                currentStatement = nsStmt.length > 50 ? nsStmt.substring(to: 50) + "..." : statement
-                currentStatementIndex = executedCount + 1
+                state.currentStatement = nsStmt.length > 50 ? nsStmt.substring(to: 50) + "..." : statement
+                state.currentStatementIndex = executedCount + 1
 
                 do {
                     _ = try await driver.execute(query: statement)
 
                     executedCount += 1
-                    progress = min(1.0, Double(executedCount) / Double(totalStatements))
+                    state.progress = min(1.0, Double(executedCount) / Double(state.totalStatements))
                 } catch {
                     // Statement execution failed
                     failedStatement = statement
@@ -159,9 +164,9 @@ final class ImportService: ObservableObject {
             }
 
             // Update to actual count so UI shows correct final state
-            totalStatements = executedCount
-            currentStatementIndex = executedCount
-            progress = 1.0
+            state.totalStatements = executedCount
+            state.currentStatementIndex = executedCount
+            state.progress = 1.0
 
             // 7. Commit transaction (if enabled)
             if config.wrapInTransaction {
@@ -213,8 +218,8 @@ final class ImportService: ObservableObject {
                     Additionally, failed to re-enable foreign key checks: \(fkDetails)
                     """
                     // Expose the combined message so callers / UI can present it to the user
-                    statusMessage = combinedMessage
-                    errorMessage = combinedMessage
+                    state.statusMessage = combinedMessage
+                    state.errorMessage = combinedMessage
                 }
             }
 

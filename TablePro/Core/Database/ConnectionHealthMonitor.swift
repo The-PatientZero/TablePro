@@ -43,8 +43,8 @@ actor ConnectionHealthMonitor {
     // MARK: - Configuration
 
     private static let pingInterval: TimeInterval = 30.0
-    private static let maxRetries = 3
-    private static let backoffDelays: [TimeInterval] = [2.0, 4.0, 8.0]
+    private static let initialBackoffDelays: [TimeInterval] = [2.0, 4.0, 8.0]
+    private static let maxBackoffDelay: TimeInterval = 120.0
 
     // MARK: - Dependencies
 
@@ -57,6 +57,7 @@ actor ConnectionHealthMonitor {
 
     private var state: HealthState = .healthy
     private var monitoringTask: Task<Void, Never>?
+    private var wakeUpContinuation: AsyncStream<Void>.Continuation?
 
     // MARK: - Initialization
 
@@ -100,11 +101,30 @@ actor ConnectionHealthMonitor {
 
         Self.logger.trace("Starting health monitoring for connection \(self.connectionId)")
 
+        let (wakeUpStream, continuation) = AsyncStream<Void>.makeStream()
+        self.wakeUpContinuation = continuation
+
         monitoringTask = Task { [weak self] in
             guard let self else { return }
 
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(Self.pingInterval))
+                // Race between the normal ping interval and an early wake-up signal
+                await withTaskGroup(of: Bool.self) { group in
+                    group.addTask {
+                        try? await Task.sleep(for: .seconds(Self.pingInterval))
+                        return false // normal timer fired
+                    }
+                    group.addTask {
+                        var iterator = wakeUpStream.makeAsyncIterator()
+                        _ = await iterator.next()
+                        return true // woken up early
+                    }
+
+                    // Wait for whichever finishes first, cancel the other
+                    if let _ = await group.next() {
+                        group.cancelAll()
+                    }
+                }
 
                 guard !Task.isCancelled else { break }
 
@@ -120,6 +140,16 @@ actor ConnectionHealthMonitor {
         Self.logger.trace("Stopping health monitoring for connection \(self.connectionId)")
         monitoringTask?.cancel()
         monitoringTask = nil
+        wakeUpContinuation?.finish()
+        wakeUpContinuation = nil
+    }
+
+    /// Triggers an immediate health check, interrupting the normal 30-second sleep.
+    ///
+    /// Call this after a query failure to get faster feedback on connection health
+    /// instead of waiting for the next scheduled ping.
+    func checkNow() {
+        wakeUpContinuation?.yield()
     }
 
     /// Resets the monitor to `.healthy` after the user manually reconnects.
@@ -160,19 +190,19 @@ actor ConnectionHealthMonitor {
 
     /// Attempts to reconnect with exponential backoff.
     ///
-    /// Tries up to `maxRetries` times (3), waiting 2s, 4s, and 8s between attempts.
-    /// On success, transitions back to `.healthy`. After all retries are exhausted,
-    /// transitions to `.failed`.
+    /// Uses initial delays of 2s, 4s, 8s, then continues doubling up to a
+    /// 120-second cap. Transitions to `.failed` only when the task is cancelled
+    /// (i.e., the monitor is stopped). This ensures the monitor keeps trying
+    /// indefinitely rather than giving up after a fixed number of attempts.
     private func attemptReconnect() async {
-        for attempt in 1...Self.maxRetries {
-            guard !Task.isCancelled else {
-                Self.logger.debug("Reconnect cancelled for connection \(self.connectionId)")
-                return
-            }
+        var attempt = 0
 
-            let delay = Self.backoffDelays[attempt - 1]
+        while !Task.isCancelled {
+            attempt += 1
 
-            Self.logger.warning("Reconnect attempt \(attempt)/\(Self.maxRetries) for connection \(self.connectionId) — waiting \(delay)s")
+            let delay = backoffDelay(for: attempt)
+
+            Self.logger.warning("Reconnect attempt \(attempt) for connection \(self.connectionId) — waiting \(delay)s")
             await transitionTo(.reconnecting(attempt: attempt))
 
             try? await Task.sleep(for: .seconds(delay))
@@ -193,9 +223,24 @@ actor ConnectionHealthMonitor {
             Self.logger.warning("Reconnect attempt \(attempt) failed for connection \(self.connectionId)")
         }
 
-        // All retries exhausted
-        Self.logger.error("All \(Self.maxRetries) reconnect attempts failed for connection \(self.connectionId)")
+        Self.logger.error("Reconnect cancelled after \(attempt) attempts for connection \(self.connectionId)")
         await transitionTo(.failed)
+    }
+
+    /// Computes the backoff delay for a given attempt number (1-based).
+    ///
+    /// Uses the initial delay table for the first few attempts, then doubles
+    /// the previous delay for subsequent attempts, capped at `maxBackoffDelay`.
+    private func backoffDelay(for attempt: Int) -> TimeInterval {
+        let delays = Self.initialBackoffDelays
+        if attempt <= delays.count {
+            return delays[attempt - 1]
+        }
+        // Exponential: last seed delay * 2^(attempt - seedCount)
+        let lastSeed = delays[delays.count - 1]
+        let exponent = attempt - delays.count
+        let computed = lastSeed * pow(2.0, Double(exponent))
+        return min(computed, Self.maxBackoffDelay)
     }
 
     // MARK: - State Transitions

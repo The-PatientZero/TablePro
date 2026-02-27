@@ -20,6 +20,7 @@ struct HistoryPanelView: View {
     @State private var showClearAllAlert = false
     @State private var searchTask: Task<Void, Never>?
     @State private var copyButtonTitle = "Copy Query"
+    @State private var copyResetTask: Task<Void, Never>?
 
     private let dataProvider = HistoryDataProvider()
 
@@ -116,7 +117,9 @@ private extension HistoryPanelView {
         .alert(String(localized: "Clear All History?"), isPresented: $showClearAllAlert) {
             Button(String(localized: "Cancel"), role: .cancel) {}
             Button(String(localized: "Clear All"), role: .destructive) {
-                dataProvider.clearAll()
+                Task {
+                    _ = await dataProvider.clearAll()
+                }
             }
         } message: {
             let count = entries.count
@@ -293,7 +296,8 @@ private extension HistoryPanelView {
     func loadData() {
         dataProvider.dateFilter = dateFilter
         dataProvider.searchText = searchText
-        dataProvider.loadData {
+        Task { @MainActor in
+            await dataProvider.loadData()
             entries = dataProvider.historyEntries
 
             // Clear selection if the selected entry no longer exists
@@ -313,7 +317,9 @@ private extension HistoryPanelView {
     }
 
     func deleteEntry(_ entry: QueryHistoryEntry) {
-        dataProvider.deleteEntry(id: entry.id)
+        Task {
+            _ = await dataProvider.deleteEntry(id: entry.id)
+        }
     }
 
     func deleteSelectedEntry() {
@@ -344,7 +350,10 @@ private extension HistoryPanelView {
     func copyQueryWithFeedback(_ entry: QueryHistoryEntry) {
         copyQuery(entry)
         copyButtonTitle = String(localized: "Copied!")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        copyResetTask?.cancel()
+        copyResetTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
             copyButtonTitle = String(localized: "Copy Query")
         }
     }

@@ -10,11 +10,14 @@ import AppKit
 import CodeEditSourceEditor
 import CodeEditTextView
 import Combine
+import os
 
 /// Coordinator for the SQL editor — manages find panel, horizontal scrolling, and scroll-to-match
 @MainActor
 final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     // MARK: - Properties
+
+    private static let logger = Logger(subsystem: "com.TablePro", category: "SQLEditorCoordinator")
 
     weak var controller: TextViewController?
     /// Shared schema provider for inline AI suggestions (avoids duplicate schema fetches)
@@ -27,6 +30,10 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     /// triggering syntax highlight viewport recalculation on every keystroke.
     private nonisolated(unsafe) var frameChangeWorkItem: DispatchWorkItem?
     private nonisolated(unsafe) var clipboardMonitor: Any?
+    private nonisolated(unsafe) var didDestroy = false
+
+    /// Test-only accessor for destroy state
+    var isDestroyed: Bool { didDestroy }
 
     /// Published Vim mode for UI observation
     @Published private(set) var vimMode: VimMode = .normal
@@ -59,11 +66,8 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             NSEvent.removeMonitor(monitor)
         }
 
-        let suggestionManager = inlineSuggestionManager
-        if let manager = suggestionManager {
-            Task { @MainActor in
-                manager.uninstall()
-            }
+        if !didDestroy {
+            Self.logger.warning("SQLEditorCoordinator deallocated without destroy() being called")
         }
     }
 
@@ -131,6 +135,8 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     }
 
     func destroy() {
+        didDestroy = true
+
         frameChangeWorkItem?.cancel()
         frameChangeWorkItem = nil
 

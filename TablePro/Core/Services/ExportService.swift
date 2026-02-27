@@ -51,6 +51,23 @@ private extension String {
     }
 }
 
+// MARK: - Export State
+
+/// Consolidated state struct to minimize @Published update overhead.
+/// A single @Published property avoids N separate objectWillChange notifications per batch iteration.
+struct ExportState {
+    var isExporting: Bool = false
+    var progress: Double = 0.0
+    var currentTable: String = ""
+    var currentTableIndex: Int = 0
+    var totalTables: Int = 0
+    var processedRows: Int = 0
+    var totalRows: Int = 0
+    var statusMessage: String = ""
+    var errorMessage: String?
+    var warningMessage: String?
+}
+
 // MARK: - Export Service
 
 /// Service responsible for exporting table data to various formats
@@ -61,17 +78,7 @@ final class ExportService: ObservableObject {
     private static let decimalFormatRegex = try! NSRegularExpression(pattern: #"^[+-]?\d+\.\d+$"#)
     // MARK: - Published State
 
-    @Published var isExporting: Bool = false
-    @Published var progress: Double = 0.0
-    @Published var currentTable: String = ""
-    @Published var currentTableIndex: Int = 0
-    @Published var totalTables: Int = 0
-    @Published var processedRows: Int = 0
-    @Published var totalRows: Int = 0
-    @Published var statusMessage: String = ""
-    @Published var errorMessage: String?
-    /// Non-fatal warnings that occurred during export (e.g., DDL fetch failures)
-    @Published var warningMessage: String?
+    @Published var state = ExportState()
 
     // MARK: - DDL Failure Tracking
 
@@ -136,27 +143,19 @@ final class ExportService: ObservableObject {
         }
 
         // Reset state
-        isExporting = true
+        state = ExportState(isExporting: true, totalTables: tables.count)
         isCancelled = false
-        progress = 0.0
-        processedRows = 0
         internalProcessedRows = 0
-        totalRows = 0
-        totalTables = tables.count
-        currentTableIndex = 0
-        statusMessage = ""
-        errorMessage = nil
-        warningMessage = nil
         ddlFailures = []
 
         defer {
-            isExporting = false
+            state.isExporting = false
             isCancelled = false
-            statusMessage = ""
+            state.statusMessage = ""
         }
 
         // Fetch total row counts for all tables
-        totalRows = await fetchTotalRowCount(for: tables)
+        state.totalRows = await fetchTotalRowCount(for: tables)
 
         do {
             switch config.format {
@@ -172,7 +171,7 @@ final class ExportService: ObservableObject {
         } catch {
             // Clean up partial file on cancellation or error
             try? FileManager.default.removeItem(at: url)
-            errorMessage = error.localizedDescription
+            state.errorMessage = error.localizedDescription
             throw error
         }
     }
@@ -199,7 +198,7 @@ final class ExportService: ObservableObject {
         if failedCount > 0 {
             Self.logger.warning("\(failedCount) table(s) failed row count - progress indicator may be inaccurate")
             // Update status message so user knows progress is estimated
-            statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
+            state.statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
         }
         return total
     }
@@ -223,9 +222,9 @@ final class ExportService: ObservableObject {
 
         // Only update UI every N rows
         if internalProcessedRows % progressUpdateInterval == 0 {
-            processedRows = internalProcessedRows
-            if totalRows > 0 {
-                progress = Double(internalProcessedRows) / Double(totalRows)
+            state.processedRows = internalProcessedRows
+            if state.totalRows > 0 {
+                state.progress = Double(internalProcessedRows) / Double(state.totalRows)
             }
             // Yield to allow UI to update
             await Task.yield()
@@ -234,9 +233,9 @@ final class ExportService: ObservableObject {
 
     /// Finalize progress for current table (ensures UI shows final count)
     private func finalizeTableProgress() async {
-        processedRows = internalProcessedRows
-        if totalRows > 0 {
-            progress = Double(internalProcessedRows) / Double(totalRows)
+        state.processedRows = internalProcessedRows
+        if state.totalRows > 0 {
+            state.progress = Double(internalProcessedRows) / Double(state.totalRows)
         }
         // Yield to allow UI to update
         await Task.yield()
@@ -314,8 +313,8 @@ final class ExportService: ObservableObject {
         for (index, table) in tables.enumerated() {
             try checkCancellation()
 
-            currentTableIndex = index + 1
-            currentTable = table.qualifiedName
+            state.currentTableIndex = index + 1
+            state.currentTable = table.qualifiedName
 
             let tableRef = qualifiedTableRef(for: table)
             let batchSize = 5_000
@@ -325,6 +324,7 @@ final class ExportService: ObservableObject {
 
             while true {
                 try checkCancellation()
+                try Task.checkCancellation()
 
                 let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
                 let result = try await driver.execute(query: query)
@@ -394,8 +394,8 @@ final class ExportService: ObservableObject {
         for (index, table) in tables.enumerated() {
             try checkCancellation()
 
-            currentTableIndex = index + 1
-            currentTable = table.qualifiedName
+            state.currentTableIndex = index + 1
+            state.currentTable = table.qualifiedName
 
             // Add table header comment if multiple tables
             // Sanitize name to prevent newlines from breaking the comment line
@@ -412,6 +412,7 @@ final class ExportService: ObservableObject {
 
             while true {
                 try checkCancellation()
+                try Task.checkCancellation()
 
                 let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
                 let result = try await driver.execute(query: query)
@@ -444,7 +445,7 @@ final class ExportService: ObservableObject {
         }
 
         try checkCancellation()
-        progress = 1.0
+        state.progress = 1.0
     }
 
     private func writeCSVContentWithProgress(
@@ -571,8 +572,8 @@ final class ExportService: ObservableObject {
         for (tableIndex, table) in tables.enumerated() {
             try checkCancellation()
 
-            currentTableIndex = tableIndex + 1
-            currentTable = table.qualifiedName
+            state.currentTableIndex = tableIndex + 1
+            state.currentTable = table.qualifiedName
 
             let tableRef = qualifiedTableRef(for: table)
 
@@ -588,6 +589,7 @@ final class ExportService: ObservableObject {
 
             batchLoop: while true {
                 try checkCancellation()
+                try Task.checkCancellation()
 
                 let result = try await driver.execute(
                     query: "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
@@ -669,7 +671,7 @@ final class ExportService: ObservableObject {
         try fileHandle.write(contentsOf: "}".toUTF8Data())
 
         try checkCancellation()
-        progress = 1.0
+        state.progress = 1.0
     }
 
     /// Escape a string for JSON output per RFC 8259
@@ -828,8 +830,8 @@ final class ExportService: ObservableObject {
             for (index, table) in tables.enumerated() {
                 try checkCancellation()
 
-                currentTableIndex = index + 1
-                currentTable = table.qualifiedName
+                state.currentTableIndex = index + 1
+                state.currentTable = table.qualifiedName
 
                 let sqlOptions = table.sqlOptions
                 let tableRef = databaseType.quoteIdentifier(table.name)
@@ -872,6 +874,7 @@ final class ExportService: ObservableObject {
 
                     while true {
                         try checkCancellation()
+                        try Task.checkCancellation()
 
                         let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
                         let result = try await driver.execute(query: query)
@@ -909,7 +912,7 @@ final class ExportService: ObservableObject {
 
         // Handle gzip compression
         if config.sqlOptions.compressWithGzip, let tempURL = tempFileURL {
-            statusMessage = "Compressing..."
+            state.statusMessage = "Compressing..."
             await Task.yield()
 
             do {
@@ -929,10 +932,10 @@ final class ExportService: ObservableObject {
         // Surface DDL failures to user as a warning
         if !ddlFailures.isEmpty {
             let failedTables = ddlFailures.joined(separator: ", ")
-            warningMessage = "Export completed with warnings: Could not fetch table structure for: \(failedTables)"
+            state.warningMessage = "Export completed with warnings: Could not fetch table structure for: \(failedTables)"
         }
 
-        progress = 1.0
+        state.progress = 1.0
     }
 
     private func writeInsertStatementsWithProgress(

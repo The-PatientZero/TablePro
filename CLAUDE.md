@@ -150,6 +150,7 @@ These are **non-negotiable** — never skip them:
 - **Always parallelize** independent tasks. Launch all subagents in a single message with multiple Task tool calls.
 - **Main context = orchestrator only.** Read files, launch subagents, summarize results, update tracking. Never do heavy implementation directly.
 - **Subagent prompts must be self-contained.** Include file paths, the specific problem, and clear instructions.
+- **Every implementation must run in a separate worktree.** Use `isolation: "worktree"` when spawning Task subagents for any code changes. This keeps the main branch clean and allows parallel work without conflicts.
 
 ## Performance Pitfalls
 

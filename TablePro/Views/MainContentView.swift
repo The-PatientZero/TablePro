@@ -44,7 +44,7 @@ struct MainContentView: View {
     @State private var editingCell: CellPosition?
     @State private var commandActions: MainContentCommandActions?
     @State private var queryResultsSummaryCache: (tabId: UUID, version: Int, summary: String?)?
-    @State private var inspectorUpdateWorkItem: DispatchWorkItem?
+    @State private var inspectorUpdateTask: Task<Void, Never>?
     /// Stable identifier for this window in NativeTabRegistry
     @State private var windowId = UUID()
     @State private var hasInitialized = false
@@ -197,13 +197,11 @@ struct MainContentView: View {
     /// Split into two halves to help the Swift type checker with the long modifier chain.
     private var bodyContent: some View {
         bodyContentCore
-            .onChange(of: currentTab?.tableName) {
-                scheduleInspectorUpdate()
+            .task(id: currentTab?.tableName) {
                 // Only load metadata after the tab has executed at least once —
                 // avoids a redundant DB query racing with the initial data query
-                if currentTab?.lastExecutedAt != nil {
-                    Task { await loadTableMetadataIfNeeded() }
-                }
+                guard currentTab?.lastExecutedAt != nil else { return }
+                await loadTableMetadataIfNeeded()
             }
             .onChange(of: inspectorTrigger) {
                 scheduleInspectorUpdate()
@@ -749,16 +747,16 @@ struct MainContentView: View {
     // MARK: - Inspector Context
 
     /// Coalesces multiple onChange-triggered updates into a single deferred call.
-    /// During tab switch, onChange handlers fire 3-4× — this ensures we only rebuild once,
+    /// During tab switch, onChange handlers fire 3-4x — this ensures we only rebuild once,
     /// and defers the work so SwiftUI can render the tab switch first.
     private func scheduleInspectorUpdate() {
-        inspectorUpdateWorkItem?.cancel()
-        let workItem = DispatchWorkItem { [self] in
+        inspectorUpdateTask?.cancel()
+        inspectorUpdateTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            guard !Task.isCancelled else { return }
             updateSidebarEditState()
             updateInspectorContext()
         }
-        inspectorUpdateWorkItem = workItem
-        DispatchQueue.main.async(execute: workItem)
     }
 
     private func updateInspectorContext() {

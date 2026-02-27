@@ -57,12 +57,13 @@ final class AnyChangeManager: ObservableObject {
             dataManager.consumeChangedRowIndices()
         }
 
-        // Sync published properties - store in cancellables to prevent retain cycles
+        // Sync published properties — use .sink with [weak self] instead of .assign(to:on:)
+        // because .assign retains the target, creating a cycle: self -> cancellables -> subscription -> self
         dataManager.$hasChanges
-            .assign(to: \.hasChanges, on: self)
+            .sink { [weak self] in self?.hasChanges = $0 }
             .store(in: &cancellables)
         dataManager.$reloadVersion
-            .assign(to: \.reloadVersion, on: self)
+            .sink { [weak self] in self?.reloadVersion = $0 }
             .store(in: &cancellables)
     }
 
@@ -82,12 +83,12 @@ final class AnyChangeManager: ObservableObject {
             structureManager.consumeChangedRowIndices()
         }
 
-        // Sync published properties - store in cancellables to prevent retain cycles
+        // Sync published properties — use .sink with [weak self] to avoid retain cycle
         structureManager.$hasChanges
-            .assign(to: \.hasChanges, on: self)
+            .sink { [weak self] in self?.hasChanges = $0 }
             .store(in: &cancellables)
         structureManager.$reloadVersion
-            .assign(to: \.reloadVersion, on: self)
+            .sink { [weak self] in self?.reloadVersion = $0 }
             .store(in: &cancellables)
     }
 

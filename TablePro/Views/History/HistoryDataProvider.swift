@@ -62,19 +62,17 @@ final class HistoryDataProvider {
 
     // MARK: - Data Loading
 
-    /// Load data asynchronously (non-blocking)
-    func loadData(completion: (() -> Void)? = nil) {
-        QueryHistoryManager.shared.fetchHistory(
+    /// Load data asynchronously
+    func loadData() async {
+        let entries = await QueryHistoryManager.shared.fetchHistory(
             limit: 500,
             offset: 0,
             connectionId: nil,
             searchText: searchText.isEmpty ? nil : searchText,
             dateFilter: dateFilter.toDateFilter
-        ) { [weak self] entries in
-            self?.historyEntries = entries
-            completion?()
-            self?.onDataChanged?()
-        }
+        )
+        historyEntries = entries
+        onDataChanged?()
     }
 
     // MARK: - Search
@@ -84,7 +82,8 @@ final class HistoryDataProvider {
         searchTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled, let self else { return }
-            self.loadData(completion: completion)
+            await self.loadData()
+            completion()
         }
     }
 
@@ -101,19 +100,18 @@ final class HistoryDataProvider {
 
     // MARK: - Deletion
 
-    func deleteItem(at index: Int, completion: ((Bool) -> Void)? = nil) {
+    func deleteItem(at index: Int) async -> Bool {
         guard let entry = historyEntry(at: index) else {
-            completion?(false)
-            return
+            return false
         }
-        QueryHistoryManager.shared.deleteHistory(id: entry.id, completion: completion)
+        return await QueryHistoryManager.shared.deleteHistory(id: entry.id)
     }
 
-    func deleteEntry(id: UUID, completion: ((Bool) -> Void)? = nil) {
-        QueryHistoryManager.shared.deleteHistory(id: id, completion: completion)
+    func deleteEntry(id: UUID) async -> Bool {
+        await QueryHistoryManager.shared.deleteHistory(id: id)
     }
 
-    func clearAll(completion: ((Bool) -> Void)? = nil) {
-        QueryHistoryManager.shared.clearAllHistory(completion: completion)
+    func clearAll() async -> Bool {
+        await QueryHistoryManager.shared.clearAllHistory()
     }
 }

@@ -53,6 +53,10 @@ final class AnalyticsService {
 
     private init() {}
 
+    deinit {
+        heartbeatTask?.cancel()
+    }
+
     // MARK: - Public API
 
     /// Start periodic heartbeat. Call from AppDelegate.applicationDidFinishLaunching.

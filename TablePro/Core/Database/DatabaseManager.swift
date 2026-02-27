@@ -62,9 +62,10 @@ final class DatabaseManager: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             guard let connectionId = notification.userInfo?["connectionId"] as? UUID else { return }
+            guard let self else { return }
 
             Task { @MainActor in
-                await self?.handleSSHTunnelDied(connectionId: connectionId)
+                await self.handleSSHTunnelDied(connectionId: connectionId)
             }
         }
     }

@@ -152,4 +152,26 @@ enum TestFixtures {
             onUpdate: .noAction
         )
     }
+
+    static func makeHistoryEntry(
+        id: UUID = UUID(),
+        query: String = "SELECT * FROM users",
+        connectionId: UUID = UUID(),
+        databaseName: String = "testdb",
+        executionTime: TimeInterval = 0.05,
+        rowCount: Int = 10,
+        wasSuccessful: Bool = true,
+        errorMessage: String? = nil
+    ) -> QueryHistoryEntry {
+        return QueryHistoryEntry(
+            id: id,
+            query: query,
+            connectionId: connectionId,
+            databaseName: databaseName,
+            executionTime: executionTime,
+            rowCount: rowCount,
+            wasSuccessful: wasSuccessful,
+            errorMessage: errorMessage
+        )
+    }
 }

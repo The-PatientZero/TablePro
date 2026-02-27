@@ -125,32 +125,18 @@ final class SidebarViewModel: ObservableObject {
         guard !hasSetupNotifications else { return }
         hasSetupNotifications = true
 
-        NotificationCenter.default.publisher(for: .databaseDidConnect)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.loadTables()
-                }
+        Publishers.Merge3(
+            NotificationCenter.default.publisher(for: .databaseDidConnect),
+            NotificationCenter.default.publisher(for: .refreshData),
+            NotificationCenter.default.publisher(for: .refreshAll)
+        )
+        .receive(on: DispatchQueue.main)
+        .sink { [weak self] _ in
+            Task { @MainActor in
+                self?.loadTables()
             }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .refreshData)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.loadTables()
-                }
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .refreshAll)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.loadTables()
-                }
-            }
-            .store(in: &cancellables)
+        }
+        .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: .copyTableNames)
             .receive(on: DispatchQueue.main)

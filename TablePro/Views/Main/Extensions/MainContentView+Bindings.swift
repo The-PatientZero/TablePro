@@ -97,6 +97,7 @@ extension MainContentView {
     /// Uses `resultVersion` instead of the full `resultRows` array to avoid deep equality checks.
     var inspectorTrigger: InspectorTrigger {
         InspectorTrigger(
+            tableName: currentTab?.tableName,
             resultVersion: currentTab?.resultVersion ?? -1,
             metadataTableName: coordinator.tableMetadata?.tableName
         )
@@ -105,9 +106,11 @@ extension MainContentView {
 
 // MARK: - Equatable Trigger Types
 
-/// Lightweight equatable value combining result version and metadata table name
-/// for consolidated inspector onChange observation.
+/// Lightweight equatable value combining tab table name, result version, and metadata table name
+/// for consolidated inspector onChange observation. Folding `tableName` here avoids a separate
+/// `onChange(of: currentTab?.tableName)` handler that would cascade with this trigger.
 struct InspectorTrigger: Equatable {
+    let tableName: String?
     let resultVersion: Int
     let metadataTableName: String?
 }

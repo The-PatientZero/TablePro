@@ -25,7 +25,7 @@ struct RowVisualState {
 }
 
 /// Identity snapshot used to skip redundant updateNSView work when nothing has changed
-private struct DataGridIdentity: Equatable {
+struct DataGridIdentity: Equatable {
     let reloadVersion: Int
     let resultVersion: Int
     let metadataVersion: Int
@@ -243,9 +243,11 @@ struct DataGridView: NSViewRepresentable {
         let expectedColumnIds = rowProvider.columns.indices.map { "col_\($0)" }
         let columnsChanged = !rowProvider.columns.isEmpty && (currentColumnIds != expectedColumnIds)
 
-        // Also rebuild columns when structure changes (e.g., 0 rows → data loaded)
-        // This ensures column widths are recalculated based on actual cell content
-        let shouldRebuildColumns = columnsChanged || (structureChanged && !rowProvider.columns.isEmpty)
+        // Only recalculate column widths when transitioning from 0 rows (initial data load).
+        // When row count changes but columns are the same and already have widths, skip
+        // the expensive calculateOptimalColumnWidth calls.
+        let isInitialDataLoad = structureChanged && oldRowCount == 0 && !rowProvider.columns.isEmpty
+        let shouldRebuildColumns = columnsChanged || isInitialDataLoad
 
         updateColumns(
             tableView: tableView,

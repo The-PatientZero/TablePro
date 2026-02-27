@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `:q` command to close current tab in Vim command-line mode
 - PostgreSQL schema switching via ⌘K database switcher (browse and switch between schemas like `public`, `auth`, custom schemas)
 
+### Changed
+
+- Convert QueryHistoryStorage and QueryHistoryManager from callback-based async dispatch to native Swift async/await — eliminates double thread hops per history operation
+- Consolidate ExportService @Published properties into single state struct — reduces objectWillChange events from 7 per batch to 1
+- Consolidate ImportService @Published properties into single state struct — reduces objectWillChange events during SQL import
+- Replace DispatchQueue.main.asyncAfter chains in AppDelegate startup with structured Task-based retry loops
+- Merge 3 identical Combine notification subscriptions in SidebarViewModel into Publishers.Merge3
+- Make AIChatStorage encoder/decoder static — shared across all instances instead of duplicated
+
 ### Fixed
 
 - Vim Escape key not exiting Insert/Visual mode when autocomplete popup is visible (popup's event monitor consumed the key)
@@ -35,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix crash on macOS 14.x caused by `_strchrnul` symbol not found in libpq.5.dylib — switch libpq and OpenSSL from dynamic Homebrew linking to vendored static libraries built with MACOSX_DEPLOYMENT_TARGET=14.0
 - Fix duplicate tabs and lag when inserting SQL from AI Chat or History panel with multiple window-tabs open — notification handlers now only fire in the key window
 - Fix "Run in New Tab" race condition in History panel — replaced fragile two-notification + 100ms delay pattern with a single atomic notification
+- Fix MainContentCoordinator deinit Task that may never execute — added explicit teardown() method with didTeardown guard and orphaned schema provider purge
+- Fix SQLEditorCoordinator deinit deferring InlineSuggestionManager cleanup to Task — added explicit destroy() lifecycle and didDestroy guard with warning log
+- Fix ExportService while-true batch loops not checking Task.isCancelled — cancelled exports now stop promptly instead of running all remaining batches
+- Fix DataGridView full column reconfiguration on every resultVersion bump — narrowed rebuild condition to only trigger when transitioning from empty state
+- Fix ConnectionHealthMonitor fixed 30s interval that delays failure detection — added checkNow() with wakeUpContinuation for immediate health checks and exponential backoff
+- Fix HistoryPanelView and TableStructureView asyncAfter copy-reset timers not cancellable — replaced with cancellable Task pattern
+- Fix MainContentView redundant onChange handler causing cascading re-renders on tab/table changes
+- Fix DatabaseManager notification observer creating unnecessary Tasks when self is already deallocated — added guard let self before Task creation
 
 ## [0.8.0] - 2026-02-27
 

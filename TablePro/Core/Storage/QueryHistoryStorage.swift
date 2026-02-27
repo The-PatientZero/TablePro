@@ -63,6 +63,32 @@ final class QueryHistoryStorage {
         }
     }
 
+    // MARK: - Database Work Helpers
+
+    /// Run database work on the serial queue, returning a result via async/await
+    private func performDatabaseWork<T>(_ work: @escaping () throws -> T) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                do {
+                    let result = try work()
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Run non-throwing database work on the serial queue
+    private func performDatabaseWork<T>(_ work: @escaping () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                let result = work()
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
     // MARK: - Database Setup
 
     private func setupDatabase() {
@@ -169,8 +195,8 @@ final class QueryHistoryStorage {
 
     // MARK: - History Operations
 
-    /// Add a history entry (async, non-blocking)
-    func addHistory(_ entry: QueryHistoryEntry, completion: ((Bool) -> Void)? = nil) {
+    /// Add a history entry asynchronously
+    func addHistory(_ entry: QueryHistoryEntry) async -> Bool {
         // Capture values as Swift strings BEFORE entering async block
         // to ensure they remain valid throughout the operation
         let idString = entry.id.uuidString
@@ -183,11 +209,8 @@ final class QueryHistoryStorage {
         let wasSuccessful: Int32 = entry.wasSuccessful ? 1 : 0
         let errorMessageString = entry.errorMessage
 
-        queue.async { [weak self] in
-            guard let self = self else {
-                DispatchQueue.main.async { completion?(false) }
-                return
-            }
+        return await performDatabaseWork { [weak self] in
+            guard let self = self else { return false }
 
             // Throttled cleanup: only run every 100 inserts
             self.insertsSinceCleanup += 1
@@ -203,8 +226,7 @@ final class QueryHistoryStorage {
 
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(self.db, sql, -1, &statement, nil) == SQLITE_OK else {
-                DispatchQueue.main.async { completion?(false) }
-                return
+                return false
             }
 
             defer { sqlite3_finalize(statement) }
@@ -228,34 +250,23 @@ final class QueryHistoryStorage {
             }
 
             let result = sqlite3_step(statement)
-            let success = result == SQLITE_DONE
-
-            // Silently handle errors - logging can be added via proper logging framework if needed
-
-            DispatchQueue.main.async { completion?(success) }
+            return result == SQLITE_DONE
         }
     }
 
-    /// Fetch history with optional filters (asynchronous - non-blocking)
+    /// Fetch history with optional filters asynchronously
     func fetchHistory(
         limit: Int = 100,
         offset: Int = 0,
         connectionId: UUID? = nil,
         searchText: String? = nil,
-        dateFilter: DateFilter = .all,
-        completion: @escaping ([QueryHistoryEntry]) -> Void
-    ) {
-        queue.async { [weak self] in
-            guard let self = self else {
-                DispatchQueue.main.async { completion([]) }
-                return
-            }
-            let entries = self.fetchHistorySync(
+        dateFilter: DateFilter = .all
+    ) async -> [QueryHistoryEntry] {
+        await performDatabaseWork { [weak self] in
+            guard let self = self else { return [] }
+            return self.fetchHistorySync(
                 limit: limit, offset: offset, connectionId: connectionId, searchText: searchText,
                 dateFilter: dateFilter)
-            DispatchQueue.main.async {
-                completion(entries)
-            }
         }
     }
 
@@ -359,74 +370,59 @@ final class QueryHistoryStorage {
         return entries
     }
 
-    /// Delete a specific history entry (async, non-blocking)
-    func deleteHistory(id: UUID, completion: ((Bool) -> Void)? = nil) {
+    /// Delete a specific history entry asynchronously
+    func deleteHistory(id: UUID) async -> Bool {
         let idString = id.uuidString
-        queue.async { [weak self] in
-            guard let self = self else {
-                DispatchQueue.main.async { completion?(false) }
-                return
-            }
+        return await performDatabaseWork { [weak self] in
+            guard let self = self else { return false }
 
             let sql = "DELETE FROM history WHERE id = ?;"
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(self.db, sql, -1, &statement, nil) == SQLITE_OK else {
-                DispatchQueue.main.async { completion?(false) }
-                return
+                return false
             }
 
             defer { sqlite3_finalize(statement) }
 
             let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
             sqlite3_bind_text(statement, 1, idString, -1, SQLITE_TRANSIENT)
-            let success = sqlite3_step(statement) == SQLITE_DONE
-            DispatchQueue.main.async { completion?(success) }
+            return sqlite3_step(statement) == SQLITE_DONE
         }
     }
 
-    /// Get total history count (async, non-blocking)
-    func getHistoryCount(completion: @escaping (Int) -> Void) {
-        queue.async { [weak self] in
-            guard let self = self else {
-                DispatchQueue.main.async { completion(0) }
-                return
-            }
+    /// Get total history count asynchronously
+    func getHistoryCount() async -> Int {
+        await performDatabaseWork { [weak self] in
+            guard let self = self else { return 0 }
 
             let sql = "SELECT COUNT(*) FROM history;"
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(self.db, sql, -1, &statement, nil) == SQLITE_OK else {
-                DispatchQueue.main.async { completion(0) }
-                return
+                return 0
             }
 
             defer { sqlite3_finalize(statement) }
 
-            var count = 0
             if sqlite3_step(statement) == SQLITE_ROW {
-                count = Int(sqlite3_column_int(statement, 0))
+                return Int(sqlite3_column_int(statement, 0))
             }
-            DispatchQueue.main.async { completion(count) }
+            return 0
         }
     }
 
-    /// Clear all history entries (async, non-blocking)
-    func clearAllHistory(completion: ((Bool) -> Void)? = nil) {
-        queue.async { [weak self] in
-            guard let self = self else {
-                DispatchQueue.main.async { completion?(false) }
-                return
-            }
+    /// Clear all history entries asynchronously
+    func clearAllHistory() async -> Bool {
+        await performDatabaseWork { [weak self] in
+            guard let self = self else { return false }
 
             let sql = "DELETE FROM history;"
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(self.db, sql, -1, &statement, nil) == SQLITE_OK else {
-                DispatchQueue.main.async { completion?(false) }
-                return
+                return false
             }
 
             defer { sqlite3_finalize(statement) }
-            let success = sqlite3_step(statement) == SQLITE_DONE
-            DispatchQueue.main.async { completion?(success) }
+            return sqlite3_step(statement) == SQLITE_DONE
         }
     }
 
@@ -518,65 +514,6 @@ final class QueryHistoryStorage {
     func cleanup() {
         queue.async { [weak self] in
             self?.performCleanup()
-        }
-    }
-
-    // MARK: - Async/Await Wrappers
-
-    /// Add a history entry using async/await
-    func addHistory(_ entry: QueryHistoryEntry) async -> Bool {
-        await withCheckedContinuation { continuation in
-            addHistory(entry) { success in
-                continuation.resume(returning: success)
-            }
-        }
-    }
-
-    /// Fetch history with optional filters using async/await
-    func fetchHistory(
-        limit: Int = 100,
-        offset: Int = 0,
-        connectionId: UUID? = nil,
-        searchText: String? = nil,
-        dateFilter: DateFilter = .all
-    ) async -> [QueryHistoryEntry] {
-        await withCheckedContinuation { continuation in
-            fetchHistory(
-                limit: limit,
-                offset: offset,
-                connectionId: connectionId,
-                searchText: searchText,
-                dateFilter: dateFilter
-            ) { entries in
-                continuation.resume(returning: entries)
-            }
-        }
-    }
-
-    /// Delete a specific history entry using async/await
-    func deleteHistoryAsync(id: UUID) async -> Bool {
-        await withCheckedContinuation { continuation in
-            deleteHistory(id: id) { success in
-                continuation.resume(returning: success)
-            }
-        }
-    }
-
-    /// Get total history count using async/await
-    func getHistoryCountAsync() async -> Int {
-        await withCheckedContinuation { continuation in
-            getHistoryCount { count in
-                continuation.resume(returning: count)
-            }
-        }
-    }
-
-    /// Clear all history entries using async/await
-    func clearAllHistoryAsync() async -> Bool {
-        await withCheckedContinuation { continuation in
-            clearAllHistory { success in
-                continuation.resume(returning: success)
-            }
         }
     }
 

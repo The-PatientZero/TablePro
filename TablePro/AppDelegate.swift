@@ -225,23 +225,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    /// Schedule multiple delayed passes to close any welcome window that
+    /// Schedule repeated checks to close any welcome window that
     /// SwiftUI creates as part of app activation for a file-open event.
-    /// Uses several staggered delays (0.1s, 0.3s, 0.6s, 1.0s) so we
-    /// reliably catch windows even when SwiftUI restores them late.
+    /// Retries up to 5 times with short delays to catch late-restored windows.
     private func scheduleWelcomeWindowSuppression() {
-        let delays: [Double] = [0.1, 0.3, 0.6, 1.0]
-        for (index, delay) in delays.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+        Task { @MainActor [weak self] in
+            for _ in 0 ..< 5 {
                 guard let self else { return }
                 self.closeWelcomeWindowIfMainExists()
-                // On the last pass, clear suppression state
-                if index == delays.count - 1 {
-                    self.fileOpenSuppressionCount = max(0, self.fileOpenSuppressionCount - 1)
-                    if self.fileOpenSuppressionCount == 0 {
-                        self.isHandlingFileOpen = false
-                    }
-                }
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+            guard let self else { return }
+            self.fileOpenSuppressionCount = max(0, self.fileOpenSuppressionCount - 1)
+            if self.fileOpenSuppressionCount == 0 {
+                self.isHandlingFileOpen = false
             }
         }
     }
@@ -260,19 +257,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !queuedFileURLs.isEmpty else { return }
         let urls = queuedFileURLs
         queuedFileURLs.removeAll()
-        postSQLFilesWhenReady(urls: urls, attemptsRemaining: 10)
+        postSQLFilesWhenReady(urls: urls)
     }
 
-    private func postSQLFilesWhenReady(urls: [URL], attemptsRemaining: Int) {
-        if NSApp.windows.contains(where: { isMainWindow($0) && $0.isKeyWindow }) || attemptsRemaining <= 0 {
-            if attemptsRemaining <= 0 {
-                Self.logger.warning("postSQLFilesWhenReady: no key main window after retries, posting anyway")
+    private func postSQLFilesWhenReady(urls: [URL]) {
+        Task { @MainActor [weak self] in
+            for attempt in 0 ..< 10 {
+                if NSApp.windows.contains(where: { self?.isMainWindow($0) == true && $0.isKeyWindow }) {
+                    break
+                }
+                if attempt == 9 {
+                    Self.logger.warning("postSQLFilesWhenReady: no key main window after retries, posting anyway")
+                }
+                try? await Task.sleep(for: .milliseconds(50))
             }
             NotificationCenter.default.post(name: .openSQLFiles, object: urls)
-        } else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                self?.postSQLFilesWhenReady(urls: urls, attemptsRemaining: attemptsRemaining - 1)
-            }
         }
     }
 
@@ -375,8 +374,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     await DatabaseManager.shared.disconnectAll()
                 }
 
-                // Reopen welcome window after a brief delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // Reopen welcome window on next run loop after the close finishes
+                DispatchQueue.main.async {
                     self.openWelcomeWindow()
                 }
             }
@@ -493,10 +492,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureWelcomeWindow() {
-        // Find and configure the welcome window after a brief delay to ensure SwiftUI has created it
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            for window in NSApp.windows where self?.isWelcomeWindow(window) == true {
-                self?.configureWelcomeWindowStyle(window)
+        // Wait for SwiftUI to create the welcome window, then configure it
+        Task { @MainActor [weak self] in
+            for _ in 0 ..< 5 {
+                guard let self else { return }
+                let found = NSApp.windows.contains(where: { self.isWelcomeWindow($0) })
+                if found {
+                    for window in NSApp.windows where self.isWelcomeWindow(window) {
+                        self.configureWelcomeWindowStyle(window)
+                    }
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(50))
             }
         }
     }

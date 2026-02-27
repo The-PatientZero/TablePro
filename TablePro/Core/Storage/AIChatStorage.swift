@@ -15,8 +15,19 @@ final class AIChatStorage {
     private static let logger = Logger(subsystem: "com.TablePro", category: "AIChatStorage")
 
     private let directory: URL
-    private let encoder: JSONEncoder
-    private let decoder: JSONDecoder
+
+    private static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }()
+
+    private static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
 
     private init() {
         let appSupport: URL
@@ -33,13 +44,6 @@ final class AIChatStorage {
             .appendingPathComponent("TablePro", isDirectory: true)
             .appendingPathComponent("ai_chats", isDirectory: true)
 
-        encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-
-        decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
         createDirectoryIfNeeded()
     }
 
@@ -50,7 +54,7 @@ final class AIChatStorage {
         let fileURL = directory.appendingPathComponent("\(conversation.id.uuidString).json")
 
         do {
-            let data = try encoder.encode(conversation)
+            let data = try Self.encoder.encode(conversation)
             try data.write(to: fileURL, options: .atomic)
         } catch {
             Self.logger.error("Failed to save conversation \(conversation.id): \(error.localizedDescription)")
@@ -71,7 +75,7 @@ final class AIChatStorage {
                 .compactMap { fileURL in
                     do {
                         let data = try Data(contentsOf: fileURL)
-                        return try decoder.decode(AIConversation.self, from: data)
+                        return try Self.decoder.decode(AIConversation.self, from: data)
                     } catch {
                         Self.logger.error("Failed to load conversation from \(fileURL.lastPathComponent): \(error.localizedDescription)")
                         return nil

@@ -77,7 +77,7 @@ struct ExportDialog: View {
                 processedRows: exportServiceState.processedRows,
                 totalRows: exportServiceState.totalRows,
                 statusMessage: exportServiceState.statusMessage
-            )                {
+            ) {
                 exportServiceState.service?.cancelExport()
             }
             .interactiveDismissDisabled()
@@ -651,12 +651,12 @@ final class ExportServiceState: ObservableObject {
         self.service = service
     }
 
-    var currentTable: String { service?.currentTable ?? "" }
-    var currentTableIndex: Int { service?.currentTableIndex ?? 0 }
-    var totalTables: Int { service?.totalTables ?? 0 }
-    var processedRows: Int { service?.processedRows ?? 0 }
-    var totalRows: Int { service?.totalRows ?? 0 }
-    var statusMessage: String { service?.statusMessage ?? "" }
+    var currentTable: String { service?.state.currentTable ?? "" }
+    var currentTableIndex: Int { service?.state.currentTableIndex ?? 0 }
+    var totalTables: Int { service?.state.totalTables ?? 0 }
+    var processedRows: Int { service?.state.processedRows ?? 0 }
+    var totalRows: Int { service?.state.totalRows ?? 0 }
+    var statusMessage: String { service?.state.statusMessage ?? "" }
 }
 
 // MARK: - Preview

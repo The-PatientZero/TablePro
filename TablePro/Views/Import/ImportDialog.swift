@@ -373,7 +373,7 @@ struct ImportDialog: View {
         guard let url = fileURL else { return }
 
         let service = ImportService(connection: connection)
-        importServiceState.service = service
+        importServiceState.setService(service)
 
         showProgressDialog = true
 
@@ -441,31 +441,25 @@ struct ImportDialog: View {
 
 @MainActor
 final class ImportServiceState: ObservableObject {
-    @Published var isImporting: Bool = false
-    @Published var currentStatement: String = ""
-    @Published var currentStatementIndex: Int = 0
-    @Published var totalStatements: Int = 0
-    @Published var statusMessage: String = ""
+    private var cancellable: AnyCancellable?
 
-    var service: ImportService? {
+    private(set) var service: ImportService? {
         didSet {
-            guard let service = service else { return }
-
-            // Bind service properties
-            service.$isImporting
-                .assign(to: &$isImporting)
-
-            service.$currentStatement
-                .assign(to: &$currentStatement)
-
-            service.$currentStatementIndex
-                .assign(to: &$currentStatementIndex)
-
-            service.$totalStatements
-                .assign(to: &$totalStatements)
-
-            service.$statusMessage
-                .assign(to: &$statusMessage)
+            cancellable?.cancel()
+            guard let service else { return }
+            cancellable = service.objectWillChange
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
         }
     }
+
+    func setService(_ service: ImportService) {
+        self.service = service
+    }
+
+    var isImporting: Bool { service?.state.isImporting ?? false }
+    var currentStatement: String { service?.state.currentStatement ?? "" }
+    var currentStatementIndex: Int { service?.state.currentStatementIndex ?? 0 }
+    var totalStatements: Int { service?.state.totalStatements ?? 0 }
+    var statusMessage: String { service?.state.statusMessage ?? "" }
 }

@@ -27,9 +27,6 @@ final class QueryHistoryManager {
     private var settingsObserver: AnyCancellable?
 
     private init() {
-        // Note: Cleanup is now triggered from app startup with settings check
-        // See TableProApp.swift for startup cleanup logic
-
         // Subscribe to history settings changes for immediate cleanup
         settingsObserver = NotificationCenter.default.publisher(for: .historySettingsDidChange)
             .receive(on: DispatchQueue.main)
@@ -64,7 +61,7 @@ final class QueryHistoryManager {
 
     // MARK: - History Capture
 
-    /// Record a query execution (non-blocking background write)
+    /// Record a query execution (fire-and-forget background write)
     func recordQuery(
         query: String,
         connectionId: UUID,
@@ -84,11 +81,10 @@ final class QueryHistoryManager {
             errorMessage: errorMessage
         )
 
-        // Background write (non-blocking)
-        storage.addHistory(entry) { success in
+        Task {
+            let success = await storage.addHistory(entry)
             if success {
-                // Notify UI to refresh on main thread
-                DispatchQueue.main.async {
+                await MainActor.run {
                     NotificationCenter.default.post(
                         name: .queryHistoryDidUpdate,
                         object: nil
@@ -100,57 +96,56 @@ final class QueryHistoryManager {
 
     // MARK: - History Retrieval
 
-    /// Fetch history entries asynchronously (non-blocking)
+    /// Fetch history entries asynchronously
     func fetchHistory(
         limit: Int = 100,
         offset: Int = 0,
         connectionId: UUID? = nil,
         searchText: String? = nil,
-        dateFilter: DateFilter = .all,
-        completion: @escaping ([QueryHistoryEntry]) -> Void
-    ) {
-        storage.fetchHistory(
+        dateFilter: DateFilter = .all
+    ) async -> [QueryHistoryEntry] {
+        await storage.fetchHistory(
             limit: limit,
             offset: offset,
             connectionId: connectionId,
             searchText: searchText,
-            dateFilter: dateFilter,
-            completion: completion
+            dateFilter: dateFilter
         )
     }
 
     /// Search queries using FTS5 full-text search
-    func searchQueries(_ text: String, completion: @escaping ([QueryHistoryEntry]) -> Void) {
-        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
-            fetchHistory(completion: completion)
-            return
+    func searchQueries(_ text: String) async -> [QueryHistoryEntry] {
+        if text.trimmingCharacters(in: .whitespaces).isEmpty {
+            return await fetchHistory()
         }
-        storage.fetchHistory(searchText: text, completion: completion)
+        return await storage.fetchHistory(searchText: text)
     }
 
-    /// Delete a history entry (async, non-blocking)
-    func deleteHistory(id: UUID, completion: ((Bool) -> Void)? = nil) {
-        storage.deleteHistory(id: id) { success in
-            if success {
+    /// Delete a history entry asynchronously
+    func deleteHistory(id: UUID) async -> Bool {
+        let success = await storage.deleteHistory(id: id)
+        if success {
+            await MainActor.run {
                 NotificationCenter.default.post(name: .queryHistoryDidUpdate, object: nil)
             }
-            completion?(success)
         }
+        return success
     }
 
-    /// Get total history count (async, non-blocking)
-    func getHistoryCount(completion: @escaping (Int) -> Void) {
-        storage.getHistoryCount(completion: completion)
+    /// Get total history count asynchronously
+    func getHistoryCount() async -> Int {
+        await storage.getHistoryCount()
     }
 
-    /// Clear all history entries (async, non-blocking)
-    func clearAllHistory(completion: ((Bool) -> Void)? = nil) {
-        storage.clearAllHistory { success in
-            if success {
+    /// Clear all history entries asynchronously
+    func clearAllHistory() async -> Bool {
+        let success = await storage.clearAllHistory()
+        if success {
+            await MainActor.run {
                 NotificationCenter.default.post(name: .queryHistoryDidUpdate, object: nil)
             }
-            completion?(success)
         }
+        return success
     }
 
     // MARK: - Cleanup

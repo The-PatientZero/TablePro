@@ -44,6 +44,10 @@ final class LicenseManager: ObservableObject {
         loadCachedLicense()
     }
 
+    deinit {
+        revalidationTask?.cancel()
+    }
+
     // MARK: - Startup
 
     /// Load cached license from storage and re-verify its signature offline
