@@ -513,8 +513,9 @@ struct MainContentView: View {
         )
 
         // Update window title to reflect selected tab
+        let queryLabel = connection.type == .mongodb ? "MQL Query" : "SQL Query"
         windowTitle = tabManager.selectedTab?.tableName
-            ?? (tabManager.tabs.isEmpty ? connection.name : "SQL Query")
+            ?? (tabManager.tabs.isEmpty ? connection.name : queryLabel)
 
         // Sync sidebar selection to match the newly selected tab.
         // Critical for new native windows: localSelectedTables starts empty,
@@ -553,8 +554,9 @@ struct MainContentView: View {
         else { return }
 
         // Update window title to reflect current state
+        let queryLabel = connection.type == .mongodb ? "MQL Query" : "SQL Query"
         windowTitle = tabManager.selectedTab?.tableName
-            ?? (tabManager.tabs.isEmpty ? connection.name : "SQL Query")
+            ?? (tabManager.tabs.isEmpty ? connection.name : queryLabel)
 
         // Update registry (non-observable, safe inside onChange)
         NativeTabRegistry.shared.update(

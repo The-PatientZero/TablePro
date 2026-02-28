@@ -101,8 +101,8 @@ struct TableProToolbar: ViewModifier {
                         .disabled(
                             state.connectionState != .connected || state.databaseType == .sqlite)
 
-                        // SQL query tab button
-                        Button("SQL") {
+                        // Query tab button
+                        Button(state.databaseType == .mongodb ? "MQL" : "SQL") {
                             actions?.newTab()
                         }
                         .accessibilityLabel(String(localized: "New query tab"))
