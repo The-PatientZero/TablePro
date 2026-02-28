@@ -414,9 +414,9 @@ final class SQLCompletionProvider {
             ])
             items += await schemaProvider.tableCompletionItems()
 
-            // MongoDB-specific: add MQL method completions
+            // MongoDB-specific: add MQL method completions (case-sensitive, not uppercased)
             if databaseType == .mongodb {
-                items += filterKeywords([
+                items += [
                     "db.", "db.runCommand", "db.adminCommand",
                     "db.createView", "db.createCollection",
                     "show dbs", "show collections",
@@ -425,9 +425,16 @@ final class SQLCompletionProvider {
                     ".updateOne", ".updateMany",
                     ".deleteOne", ".deleteMany",
                     ".replaceOne",
+                    ".findOneAndUpdate", ".findOneAndReplace", ".findOneAndDelete",
                     ".countDocuments", ".count",
                     ".createIndex", ".dropIndex", ".drop",
-                ])
+                ].map { mql in
+                    SQLCompletionItem(
+                        label: mql,
+                        kind: .keyword,
+                        insertText: mql
+                    )
+                }
             }
         }
 
@@ -477,11 +484,21 @@ final class SQLCompletionProvider {
             ]
 
         case .mongodb:
-            types += [
+            // MongoDB types are case-sensitive — return directly without uppercasing
+            let mongoTypes = [
                 "ObjectId", "String", "Int32", "Int64", "Double", "Decimal128",
                 "Boolean", "Date", "Timestamp", "BinData", "Array", "Object",
                 "Null", "Regex", "UUID",
             ]
+            return mongoTypes.map { typeName in
+                var item = SQLCompletionItem(
+                    label: typeName,
+                    kind: .keyword,
+                    insertText: typeName
+                )
+                item.sortPriority = 380
+                return item
+            }
 
         case .none:
             // Include all types if database type is unknown
