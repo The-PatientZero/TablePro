@@ -178,7 +178,6 @@ actor ConnectionHealthMonitor {
         let isAlive = await pingHandler()
 
         if isAlive {
-            Self.logger.debug("Ping succeeded for connection \(self.connectionId)")
             await transitionTo(.healthy)
         } else {
             Self.logger.warning("Ping failed for connection \(self.connectionId), starting reconnect sequence")
@@ -251,10 +250,15 @@ actor ConnectionHealthMonitor {
         state = newState
 
         if oldState != newState {
-            Self.logger.log(
-                level: logLevel(for: newState),
-                "Connection \(self.connectionId) health state: \(String(describing: oldState)) -> \(String(describing: newState))"
-            )
+            // Skip logging for routine healthy ↔ checking cycle (every 30s)
+            let isRoutineCycle = (oldState == .healthy && newState == .checking)
+                || (oldState == .checking && newState == .healthy)
+            if !isRoutineCycle {
+                Self.logger.log(
+                    level: logLevel(for: newState),
+                    "Connection \(self.connectionId) health state: \(String(describing: oldState)) -> \(String(describing: newState))"
+                )
+            }
 
             await onStateChanged(connectionId, newState)
         }
