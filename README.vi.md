@@ -32,7 +32,7 @@ Tài liệu đầy đủ tại [docs.tablepro.app](https://docs.tablepro.app).
 
 Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
-- **[Huy](https://github.com/imhuytq)** — Tài trợ Apple Developer Program
+- **[Anh Huy TQ](https://github.com/imhuytq)** — Tài trợ Apple Developer Program
 - **[Unikorn](https://unikorn.vn)**
 
 ## Giấy phép
