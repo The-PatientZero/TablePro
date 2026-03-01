@@ -215,7 +215,7 @@ final class LibPQConnection: @unchecked Sendable {
                     connStr += " sslmode='verify-full'"
                 }
 
-                if !self.sslConfig.caCertificatePath.isEmpty {
+                if self.sslConfig.verifiesCertificate, !self.sslConfig.caCertificatePath.isEmpty {
                     connStr += " sslrootcert='\(escapeConnParam(self.sslConfig.caCertificatePath))'"
                 }
                 if !self.sslConfig.clientCertificatePath.isEmpty {
