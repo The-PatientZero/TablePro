@@ -10,15 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support for multiple independent database connections in separate windows with per-window session isolation
-- MongoDB database support with collection browsing, document viewing, collection duplication, MQL shell queries, database switching, read preference, write concern, findOneAndUpdate/Replace/Delete, view creation, and MQL autocomplete
+- MongoDB database support
 - MQL export format for MongoDB — generates `mongosh` scripts with per-collection Drop, Indexes, and Data options
 - Custom About window with version info and links (Website, GitHub, Documentation)
 - Import database connections from URL/connection string (e.g., `postgresql://user:pass@host:5432/db`)
 - Release notes in Sparkle update window
-
-### Changed
-
-- Simplified Create Table UI to a clean inline grid with direct editing, replacing the multi-panel layout
 
 ### Fixed
 
