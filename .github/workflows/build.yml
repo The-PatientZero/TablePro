@@ -730,29 +730,16 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           RELEASE_URL="https://github.com/datlechin/TablePro/releases/tag/v${VERSION}"
-
-          # Build message with release notes
           NOTES=$(cat release_notes.md 2>/dev/null || echo "Bug fixes and improvements")
-
-          read -r -d '' TEXT <<MSG_EOF || true
-*TablePro v${VERSION} Released*
-
-${NOTES}
-
-[View Release](${RELEASE_URL})
-MSG_EOF
+          TEXT=$(printf '*TablePro v%s Released*\n\n%s\n\n[View Release](%s)' "$VERSION" "$NOTES" "$RELEASE_URL")
 
           PAYLOAD=$(jq -n \
             --arg chat_id "$TELEGRAM_CHAT_ID" \
             --arg text "$TEXT" \
             --arg parse_mode "Markdown" \
             --arg topic_id "$TELEGRAM_TOPIC_ID" \
-            '{
-              chat_id: $chat_id,
-              text: $text,
-              parse_mode: $parse_mode,
-              disable_web_page_preview: true
-            } + (if $topic_id != "" then {message_thread_id: ($topic_id | tonumber)} else {} end)')
+            '{chat_id: $chat_id, text: $text, parse_mode: $parse_mode, disable_web_page_preview: true}
+            + (if $topic_id != "" then {message_thread_id: ($topic_id | tonumber)} else {} end)')
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
