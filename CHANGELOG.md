@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Deep link support via `tablepro://` URL scheme for opening connections, tables, queries, and importing connections
-- 
+
+## [0.11.1] - 2026-03-02
+
 ### Fixed
 
 - MySQL second tab showing empty rows due to premature coordinator teardown during native macOS tab group merging
@@ -621,7 +623,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/datlechin/tablepro/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/datlechin/tablepro/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/datlechin/tablepro/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/datlechin/tablepro/compare/v0.9.1...v0.9.2
