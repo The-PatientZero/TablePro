@@ -104,8 +104,7 @@ struct EditableFieldView: View {
             Text("false").tag("0")
         }
         .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
     }
 
     private func enumPicker(values: [String]) -> some View {
@@ -118,8 +117,7 @@ struct EditableFieldView: View {
             }
         }
         .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
     }
 
     private var multiLineEditor: some View {
