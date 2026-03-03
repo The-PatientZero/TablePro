@@ -327,10 +327,6 @@ jobs:
           TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
         run: scripts/ci/notify-telegram.sh "${GITHUB_REF#refs/tags/v}"
 
-      - name: Clean up staging directory
-        if: always()
-        run: rm -rf "/tmp/tablepro-artifacts-${{ github.sha }}" || true
-
   update-homebrew:
     name: Update Homebrew Tap
     runs-on: self-hosted
@@ -347,3 +343,7 @@ jobs:
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: scripts/ci/update-homebrew.sh "${GITHUB_REF#refs/tags/v}" "/tmp/tablepro-artifacts-${{ github.sha }}"
+
+      - name: Clean up staging directory
+        if: always()
+        run: rm -rf "/tmp/tablepro-artifacts-${{ github.sha }}" || true
