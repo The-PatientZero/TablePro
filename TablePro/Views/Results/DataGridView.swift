@@ -689,7 +689,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         ) { [weak self] _ in
             guard let self else { return }
 
-            Task { @MainActor [weak self] in
+            DispatchQueue.main.async { [weak self] in
                 guard let self, let tableView = self.tableView else { return }
                 let newRowHeight = CGFloat(AppSettingsManager.shared.dataGrid.rowHeight.rawValue)
 
@@ -947,7 +947,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         let newSelection = Set(tableView.selectedRowIndexes.map { $0 })
         if newSelection != selectedRowIndices {
-            Task { @MainActor [weak self] in
+            DispatchQueue.main.async { [weak self] in
                 self?.selectedRowIndices = newSelection
             }
         }
@@ -1246,7 +1246,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
         onCellEdit?(row, columnIndex, newValue)
 
-        Task { @MainActor in
+        DispatchQueue.main.async {
             tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
         }
 
@@ -1278,7 +1278,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 nextColumn = tableView.numberOfColumns - 1
             }
 
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 tableView.selectRowIndexes(IndexSet(integer: nextRow), byExtendingSelection: false)
                 tableView.editColumn(nextColumn, row: nextRow, with: nil, select: true)
             }
@@ -1300,7 +1300,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 prevColumn = 1
             }
 
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 tableView.selectRowIndexes(IndexSet(integer: prevRow), byExtendingSelection: false)
                 tableView.editColumn(prevColumn, row: prevRow, with: nil, select: true)
             }
