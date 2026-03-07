@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix MySQL/MariaDB getting `BEGIN` instead of `START TRANSACTION` in table operations and SQL preview
+- Fix port resetting to default value when editing a connection with a custom port
 - Replace `.onTapGesture` with `Button` in color pickers, section headers, group headers, and connection switcher for VoiceOver accessibility
 - Fix data race on `isAppTerminating` static var in `MainContentCoordinator` using `OSAllocatedUnfairLock`
 - Fix `MainActor.assumeIsolated` crash risk in `VimKeyInterceptor` notification observer

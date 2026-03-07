@@ -33,6 +33,7 @@ struct ConnectionFormView: View {
     @State private var connectionURL: String = ""
     @State private var urlParseError: String?
     @State private var showURLImport = false
+    @State private var hasLoadedData = false
 
     // SSH Configuration
     @State private var sshEnabled: Bool = false
@@ -122,7 +123,9 @@ struct ConnectionFormView: View {
             loadSSHConfig()
         }
         .onChange(of: type) {
-            port = String(type.defaultPort)
+            if hasLoadedData {
+                port = String(type.defaultPort)
+            }
             if type == .sqlite && (selectedTab == .ssh || selectedTab == .ssl) {
                 selectedTab = .general
             }
@@ -633,6 +636,9 @@ struct ConnectionFormView: View {
             if let savedPassword = storage.loadPassword(for: existing.id) {
                 password = savedPassword
             }
+        }
+        Task { @MainActor in
+            hasLoadedData = true
         }
     }
 
