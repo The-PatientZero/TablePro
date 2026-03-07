@@ -6,12 +6,11 @@
 //
 
 import Foundation
-import Testing
 @testable import TablePro
+import Testing
 
 @Suite("SSH Configuration")
 struct SSHConfigurationTests {
-
     @Test("Disabled SSH config is always valid")
     func testDisabledIsValid() {
         let config = SSHConfiguration(enabled: false)
@@ -123,5 +122,53 @@ struct SSHConfigurationTests {
             SSHAgentSocketOption.custom.resolvedPath(customPath: "  /tmp/custom.sock  ")
                 == "/tmp/custom.sock"
         )
+    }
+
+    @Test("Jump hosts validation passes when all valid")
+    func testJumpHostsValidationPasses() {
+        let config = SSHConfiguration(
+            enabled: true, host: "example.com", username: "admin",
+            authMethod: .sshAgent,
+            jumpHosts: [
+                SSHJumpHost(host: "bastion1.com", username: "user1"),
+                SSHJumpHost(host: "bastion2.com", username: "user2"),
+            ]
+        )
+        #expect(config.isValid == true)
+    }
+
+    @Test("Jump hosts validation fails when any invalid")
+    func testJumpHostsValidationFails() {
+        let config = SSHConfiguration(
+            enabled: true, host: "example.com", username: "admin",
+            authMethod: .sshAgent,
+            jumpHosts: [
+                SSHJumpHost(host: "bastion1.com", username: "user1"),
+                SSHJumpHost(host: "", username: "user2"),
+            ]
+        )
+        #expect(config.isValid == false)
+    }
+
+    @Test("Backward-compatible decoding without jumpHosts key")
+    func testBackwardCompatibleDecoding() throws {
+        let jsonString = """
+        {
+            "enabled": true,
+            "host": "example.com",
+            "port": 22,
+            "username": "admin",
+            "authMethod": "Password",
+            "privateKeyPath": "",
+            "useSSHConfig": true,
+            "agentSocketPath": ""
+        }
+        """
+        let json = Data(jsonString.utf8)
+
+        let config = try JSONDecoder().decode(SSHConfiguration.self, from: json)
+        #expect(config.jumpHosts.isEmpty)
+        #expect(config.host == "example.com")
+        #expect(config.enabled == true)
     }
 }

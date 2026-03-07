@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Oracle Database support via OCI (Oracle Call Interface)
 - Add database URL scheme support — open connections directly from terminal with `open "mysql://user@host/db" -a TablePro` (supports MySQL, PostgreSQL, SQLite, MongoDB, Redis, MSSQL, Oracle)
 - SSH Agent authentication method for SSH tunnels (compatible with 1Password SSH Agent, Secretive, ssh-agent)
+- Multi-jump SSH support — chain multiple SSH hops (ProxyJump) to reach databases through bastion hosts
 
 ### Changed
 

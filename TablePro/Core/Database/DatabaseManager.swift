@@ -394,7 +394,8 @@ final class DatabaseManager {
             sshPassword: sshPassword,
             agentSocketPath: connection.sshConfig.agentSocketPath,
             remoteHost: connection.host,
-            remotePort: connection.port
+            remotePort: connection.port,
+            jumpHosts: connection.sshConfig.jumpHosts
         )
 
         // Adapt SSL config for tunnel: SSH already authenticates the server,

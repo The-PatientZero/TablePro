@@ -119,7 +119,8 @@ actor SSHTunnelManager {
         sshPassword: String? = nil,
         agentSocketPath: String? = nil,
         remoteHost: String,
-        remotePort: Int
+        remotePort: Int,
+        jumpHosts: [SSHJumpHost] = []
     ) async throws -> Int {
         // Check if tunnel already exists
         if tunnels[connectionId] != nil {
@@ -179,6 +180,17 @@ actor SSHTunnelManager {
             arguments.append(contentsOf: ["-o", "PubkeyAuthentication=yes"])
             arguments.append(contentsOf: ["-o", "PasswordAuthentication=no"])
             arguments.append(contentsOf: ["-o", "PreferredAuthentications=publickey"])
+        }
+
+        // Jump host identity files
+        for jumpHost in jumpHosts where jumpHost.authMethod == .privateKey && !jumpHost.privateKeyPath.isEmpty {
+            arguments.append(contentsOf: ["-i", expandPath(jumpHost.privateKeyPath)])
+        }
+
+        // ProxyJump chain
+        if !jumpHosts.isEmpty {
+            let jumpString = jumpHosts.map(\.proxyJumpString).joined(separator: ",")
+            arguments.append(contentsOf: ["-J", jumpString])
         }
 
         arguments.append("\(sshUsername)@\(sshHost)")

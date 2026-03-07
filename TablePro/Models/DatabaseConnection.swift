@@ -82,6 +82,31 @@ enum SSHAgentSocketOption: String, CaseIterable, Identifiable {
     }
 }
 
+enum SSHJumpAuthMethod: String, CaseIterable, Identifiable, Codable {
+    case privateKey = "Private Key"
+    case sshAgent = "SSH Agent"
+
+    var id: String { rawValue }
+}
+
+struct SSHJumpHost: Codable, Hashable, Identifiable {
+    var id = UUID()
+    var host: String = ""
+    var port: Int = 22
+    var username: String = ""
+    var authMethod: SSHJumpAuthMethod = .sshAgent
+    var privateKeyPath: String = ""
+
+    var isValid: Bool {
+        !host.isEmpty && !username.isEmpty &&
+        (authMethod == .sshAgent || !privateKeyPath.isEmpty)
+    }
+
+    var proxyJumpString: String {
+        "\(username)@\(host):\(port)"
+    }
+}
+
 /// SSH tunnel configuration for database connections
 struct SSHConfiguration: Codable, Hashable {
     var enabled: Bool = false
@@ -92,20 +117,43 @@ struct SSHConfiguration: Codable, Hashable {
     var privateKeyPath: String = ""  // Path to identity file (e.g., ~/.ssh/id_rsa)
     var useSSHConfig: Bool = true  // Auto-fill from ~/.ssh/config when selecting host
     var agentSocketPath: String = ""  // Custom SSH_AUTH_SOCK path (empty = use system default)
+    var jumpHosts: [SSHJumpHost] = []
 
     /// Check if SSH configuration is complete enough for connection
     var isValid: Bool {
         guard enabled else { return true }  // Not enabled = valid (skip SSH)
         guard !host.isEmpty, !username.isEmpty else { return false }
 
+        let authValid: Bool
         switch authMethod {
         case .password:
-            return true  // Password will be provided separately
+            authValid = true
         case .privateKey:
-            return !privateKeyPath.isEmpty
+            authValid = !privateKeyPath.isEmpty
         case .sshAgent:
-            return true
+            authValid = true
         }
+
+        return authValid && jumpHosts.allSatisfy(\.isValid)
+    }
+}
+
+extension SSHConfiguration {
+    enum CodingKeys: String, CodingKey {
+        case enabled, host, port, username, authMethod, privateKeyPath, useSSHConfig, agentSocketPath, jumpHosts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        host = try container.decode(String.self, forKey: .host)
+        port = try container.decode(Int.self, forKey: .port)
+        username = try container.decode(String.self, forKey: .username)
+        authMethod = try container.decode(SSHAuthMethod.self, forKey: .authMethod)
+        privateKeyPath = try container.decode(String.self, forKey: .privateKeyPath)
+        useSSHConfig = try container.decode(Bool.self, forKey: .useSSHConfig)
+        agentSocketPath = try container.decode(String.self, forKey: .agentSocketPath)
+        jumpHosts = try container.decodeIfPresent([SSHJumpHost].self, forKey: .jumpHosts) ?? []
     }
 }
 

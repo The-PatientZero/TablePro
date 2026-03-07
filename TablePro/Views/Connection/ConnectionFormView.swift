@@ -48,6 +48,7 @@ struct ConnectionFormView: View {
     @State private var keyPassphrase: String = ""
     @State private var sshConfigEntries: [SSHConfigEntry] = []
     @State private var selectedSSHConfigHost: String = ""
+    @State private var jumpHosts: [SSHJumpHost] = []
 
     // SSL Configuration
     @State private var sslMode: SSLMode = .disabled
@@ -378,6 +379,81 @@ struct ConnectionFormView: View {
                         SecureField(String(localized: "Passphrase"), text: $keyPassphrase)
                     }
                 }
+
+                Section {
+                    DisclosureGroup(String(localized: "Jump Hosts")) {
+                        ForEach($jumpHosts) { $jumpHost in
+                            DisclosureGroup {
+                                TextField(
+                                    String(localized: "Host"),
+                                    text: $jumpHost.host,
+                                    prompt: Text("bastion.example.com")
+                                )
+                                HStack {
+                                    TextField(
+                                        String(localized: "Port"),
+                                        text: Binding(
+                                            get: { String(jumpHost.port) },
+                                            set: { jumpHost.port = Int($0) ?? 22 }
+                                        ),
+                                        prompt: Text("22")
+                                    )
+                                    .frame(width: 80)
+                                    TextField(
+                                        String(localized: "Username"),
+                                        text: $jumpHost.username,
+                                        prompt: Text("admin")
+                                    )
+                                }
+                                Picker(String(localized: "Auth"), selection: $jumpHost.authMethod) {
+                                    ForEach(SSHJumpAuthMethod.allCases) { method in
+                                        Text(method.rawValue).tag(method)
+                                    }
+                                }
+                                if jumpHost.authMethod == .privateKey {
+                                    LabeledContent(String(localized: "Key File")) {
+                                        HStack {
+                                            TextField("", text: $jumpHost.privateKeyPath, prompt: Text("~/.ssh/id_rsa"))
+                                            Button(String(localized: "Browse")) {
+                                                browseForJumpHostKey(jumpHost: $jumpHost)
+                                            }
+                                            .controlSize(.small)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Text(jumpHost.host.isEmpty ? String(localized: "New Jump Host") : "\(jumpHost.username)@\(jumpHost.host)")
+                                        .foregroundStyle(jumpHost.host.isEmpty ? .secondary : .primary)
+                                    Spacer()
+                                    Button {
+                                        let idToRemove = jumpHost.id
+                                        withAnimation {
+                                            jumpHosts.removeAll { $0.id == idToRemove }
+                                        }
+                                    } label: {
+                                        Image(systemName: "minus.circle.fill")
+                                            .foregroundStyle(.red)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        .onMove { indices, destination in
+                            jumpHosts.move(fromOffsets: indices, toOffset: destination)
+                        }
+
+                        Button {
+                            jumpHosts.append(SSHJumpHost())
+                        } label: {
+                            Label(String(localized: "Add Jump Host"), systemImage: "plus")
+                        }
+
+                        Text("Jump hosts are connected in order before reaching the SSH server above. Only key and agent auth are supported for jumps.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .formStyle(.grouped)
@@ -601,7 +677,8 @@ struct ConnectionFormView: View {
         if sshEnabled {
             let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty
             let authValid = sshAuthMethod == .password || sshAuthMethod == .sshAgent || !sshPrivateKeyPath.isEmpty
-            return basicValid && sshValid && authValid
+            let jumpValid = jumpHosts.allSatisfy(\.isValid)
+            return basicValid && sshValid && authValid && jumpValid
         }
         return basicValid
     }
@@ -642,6 +719,7 @@ struct ConnectionFormView: View {
             sshAuthMethod = existing.sshConfig.authMethod
             sshPrivateKeyPath = existing.sshConfig.privateKeyPath
             applySSHAgentSocketPath(existing.sshConfig.agentSocketPath)
+            jumpHosts = existing.sshConfig.jumpHosts
 
             // Load SSL configuration
             sslMode = existing.sslConfig.mode
@@ -691,7 +769,8 @@ struct ConnectionFormView: View {
             authMethod: sshAuthMethod,
             privateKeyPath: sshPrivateKeyPath,
             useSSHConfig: !selectedSSHConfigHost.isEmpty,
-            agentSocketPath: resolvedSSHAgentSocketPath
+            agentSocketPath: resolvedSSHAgentSocketPath,
+            jumpHosts: jumpHosts
         )
 
         let sslConfig = SSLConfiguration(
@@ -793,7 +872,8 @@ struct ConnectionFormView: View {
             authMethod: sshAuthMethod,
             privateKeyPath: sshPrivateKeyPath,
             useSSHConfig: !selectedSSHConfigHost.isEmpty,
-            agentSocketPath: resolvedSSHAgentSocketPath
+            agentSocketPath: resolvedSSHAgentSocketPath,
+            jumpHosts: jumpHosts
         )
 
         let sslConfig = SSLConfiguration(
@@ -884,6 +964,20 @@ struct ConnectionFormView: View {
         }
     }
 
+    private func browseForJumpHostKey(jumpHost: Binding<SSHJumpHost>) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
+        panel.showsHiddenFiles = true
+
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                jumpHost.wrappedValue.privateKeyPath = url.path(percentEncoded: false)
+            }
+        }
+    }
+
     private func browseForCertificate(binding: Binding<String>) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -960,6 +1054,9 @@ struct ConnectionFormView: View {
         } else if let keyPath = entry.identityFile {
             sshPrivateKeyPath = keyPath
             sshAuthMethod = .privateKey
+        }
+        if let proxyJump = entry.proxyJump {
+            jumpHosts = SSHConfigParser.parseProxyJump(proxyJump)
         }
     }
 
