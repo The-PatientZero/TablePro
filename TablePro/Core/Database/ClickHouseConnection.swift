@@ -55,7 +55,7 @@ final class ClickHouseConnection: @unchecked Sendable {
 
     /// Query prefixes that return tabular results and need FORMAT suffix
     private static let selectPrefixes: Set<String> = [
-        "SELECT", "SHOW", "DESCRIBE", "EXISTS", "EXPLAIN", "WITH"
+        "SELECT", "SHOW", "DESCRIBE", "DESC", "EXISTS", "EXPLAIN", "WITH"
     ]
 
     var isConnected: Bool {
@@ -279,10 +279,14 @@ final class ClickHouseConnection: @unchecked Sendable {
             request.setValue("Basic \(credData.base64EncodedString())", forHTTPHeaderField: "Authorization")
         }
 
-        if Self.isSelectLikeQuery(query) {
-            request.httpBody = (query + " FORMAT TabSeparatedWithNamesAndTypes").data(using: .utf8)
+        // Strip trailing semicolons — ClickHouse HTTP interface treats them as multi-statement delimiters
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ";+$", with: "", options: .regularExpression)
+
+        if Self.isSelectLikeQuery(trimmedQuery) {
+            request.httpBody = (trimmedQuery + " FORMAT TabSeparatedWithNamesAndTypes").data(using: .utf8)
         } else {
-            request.httpBody = query.data(using: .utf8)
+            request.httpBody = trimmedQuery.data(using: .utf8)
         }
 
         return request

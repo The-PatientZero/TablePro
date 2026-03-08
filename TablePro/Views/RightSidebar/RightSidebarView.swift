@@ -204,7 +204,6 @@ struct RightSidebarView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .keyboardShortcut("s", modifiers: .command)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }

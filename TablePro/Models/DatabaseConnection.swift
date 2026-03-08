@@ -285,9 +285,9 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// Whether this database type supports SQL-based schema editing (ALTER TABLE etc.)
     var supportsSchemaEditing: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .sqlite, .mssql, .oracle:
+        case .mysql, .mariadb, .postgresql, .sqlite, .mssql, .oracle, .clickhouse:
             return true
-        case .redshift, .mongodb, .redis, .clickhouse:
+        case .redshift, .mongodb, .redis:
             return false
         }
     }

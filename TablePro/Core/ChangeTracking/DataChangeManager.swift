@@ -9,12 +9,14 @@
 
 import Foundation
 import Observation
+import os
 
 /// Manager for tracking and applying data changes
 /// @MainActor ensures thread-safe access - critical for avoiding EXC_BAD_ACCESS
 /// when multiple queries complete simultaneously (e.g., rapid sorting over SSH tunnel)
 @MainActor @Observable
 final class DataChangeManager {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "DataChangeManager")
     var changes: [RowChange] = []
     var hasChanges: Bool = false
     var reloadVersion: Int = 0  // Incremented to trigger table reload
@@ -671,7 +673,9 @@ final class DataChangeManager {
         )
 
         let expectedUpdates = changes.count(where: { $0.type == .update })
-        let actualUpdates = statements.count(where: { $0.sql.hasPrefix("UPDATE") })
+        let actualUpdates = statements.count(where: {
+            $0.sql.hasPrefix("UPDATE") || $0.sql.contains(" UPDATE ")
+        })
 
         if expectedUpdates > 0 && actualUpdates < expectedUpdates {
             throw DatabaseError.queryFailed(
@@ -681,7 +685,9 @@ final class DataChangeManager {
         }
 
         let expectedDeletes = changes.count(where: { $0.type == .delete && deletedRowIndices.contains($0.rowIndex) })
-        let actualDeletes = statements.count(where: { $0.sql.hasPrefix("DELETE") })
+        let actualDeletes = statements.count(where: {
+            $0.sql.hasPrefix("DELETE") || $0.sql.contains(" DELETE ")
+        })
 
         if expectedDeletes > 0 && actualDeletes < expectedDeletes {
             throw DatabaseError.queryFailed(

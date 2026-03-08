@@ -168,7 +168,6 @@ struct TableStructureView: View {
             rowProvider: provider.asInMemoryProvider(),
             changeManager: wrappedChangeManager,
             isEditable: canEdit,
-            onCommit: nil,
             onRefresh: nil,
             onCellEdit: handleCellEdit,
             onDeleteRows: handleDeleteRows,
@@ -227,14 +226,26 @@ struct TableStructureView: View {
     }
 
     private func updateColumn(_ column: inout EditableColumnDefinition, at index: Int, with value: String) {
-        switch index {
-        case 0: column.name = value
-        case 1: column.dataType = value
-        case 2: column.isNullable = value.uppercased() == "YES" || value == "1"
-        case 3: column.defaultValue = value.isEmpty ? nil : value
-        case 4: column.autoIncrement = value.uppercased() == "YES" || value == "1"
-        case 5: column.comment = value.isEmpty ? nil : value
-        default: break
+        if connection.type == .clickhouse {
+            // ClickHouse: Name(0), Type(1), Nullable(2), Default(3), Comment(4) — no Auto Inc
+            switch index {
+            case 0: column.name = value
+            case 1: column.dataType = value
+            case 2: column.isNullable = value.uppercased() == "YES" || value == "1"
+            case 3: column.defaultValue = value.isEmpty ? nil : value
+            case 4: column.comment = value.isEmpty ? nil : value
+            default: break
+            }
+        } else {
+            switch index {
+            case 0: column.name = value
+            case 1: column.dataType = value
+            case 2: column.isNullable = value.uppercased() == "YES" || value == "1"
+            case 3: column.defaultValue = value.isEmpty ? nil : value
+            case 4: column.autoIncrement = value.uppercased() == "YES" || value == "1"
+            case 5: column.comment = value.isEmpty ? nil : value
+            default: break
+            }
         }
     }
 
@@ -587,7 +598,7 @@ struct TableStructureView: View {
             AlertHelper.showErrorSheet(
                 title: String(localized: "Error Applying Changes"),
                 message: error.localizedDescription,
-                window: nil
+                window: NSApp.keyWindow
             )
         }
     }
@@ -832,11 +843,13 @@ struct TableStructureView: View {
         if structureChangeManager.hasChanges && !justSaved {
             // Show confirmation dialog
             Task { @MainActor in
+                let window = NSApp.keyWindow
                 let confirmed = await AlertHelper.confirmDestructive(
                     title: String(localized: "Discard Changes?"),
                     message: String(localized: "You have unsaved changes to the table structure. Refreshing will discard these changes."),
                     confirmButton: String(localized: "Discard"),
-                    cancelButton: String(localized: "Cancel")
+                    cancelButton: String(localized: "Cancel"),
+                    window: window
                 )
 
                 if confirmed {

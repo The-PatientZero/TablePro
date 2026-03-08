@@ -41,7 +41,6 @@ struct DataGridView: NSViewRepresentable {
     var resultVersion: Int = 0
     var metadataVersion: Int = 0
     let isEditable: Bool
-    var onCommit: ((String) -> Void)?
     var onRefresh: (() -> Void)?
     var onCellEdit: ((Int, Int, String?) -> Void)?
     var onDeleteRows: ((Set<Int>) -> Void)?
@@ -186,7 +185,6 @@ struct DataGridView: NSViewRepresentable {
             coordinator.onAddRow = onAddRow
             coordinator.onUndoInsert = onUndoInsert
             coordinator.onFilterColumn = onFilterColumn
-            coordinator.onCommit = onCommit
             coordinator.onRefresh = onRefresh
             coordinator.onDeleteRows = onDeleteRows
             coordinator.getVisualState = getVisualState
@@ -236,10 +234,9 @@ struct DataGridView: NSViewRepresentable {
         coordinator.updateCache()
         coordinator.changeManager = changeManager
         coordinator.isEditable = isEditable
-        coordinator.onCommit = onCommit
         coordinator.onRefresh = onRefresh
         coordinator.onCellEdit = onCellEdit
-        coordinator.onDeleteRows = onDeleteRows  // Added: pass delete callback
+        coordinator.onDeleteRows = onDeleteRows
         coordinator.onSort = onSort
         coordinator.onAddRow = onAddRow
         coordinator.onUndoInsert = onUndoInsert
@@ -579,7 +576,6 @@ struct DataGridView: NSViewRepresentable {
             changeManager: changeManager,
             isEditable: isEditable,
             selectedRowIndices: $selectedRowIndices,
-            onCommit: onCommit,
             onRefresh: onRefresh,
             onCellEdit: onCellEdit,
             onDeleteRows: onDeleteRows,
@@ -601,7 +597,6 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var rowProvider: InMemoryRowProvider
     var changeManager: AnyChangeManager
     var isEditable: Bool
-    var onCommit: ((String) -> Void)?
     var onRefresh: (() -> Void)?
     var onCellEdit: ((Int, Int, String?) -> Void)?
     var onDeleteRows: ((Set<Int>) -> Void)?
@@ -666,7 +661,6 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         changeManager: AnyChangeManager,
         isEditable: Bool,
         selectedRowIndices: Binding<Set<Int>>,
-        onCommit: ((String) -> Void)?,
         onRefresh: (() -> Void)?,
         onCellEdit: ((Int, Int, String?) -> Void)?,
         onDeleteRows: ((Set<Int>) -> Void)?,
@@ -679,7 +673,6 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         self.changeManager = changeManager
         self.isEditable = isEditable
         self._selectedRowIndices = selectedRowIndices
-        self.onCommit = onCommit
         self.onRefresh = onRefresh
         self.onCellEdit = onCellEdit
         self.onDeleteRows = onDeleteRows

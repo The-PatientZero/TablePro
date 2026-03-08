@@ -15,8 +15,8 @@ extension MainContentCoordinator {
         editState: MultiRowEditState
     ) async throws {
         guard let tab = tabManager.selectedTab,
-              !selectedRowIndices.isEmpty,
-              let tableName = tab.tableName
+            !selectedRowIndices.isEmpty,
+            let tableName = tab.tableName
         else {
             return
         }
@@ -24,36 +24,57 @@ extension MainContentCoordinator {
         let editedFields = editState.getEditedFields()
         guard !editedFields.isEmpty else { return }
 
-        var statements: [String] = []
-
         if connection.type == .redis {
+            var redisStatements: [ParameterizedStatement] = []
             for rowIndex in selectedRowIndices.sorted() {
                 guard rowIndex < tab.resultRows.count else { continue }
                 let row = tab.resultRows[rowIndex]
-                statements += generateSidebarRedisCommands(
+                let commands = generateSidebarRedisCommands(
                     originalRow: row.values,
                     editedFields: editedFields,
                     columns: tab.resultColumns
                 )
+                redisStatements += commands.map { ParameterizedStatement(sql: $0, parameters: []) }
             }
+            guard !redisStatements.isEmpty else { return }
+            try await executeSidebarChanges(statements: redisStatements)
         } else {
+            let generator = SQLStatementGenerator(
+                tableName: tableName,
+                columns: tab.resultColumns,
+                primaryKeyColumn: changeManager.primaryKeyColumn,
+                databaseType: connection.type
+            )
+
+            var statements: [ParameterizedStatement] = []
             for rowIndex in selectedRowIndices.sorted() {
                 guard rowIndex < tab.resultRows.count else { continue }
-                let row = tab.resultRows[rowIndex]
-                if let sql = generateSidebarUpdateSQL(
-                    tableName: tableName,
-                    originalRow: row.values,
-                    editedFields: editedFields,
-                    columns: tab.resultColumns,
-                    primaryKeyColumn: changeManager.primaryKeyColumn
-                ) {
-                    statements.append(sql)
+                let originalRow = tab.resultRows[rowIndex].values
+
+                let cellChanges = editedFields.map { field in
+                    CellChange(
+                        rowIndex: rowIndex,
+                        columnIndex: field.columnIndex,
+                        columnName: field.columnName,
+                        oldValue: originalRow[field.columnIndex],
+                        newValue: field.newValue
+                    )
+                }
+                let change = RowChange(
+                    rowIndex: rowIndex,
+                    type: .update,
+                    cellChanges: cellChanges,
+                    originalRow: originalRow
+                )
+
+                if let stmt = generator.generateUpdateSQL(for: change) {
+                    statements.append(stmt)
                 }
             }
+            guard !statements.isEmpty else { return }
+            try await executeSidebarChanges(statements: statements)
         }
 
-        guard !statements.isEmpty else { return }
-        try await executeSidebarChanges(statements: statements)
         runQuery()
     }
 
@@ -63,8 +84,8 @@ extension MainContentCoordinator {
         columns: [String]
     ) -> [String] {
         guard let keyIndex = columns.firstIndex(of: "Key"),
-              keyIndex < originalRow.count,
-              let originalKey = originalRow[keyIndex]
+            keyIndex < originalRow.count,
+            let originalKey = originalRow[keyIndex]
         else {
             return []
         }
@@ -83,7 +104,9 @@ extension MainContentCoordinator {
                 if let newValue = field.newValue {
                     // Only use SET for string-type keys — other types need specific commands
                     let typeIndex = columns.firstIndex(of: "Type")
-                    let keyType = typeIndex.flatMap { $0 < originalRow.count ? originalRow[$0]?.uppercased() : nil }
+                    let keyType = typeIndex.flatMap {
+                        $0 < originalRow.count ? originalRow[$0]?.uppercased() : nil
+                    }
                     if keyType == nil || keyType == "STRING" || keyType == "NONE" {
                         commands.append("SET \(redisEscape(effectiveKey)) \(redisEscape(newValue))")
                     }
@@ -104,9 +127,11 @@ extension MainContentCoordinator {
     }
 
     private func redisEscape(_ value: String) -> String {
-        let needsQuoting = value.isEmpty || value.contains(where: { $0.isWhitespace || $0 == "\"" || $0 == "'" })
+        let needsQuoting =
+            value.isEmpty || value.contains(where: { $0.isWhitespace || $0 == "\"" || $0 == "'" })
         if needsQuoting {
-            let escaped = value
+            let escaped =
+                value
                 .replacingOccurrences(of: "\\", with: "\\\\")
                 .replacingOccurrences(of: "\"", with: "\\\"")
                 .replacingOccurrences(of: "\n", with: "\\n")
@@ -114,51 +139,5 @@ extension MainContentCoordinator {
             return "\"\(escaped)\""
         }
         return value
-    }
-
-    private func generateSidebarUpdateSQL(
-        tableName: String,
-        originalRow: [String?],
-        editedFields: [(columnIndex: Int, columnName: String, newValue: String?)],
-        columns: [String],
-        primaryKeyColumn: String?
-    ) -> String? {
-        guard let pkColumn = primaryKeyColumn,
-              let pkIndex = columns.firstIndex(of: pkColumn),
-              pkIndex < originalRow.count,
-              let pkValue = originalRow[pkIndex]
-        else {
-            return nil
-        }
-
-        let dbType = connection.type
-
-        let setClauses = editedFields.map { field -> String in
-            let quotedColumn = dbType.quoteIdentifier(field.columnName)
-            let value: String
-            if field.newValue == "__DEFAULT__" {
-                value = "DEFAULT"
-            } else if let newValue = field.newValue {
-                if isSidebarSQLFunction(newValue) {
-                    value = newValue.trimmingCharacters(in: .whitespaces)
-                } else {
-                    value = "'\(SQLEscaping.escapeStringLiteral(newValue, databaseType: dbType))'"
-                }
-            } else {
-                value = "NULL"
-            }
-            return "\(quotedColumn) = \(value)"
-        }.joined(separator: ", ")
-
-        let quotedPK = dbType.quoteIdentifier(pkColumn)
-        let quotedPKValue = "'\(SQLEscaping.escapeStringLiteral(pkValue, databaseType: dbType))'"
-        let whereClause = "\(quotedPK) = \(quotedPKValue)"
-        let limitClause = (dbType == .mysql || dbType == .mariadb) ? " LIMIT 1" : ""
-
-        return "UPDATE \(dbType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
-    }
-
-    private func isSidebarSQLFunction(_ value: String) -> Bool {
-        SQLEscaping.isTemporalFunction(value)
     }
 }

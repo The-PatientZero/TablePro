@@ -107,7 +107,9 @@ struct SQLStatementGenerator {
 
     // MARK: - INSERT Generation
 
-    private func generateInsertSQL(for change: RowChange, insertedRowData: [Int: [String?]]) -> ParameterizedStatement? {
+    private func generateInsertSQL(for change: RowChange, insertedRowData: [Int: [String?]])
+        -> ParameterizedStatement?
+    {
         // OPTIMIZATION: Get values from lazy storage instead of cellChanges
         if let values = insertedRowData[change.rowIndex] {
             return generateInsertSQLFromStoredData(rowIndex: change.rowIndex, values: values)
@@ -118,7 +120,9 @@ struct SQLStatementGenerator {
     }
 
     /// Generate INSERT SQL from lazy-stored row data (optimized path)
-    private func generateInsertSQLFromStoredData(rowIndex: Int, values: [String?]) -> ParameterizedStatement? {
+    private func generateInsertSQLFromStoredData(rowIndex: Int, values: [String?])
+        -> ParameterizedStatement?
+    {
         var nonDefaultColumns: [String] = []
         var parameters: [Any?] = []
 
@@ -135,7 +139,8 @@ struct SQLStatementGenerator {
                 if isSQLFunctionExpression(val) {
                     // SQL function - cannot parameterize, use literal
                     // This is safe because we validate it's a known SQL function
-                    parameters.append(SQLFunctionLiteral(val.trimmingCharacters(in: .whitespaces).uppercased()))
+                    parameters.append(
+                        SQLFunctionLiteral(val.trimmingCharacters(in: .whitespaces).uppercased()))
                 } else {
                     parameters.append(val)
                 }
@@ -155,7 +160,8 @@ struct SQLStatementGenerator {
             return placeholder(at: index)
         }.joined(separator: ", ")
 
-        let sql = "INSERT INTO \(databaseType.quoteIdentifier(tableName)) (\(columnList)) VALUES (\(placeholders))"
+        let sql =
+            "INSERT INTO \(databaseType.quoteIdentifier(tableName)) (\(columnList)) VALUES (\(placeholders))"
 
         // Filter out SQL function literals from parameters
         let bindParameters = parameters.filter { !($0 is SQLFunctionLiteral) }
@@ -164,7 +170,8 @@ struct SQLStatementGenerator {
     }
 
     /// Generate INSERT SQL from cellChanges (fallback for backward compatibility)
-    private func generateInsertSQLFromCellChanges(for change: RowChange) -> ParameterizedStatement? {
+    private func generateInsertSQLFromCellChanges(for change: RowChange) -> ParameterizedStatement?
+    {
         guard !change.cellChanges.isEmpty else { return nil }
 
         // Filter out DEFAULT columns - let DB handle them
@@ -193,7 +200,8 @@ struct SQLStatementGenerator {
             return placeholder(at: parameters.count - 1)
         }.joined(separator: ", ")
 
-        let sql = "INSERT INTO \(databaseType.quoteIdentifier(tableName)) (\(columnNames)) VALUES (\(placeholders))"
+        let sql =
+            "INSERT INTO \(databaseType.quoteIdentifier(tableName)) (\(columnNames)) VALUES (\(placeholders))"
 
         return ParameterizedStatement(sql: sql, parameters: parameters)
     }
@@ -207,7 +215,7 @@ struct SQLStatementGenerator {
     // MARK: - UPDATE Generation
 
     /// Generate individual UPDATE statement for a single row using parameterized query
-    private func generateUpdateSQL(for change: RowChange) -> ParameterizedStatement? {
+    func generateUpdateSQL(for change: RowChange) -> ParameterizedStatement? {
         guard !change.cellChanges.isEmpty else { return nil }
 
         var parameters: [Any?] = []
@@ -216,39 +224,57 @@ struct SQLStatementGenerator {
                 return "\(databaseType.quoteIdentifier(cellChange.columnName)) = DEFAULT"
             } else if let newValue = cellChange.newValue {
                 if isSQLFunctionExpression(newValue) {
-                    return "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(newValue.trimmingCharacters(in: .whitespaces).uppercased())"
+                    return
+                        "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(newValue.trimmingCharacters(in: .whitespaces).uppercased())"
                 } else {
                     parameters.append(newValue)
-                    return "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(placeholder(at: parameters.count - 1))"
+                    return
+                        "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(placeholder(at: parameters.count - 1))"
                 }
             } else {
                 parameters.append(nil)
-                return "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(placeholder(at: parameters.count - 1))"
+                return
+                    "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(placeholder(at: parameters.count - 1))"
             }
         }.joined(separator: ", ")
 
         if let pkColumn = primaryKeyColumn,
-           let pkColumnIndex = columns.firstIndex(of: pkColumn) {
+            let pkColumnIndex = columns.firstIndex(of: pkColumn)
+        {
             var pkValue: Any?
             if let originalRow = change.originalRow, pkColumnIndex < originalRow.count {
                 pkValue = originalRow[pkColumnIndex]
-            } else if let pkChange = change.cellChanges.first(where: { $0.columnName == pkColumn }) {
+            } else if let pkChange = change.cellChanges.first(where: { $0.columnName == pkColumn })
+            {
                 pkValue = pkChange.oldValue
             }
 
             guard pkValue != nil else {
-                Self.logger.warning("Skipping UPDATE for table '\(self.tableName)' - cannot determine primary key value for row")
+                Self.logger.warning(
+                    "Skipping UPDATE for table '\(self.tableName)' - cannot determine primary key value for row"
+                )
                 return nil
             }
 
             parameters.append(pkValue)
-            let whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(placeholder(at: parameters.count - 1))"
-            let limitClause = (databaseType == .mysql || databaseType == .mariadb) ? " LIMIT 1" : ""
-            let sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
+            let whereClause =
+                "\(databaseType.quoteIdentifier(pkColumn)) = \(placeholder(at: parameters.count - 1))"
+            let sql: String
+            if databaseType == .clickhouse {
+                sql =
+                    "ALTER TABLE \(databaseType.quoteIdentifier(tableName)) UPDATE \(setClauses) WHERE \(whereClause)"
+            } else {
+                let limitClause =
+                    (databaseType == .mysql || databaseType == .mariadb) ? " LIMIT 1" : ""
+                sql =
+                    "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
+            }
             return ParameterizedStatement(sql: sql, parameters: parameters)
         } else {
             guard let originalRow = change.originalRow else {
-                Self.logger.warning("Skipping UPDATE for table '\(self.tableName)' - no primary key and no original row data")
+                Self.logger.warning(
+                    "Skipping UPDATE for table '\(self.tableName)' - no primary key and no original row data"
+                )
                 return nil
             }
 
@@ -272,13 +298,20 @@ struct SQLStatementGenerator {
             let sql: String
             switch databaseType {
             case .mysql, .mariadb, .sqlite:
-                sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause) LIMIT 1"
+                sql =
+                    "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause) LIMIT 1"
             case .mssql:
-                sql = "UPDATE TOP (1) \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
+                sql =
+                    "UPDATE TOP (1) \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
             case .oracle:
-                sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause) AND ROWNUM = 1"
-            case .postgresql, .redshift, .mongodb, .redis, .clickhouse:
-                sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
+                sql =
+                    "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause) AND ROWNUM = 1"
+            case .clickhouse:
+                sql =
+                    "ALTER TABLE \(databaseType.quoteIdentifier(tableName)) UPDATE \(setClauses) WHERE \(whereClause)"
+            case .postgresql, .redshift, .mongodb, .redis:
+                sql =
+                    "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
             }
 
             return ParameterizedStatement(sql: sql, parameters: parameters)
@@ -293,24 +326,33 @@ struct SQLStatementGenerator {
 
         // If we have a primary key, use it for efficient deletion
         if let pkColumn = primaryKeyColumn,
-           let pkIndex = columns.firstIndex(of: pkColumn) {
+            let pkIndex = columns.firstIndex(of: pkColumn)
+        {
             // Build OR conditions for all rows using PK
             var parameters: [Any?] = []
             let conditions = changes.compactMap { change -> String? in
                 guard let originalRow = change.originalRow,
-                      pkIndex < originalRow.count else {
+                    pkIndex < originalRow.count
+                else {
                     return nil
                 }
 
                 parameters.append(originalRow[pkIndex])
-                return "\(databaseType.quoteIdentifier(pkColumn)) = \(placeholder(at: parameters.count - 1))"
+                return
+                    "\(databaseType.quoteIdentifier(pkColumn)) = \(placeholder(at: parameters.count - 1))"
             }
 
             guard !conditions.isEmpty else { return nil }
 
             // Combine all conditions with OR
             let whereClause = conditions.joined(separator: " OR ")
-            let sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
+            let sql: String
+            if databaseType == .clickhouse {
+                sql =
+                    "ALTER TABLE \(databaseType.quoteIdentifier(tableName)) DELETE WHERE \(whereClause)"
+            } else {
+                sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
+            }
 
             return ParameterizedStatement(sql: sql, parameters: parameters)
         }
@@ -348,12 +390,18 @@ struct SQLStatementGenerator {
         let sql: String
         switch databaseType {
         case .mysql, .mariadb, .sqlite:
-            sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause) LIMIT 1"
+            sql =
+                "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause) LIMIT 1"
         case .mssql:
-            sql = "DELETE TOP (1) FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
+            sql =
+                "DELETE TOP (1) FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
         case .oracle:
-            sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause) AND ROWNUM = 1"
-        case .postgresql, .redshift, .mongodb, .redis, .clickhouse:
+            sql =
+                "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause) AND ROWNUM = 1"
+        case .clickhouse:
+            sql =
+                "ALTER TABLE \(databaseType.quoteIdentifier(tableName)) DELETE WHERE \(whereClause)"
+        case .postgresql, .redshift, .mongodb, .redis:
             sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
         }
 

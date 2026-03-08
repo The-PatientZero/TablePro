@@ -69,7 +69,8 @@ final class CellOverlayEditor: NSObject, NSTextViewDelegate {
         )
 
         // Build text view
-        let textView = NSTextView(frame: NSRect(origin: .zero, size: overlayRect.size))
+        let textView = OverlayTextView(frame: NSRect(origin: .zero, size: overlayRect.size))
+        textView.overlayEditor = self
         textView.isRichText = false
         textView.allowsUndo = true
         textView.font = CellOverlayFonts.regular
@@ -223,5 +224,27 @@ final class CellOverlayEditor: NSObject, NSTextViewDelegate {
             ofSize: DesignConstants.FontSize.body,
             weight: .regular
         )
+    }
+}
+
+// MARK: - Overlay Text View
+
+/// NSTextView subclass that commits and dismisses the overlay editor when
+/// the user presses a menu key equivalent (e.g. Cmd+S) so the shortcut
+/// propagates to the SwiftUI menu system instead of being swallowed.
+private final class OverlayTextView: NSTextView {
+    weak var overlayEditor: CellOverlayEditor?
+
+    /// Key equivalents that should commit the edit and bubble up to the menu bar.
+    private static let menuKeyEquivalents: Set<String> = ["s"]
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.contains(.command),
+           let chars = event.charactersIgnoringModifiers,
+           Self.menuKeyEquivalents.contains(chars) {
+            overlayEditor?.dismiss(commit: true)
+            return false
+        }
+        return super.performKeyEquivalent(with: event)
     }
 }

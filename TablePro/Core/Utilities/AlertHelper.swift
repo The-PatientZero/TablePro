@@ -90,6 +90,59 @@ final class AlertHelper {
         }
     }
 
+    // MARK: - Save Changes Confirmation
+
+    /// Result of a standard macOS save-changes confirmation dialog
+    enum SaveConfirmationResult {
+        case save, dontSave, cancel
+    }
+
+    /// Shows the standard macOS "save changes before closing?" dialog.
+    /// Button layout matches NSDocument convention: Save (default) | Cancel | Don't Save (Cmd+D).
+    /// - Parameters:
+    ///   - message: Detailed message explaining what has unsaved changes
+    ///   - window: Parent window to attach sheet to (optional)
+    /// - Returns: The user's choice
+    static func confirmSaveChanges(
+        message: String,
+        window: NSWindow? = nil
+    ) async -> SaveConfirmationResult {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Do you want to save changes?")
+        alert.informativeText = message
+        alert.alertStyle = .warning
+
+        // Button order follows macOS convention (rightmost → leftmost):
+        // [Don't Save]  [Cancel]  [Save]
+        alert.addButton(withTitle: String(localized: "Save"))       // alertFirstButtonReturn (default)
+        alert.addButton(withTitle: String(localized: "Cancel"))     // alertSecondButtonReturn
+        let dontSaveButton = alert.addButton(withTitle: String(localized: "Don't Save")) // alertThirdButtonReturn
+        dontSaveButton.hasDestructiveAction = true
+        dontSaveButton.keyEquivalent = "d"
+        dontSaveButton.keyEquivalentModifierMask = .command
+
+        let response: NSApplication.ModalResponse
+
+        if let window = window {
+            response = await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { resp in
+                    continuation.resume(returning: resp)
+                }
+            }
+        } else {
+            response = alert.runModal()
+        }
+
+        switch response {
+        case .alertFirstButtonReturn:
+            return .save
+        case .alertThirdButtonReturn:
+            return .dontSave
+        default:
+            return .cancel
+        }
+    }
+
     // MARK: - Three-Way Confirmations
 
     /// Shows a three-option confirmation dialog

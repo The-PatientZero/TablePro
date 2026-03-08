@@ -74,12 +74,16 @@ final class ClickHouseDriver: DatabaseDriver {
         let queryId = UUID().uuidString
         currentQueryId = queryId
 
-        startProgressPolling(queryId: queryId)
+        // Only poll progress for user-initiated queries (when a handler is set by the coordinator)
+        let shouldPoll = progressHandler != nil
+        if shouldPoll {
+            startProgressPolling(queryId: queryId)
+        }
 
         let startTime = Date()
         do {
             let result = try await conn.executeQuery(query, queryId: queryId)
-            stopProgressPolling()
+            if shouldPoll { stopProgressPolling() }
 
             let queryResult = mapToQueryResult(result, executionTime: Date().timeIntervalSince(startTime))
 
@@ -95,7 +99,7 @@ final class ClickHouseDriver: DatabaseDriver {
 
             return queryResult
         } catch {
-            stopProgressPolling()
+            if shouldPoll { stopProgressPolling() }
             throw error
         }
     }
@@ -147,6 +151,18 @@ final class ClickHouseDriver: DatabaseDriver {
 
     func fetchColumns(table: String) async throws -> [ColumnInfo] {
         let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+
+        // Fetch primary key columns from system.tables (falls back to sorting_key if primary_key is empty)
+        let pkSql = """
+            SELECT primary_key, sorting_key FROM system.tables
+            WHERE database = currentDatabase() AND name = '\(escapedTable)'
+            """
+        let pkResult = try await execute(query: pkSql)
+        let primaryKey = pkResult.rows.first.flatMap { $0[safe: 0] ?? nil } ?? ""
+        let sortingKey = pkResult.rows.first.flatMap { $0[safe: 1] ?? nil } ?? ""
+        let keyString = primaryKey.isEmpty ? sortingKey : primaryKey
+        let pkColumns = Set(keyString.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+
         let sql = """
             SELECT name, type, default_kind, default_expression, comment
             FROM system.columns
@@ -177,7 +193,7 @@ final class ClickHouseDriver: DatabaseDriver {
                 name: name,
                 dataType: dataType,
                 isNullable: isNullable,
-                isPrimaryKey: false,
+                isPrimaryKey: pkColumns.contains(name),
                 defaultValue: defaultValue,
                 extra: extra,
                 charset: nil,
@@ -442,38 +458,42 @@ final class ClickHouseDriver: DatabaseDriver {
     // MARK: - Progress Polling
 
     private func startProgressPolling(queryId: String) {
-        guard let conn = chConn, progressHandler != nil else { return }
+        guard progressHandler != nil else { return }
 
         progressPollingTask = Task { [weak self] in
-            var lastCallTime = Date()
+            // Reuse a single connection for all polls
+            guard let self else { return }
+            let pollConn = ClickHouseConnection(
+                host: self.connection.host,
+                port: self.connection.port,
+                user: self.connection.username,
+                password: ConnectionStorage.shared.loadPassword(for: self.connection.id) ?? "",
+                database: "",
+                useTLS: self.connection.sslConfig.isEnabled,
+                skipTLSVerification: self.connection.sslConfig.mode == .required
+            )
+
+            do {
+                try await pollConn.connect()
+            } catch {
+                return
+            }
+
+            defer { pollConn.disconnect() }
+
+            let escapedId = queryId.replacingOccurrences(of: "'", with: "\\'")
+            let pollQuery = """
+                SELECT read_rows, read_bytes, total_rows_approx, elapsed
+                FROM system.processes
+                WHERE query_id = '\(escapedId)'
+                """
+
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
                 guard !Task.isCancelled else { break }
 
-                let now = Date()
-                guard now.timeIntervalSince(lastCallTime) >= 0.25 else { continue }
-                lastCallTime = now
-
                 do {
-                    let escapedId = queryId.replacingOccurrences(of: "'", with: "\\'")
-                    let pollQuery = """
-                        SELECT read_rows, read_bytes, total_rows_to_read, elapsed
-                        FROM system.processes
-                        WHERE query_id = '\(escapedId)'
-                        """
-                    let pollConn = ClickHouseConnection(
-                        host: self?.connection.host ?? "",
-                        port: self?.connection.port ?? 8_123,
-                        user: self?.connection.username ?? "",
-                        password: ConnectionStorage.shared.loadPassword(for: self?.connection.id ?? UUID()) ?? "",
-                        database: "",
-                        useTLS: self?.connection.sslConfig.isEnabled ?? false,
-                        skipTLSVerification: self?.connection.sslConfig.mode == .required
-                    )
-                    try await pollConn.connect()
                     let result = try await pollConn.executeQuery(pollQuery)
-                    pollConn.disconnect()
-
                     if let row = result.rows.first {
                         let rowsRead = (row[safe: 0] ?? nil).flatMap { UInt64($0) } ?? 0
                         let bytesRead = (row[safe: 1] ?? nil).flatMap { UInt64($0) } ?? 0
@@ -487,7 +507,7 @@ final class ClickHouseDriver: DatabaseDriver {
                             elapsedSeconds: elapsed
                         )
                         await MainActor.run {
-                            self?.progressHandler?(progress)
+                            self.progressHandler?(progress)
                         }
                     }
                 } catch {

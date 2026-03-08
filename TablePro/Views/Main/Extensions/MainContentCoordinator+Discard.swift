@@ -11,35 +11,35 @@ extension MainContentCoordinator {
     // MARK: - Table Creation
 
     /// Execute sidebar changes immediately (single transaction)
-    func executeSidebarChanges(statements: [String]) async throws {
+    func executeSidebarChanges(statements: [ParameterizedStatement]) async throws {
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
             throw DatabaseError.notConnected
         }
 
         let dbType = connection.type
         let supportsTransactions = dbType != .redis && dbType != .mongodb && dbType != .clickhouse
-        var allStatements: [String] = []
+        var allStatements: [ParameterizedStatement] = []
 
         if supportsTransactions {
-            allStatements.append(dbType.beginTransactionSQL)
+            allStatements.append(ParameterizedStatement(sql: dbType.beginTransactionSQL, parameters: []))
         }
 
-        // Add user statements
         allStatements.append(contentsOf: statements)
 
         if supportsTransactions {
-            // Add COMMIT
-            allStatements.append("COMMIT")
+            allStatements.append(ParameterizedStatement(sql: "COMMIT", parameters: []))
         }
 
-        // Execute all statements sequentially
         do {
-            for sql in allStatements {
-                _ = try await driver.execute(query: sql)
+            for stmt in allStatements {
+                if stmt.parameters.isEmpty {
+                    _ = try await driver.execute(query: stmt.sql)
+                } else {
+                    _ = try await driver.executeParameterized(query: stmt.sql, parameters: stmt.parameters)
+                }
             }
         } catch {
             if supportsTransactions {
-                // Try to rollback on error
                 _ = try? await driver.execute(query: "ROLLBACK")
             }
             throw error

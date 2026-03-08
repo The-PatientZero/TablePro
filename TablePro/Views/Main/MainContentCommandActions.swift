@@ -128,7 +128,7 @@ final class MainContentCommandActions {
                     AlertHelper.showErrorSheet(
                         title: String(localized: "Failed to Save Changes"),
                         message: error.localizedDescription,
-                        window: nil
+                        window: self.window
                     )
                 }
             }
@@ -271,6 +271,16 @@ final class MainContentCommandActions {
         }
     }
 
+    // MARK: - Unsaved Changes Check
+
+    private var hasUnsavedChanges: Bool {
+        let hasEditedCells = coordinator?.changeManager.hasChanges ?? false
+        let hasPendingTableOps = !pendingTruncates.wrappedValue.isEmpty
+            || !pendingDeletes.wrappedValue.isEmpty
+        let hasSidebarEdits = rightPanelState.editState.hasEdits
+        return hasEditedCells || hasPendingTableOps || hasSidebarEdits
+    }
+
     // MARK: - Tab Operations (Group A — Called Directly)
 
     func newTab(initialQuery: String? = nil) {
@@ -289,17 +299,38 @@ final class MainContentCommandActions {
     }
 
     func closeTab() {
+        if hasUnsavedChanges {
+            Task { @MainActor in
+                let keyWindow = NSApp.keyWindow
+                let result = await AlertHelper.confirmSaveChanges(
+                    message: String(localized: "Your changes will be lost if you don't save them."),
+                    window: keyWindow
+                )
+
+                switch result {
+                case .save:
+                    saveChanges()
+                    performClose()
+                case .dontSave:
+                    discardAndClose()
+                case .cancel:
+                    break
+                }
+            }
+        } else {
+            performClose()
+        }
+    }
+
+    private func performClose() {
         guard let keyWindow = NSApp.keyWindow else { return }
         let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
 
         if tabbedWindows.count > 1 {
-            // Multiple native tabs — close this window (macOS removes it from tab group)
             keyWindow.close()
         } else if coordinator?.tabManager.tabs.isEmpty == true {
-            // Already in empty state — close the connection window
             keyWindow.close()
         } else {
-            // Last tab with content — clear tabs to show empty state instead of closing
             for tab in coordinator?.tabManager.tabs ?? [] {
                 tab.rowBuffer.evict()
             }
@@ -308,6 +339,14 @@ final class MainContentCommandActions {
             AppState.shared.isCurrentTabEditable = false
             coordinator?.toolbarState.isTableTab = false
         }
+    }
+
+    private func discardAndClose() {
+        coordinator?.changeManager.clearChanges()
+        pendingTruncates.wrappedValue.removeAll()
+        pendingDeletes.wrappedValue.removeAll()
+        rightPanelState.editState.clearEdits()
+        performClose()
     }
 
     func createView() {
@@ -365,6 +404,9 @@ final class MainContentCommandActions {
         if coordinator?.tabManager.selectedTab?.showStructure == true {
             // Post notification for structure view to handle
             NotificationCenter.default.post(name: .saveStructureChanges, object: nil)
+        } else if rightPanelState.editState.hasEdits {
+            // Save sidebar edits if the right panel has pending changes
+            rightPanelState.onSave?()
         } else {
             // Handle data grid changes
             var truncates = pendingTruncates.wrappedValue

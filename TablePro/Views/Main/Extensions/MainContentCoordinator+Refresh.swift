@@ -5,6 +5,7 @@
 //  Refresh handling operations for MainContentCoordinator
 //
 
+import AppKit
 import Foundation
 
 extension MainContentCoordinator {
@@ -24,7 +25,8 @@ extension MainContentCoordinator {
 
         if hasEditedCells || hasPendingTableOps {
             Task { @MainActor in
-                let confirmed = await confirmDiscardChanges(action: .refreshAll)
+                let window = NSApp.keyWindow
+                let confirmed = await confirmDiscardChanges(action: .refreshAll, window: window)
                 if confirmed {
                     onDiscard()
                     changeManager.clearChanges()
@@ -52,7 +54,8 @@ extension MainContentCoordinator {
 
         if hasEditedCells || hasPendingTableOps {
             Task { @MainActor in
-                let confirmed = await confirmDiscardChanges(action: .refresh)
+                let window = NSApp.keyWindow
+                let confirmed = await confirmDiscardChanges(action: .refresh, window: window)
                 if confirmed {
                     onDiscard()
                     changeManager.clearChanges()

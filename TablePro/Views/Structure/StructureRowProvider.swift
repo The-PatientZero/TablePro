@@ -27,6 +27,15 @@ final class StructureRowProvider {
                         column.isNullable ? "YES" : "NO",
                     ])
                 }
+                if databaseType == .clickhouse {
+                    return QueryResultRow(id: index, values: [
+                        column.name,
+                        column.dataType,
+                        column.isNullable ? "YES" : "NO",
+                        column.defaultValue ?? "",
+                        column.comment ?? ""
+                    ])
+                }
                 return QueryResultRow(id: index, values: [
                     column.name,
                     column.dataType,
@@ -71,6 +80,15 @@ final class StructureRowProvider {
                     String(localized: "Nullable"),
                 ]
             }
+            if databaseType == .clickhouse {
+                return [
+                    String(localized: "Name"),
+                    String(localized: "Type"),
+                    String(localized: "Nullable"),
+                    String(localized: "Default"),
+                    String(localized: "Comment")
+                ]
+            }
             return [
                 String(localized: "Name"),
                 String(localized: "Type"),
@@ -111,6 +129,9 @@ final class StructureRowProvider {
         case .columns:
             if databaseType == .mongodb || databaseType == .redis {
                 return [2] // Nullable (index 2) only
+            }
+            if databaseType == .clickhouse {
+                return [2] // Nullable (index 2) only, no Auto Inc
             }
             return [2, 4] // Nullable (index 2), Auto Inc (index 4)
         case .indexes:

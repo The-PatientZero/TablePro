@@ -381,9 +381,6 @@ struct MainContentView: View {
             onQuickSearch: { searchText in
                 coordinator.applyQuickSearch(searchText)
             },
-            onCommit: { sql in
-                executeCommitSQL(sql)
-            },
             onRefresh: {
                 coordinator.runQuery()
             },
@@ -689,61 +686,6 @@ struct MainContentView: View {
               coordinator.tableMetadata?.tableName != tableName
         else { return }
         await coordinator.loadTableMetadata(tableName: tableName)
-    }
-
-    private func executeCommitSQL(_ sql: String) {
-        guard !sql.isEmpty else { return }
-
-        Task {
-            do {
-                guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].errorMessage = "Not connected to database"
-                    }
-                    return
-                }
-
-                let statements = sql.components(separatedBy: ";").filter {
-                    !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                }
-
-                for statement in statements {
-                    let startTime = Date()
-                    _ = try await driver.execute(query: statement)
-                    let executionTime = Date().timeIntervalSince(startTime)
-
-                    QueryHistoryManager.shared.recordQuery(
-                        query: statement.trimmingCharacters(in: .whitespacesAndNewlines),
-                        connectionId: connection.id,
-                        databaseName: connection.database,
-                        executionTime: executionTime,
-                        rowCount: 0,
-                        wasSuccessful: true,
-                        errorMessage: nil
-                    )
-                }
-
-                changeManager.clearChanges()
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].pendingChanges = TabPendingChanges()
-                    tabManager.tabs[index].errorMessage = nil
-                }
-
-                coordinator.runQuery()
-            } catch {
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].errorMessage =
-                        "Save failed: \(error.localizedDescription)"
-                }
-
-                // Show error alert to user
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Save Failed"),
-                    message: error.localizedDescription,
-                    window: NSApplication.shared.keyWindow
-                )
-            }
-        }
     }
 
     private func mapSessionStatus(_ status: ConnectionStatus) -> ToolbarConnectionState {

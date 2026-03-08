@@ -247,28 +247,43 @@ struct SchemaStatementGenerator {
             )
 
         case .clickhouse:
-            var statements: [String] = []
+            // ClickHouse HTTP interface doesn't support multi-statement queries,
+            // so we combine changes into a single ALTER TABLE with comma-separated actions
+            var actions: [String] = []
             let newQuoted = databaseType.quoteIdentifier(new.name)
 
             if old.name != new.name {
                 let oldQuoted = databaseType.quoteIdentifier(old.name)
-                statements.append("ALTER TABLE \(tableQuoted) RENAME COLUMN \(oldQuoted) TO \(newQuoted)")
+                actions.append("RENAME COLUMN \(oldQuoted) TO \(newQuoted)")
             }
 
             if old.dataType != new.dataType || old.isNullable != new.isNullable {
                 let nullableType = new.isNullable ? "Nullable(\(new.dataType))" : new.dataType
-                statements.append("ALTER TABLE \(tableQuoted) MODIFY COLUMN \(newQuoted) \(nullableType)")
+                actions.append("MODIFY COLUMN \(newQuoted) \(nullableType)")
             }
 
             if old.defaultValue != new.defaultValue {
                 if let defaultVal = new.defaultValue, !defaultVal.isEmpty {
-                    statements.append("ALTER TABLE \(tableQuoted) MODIFY COLUMN \(newQuoted) DEFAULT \(defaultVal)")
+                    actions.append("MODIFY COLUMN \(newQuoted) DEFAULT \(defaultVal)")
                 } else {
-                    statements.append("ALTER TABLE \(tableQuoted) MODIFY COLUMN \(newQuoted) REMOVE DEFAULT")
+                    actions.append("MODIFY COLUMN \(newQuoted) REMOVE DEFAULT")
                 }
             }
 
-            let sql = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n")
+            if old.comment != new.comment {
+                if let comment = new.comment, !comment.isEmpty {
+                    let escaped = comment.replacingOccurrences(of: "'", with: "''")
+                    actions.append("COMMENT COLUMN \(newQuoted) '\(escaped)'")
+                } else {
+                    actions.append("COMMENT COLUMN \(newQuoted) ''")
+                }
+            }
+
+            guard !actions.isEmpty else {
+                return SchemaStatement(sql: "", description: "No changes", isDestructive: false)
+            }
+
+            let sql = "ALTER TABLE \(tableQuoted) " + actions.joined(separator: ", ")
             return SchemaStatement(
                 sql: sql,
                 description: "Modify column '\(old.name)' to '\(new.name)'",
@@ -301,16 +316,22 @@ struct SchemaStatementGenerator {
         var parts: [String] = []
 
         parts.append(databaseType.quoteIdentifier(column.name))
-        parts.append(column.dataType)
 
-        // Unsigned (MySQL/MariaDB only)
-        if (databaseType == .mysql || databaseType == .mariadb) && column.unsigned {
-            parts.append("UNSIGNED")
-        }
+        // ClickHouse uses Nullable(Type) wrapper instead of NOT NULL keyword
+        if databaseType == .clickhouse {
+            parts.append(column.isNullable ? "Nullable(\(column.dataType))" : column.dataType)
+        } else {
+            parts.append(column.dataType)
 
-        // Nullable
-        if !column.isNullable {
-            parts.append("NOT NULL")
+            // Unsigned (MySQL/MariaDB only)
+            if (databaseType == .mysql || databaseType == .mariadb) && column.unsigned {
+                parts.append("UNSIGNED")
+            }
+
+            // Nullable
+            if !column.isNullable {
+                parts.append("NOT NULL")
+            }
         }
 
         // Default value

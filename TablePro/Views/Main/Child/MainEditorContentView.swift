@@ -45,7 +45,6 @@ struct MainEditorContentView: View {
     let onApplyFilters: ([TableFilter]) -> Void
     let onClearFilters: () -> Void
     let onQuickSearch: (String) -> Void
-    let onCommit: (String) -> Void
     let onRefresh: () -> Void
 
     // Pagination callbacks
@@ -294,7 +293,6 @@ struct MainEditorContentView: View {
             resultVersion: tab.resultVersion,
             metadataVersion: tab.metadataVersion,
             isEditable: tab.isEditable && !tab.isView && !connection.isReadOnly,
-            onCommit: onCommit,
             onRefresh: onRefresh,
             onCellEdit: onCellEdit,
             onUndo: { [binding = _selectedRowIndices, coordinator] in

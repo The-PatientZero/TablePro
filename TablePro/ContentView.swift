@@ -78,11 +78,13 @@ struct ContentView: View {
                 let sessionId = payload?.connectionId ?? DatabaseManager.shared.currentSessionId
                 if let sessionId {
                     Task { @MainActor in
+                        let window = NSApp.keyWindow
                         let confirmed = await AlertHelper.confirmDestructive(
                             title: String(localized: "Disconnect"),
                             message: String(localized: "Are you sure you want to disconnect from this database?"),
                             confirmButton: String(localized: "Disconnect"),
-                            cancelButton: String(localized: "Cancel")
+                            cancelButton: String(localized: "Cancel"),
+                            window: window
                         )
 
                         if confirmed {

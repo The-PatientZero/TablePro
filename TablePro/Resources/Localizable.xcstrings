@@ -3318,6 +3318,9 @@
         }
       }
     },
+    "Do you want to save changes?" : {
+
+    },
     "Documentation" : {
       "localizations" : {
         "vi" : {
@@ -3337,6 +3340,9 @@
           }
         }
       }
+    },
+    "Don't Save" : {
+
     },
     "Don't show this again" : {
       "localizations" : {
@@ -5209,6 +5215,9 @@
         }
       }
     },
+    "Last query execution summary" : {
+
+    },
     "Last query execution time" : {
       "localizations" : {
         "vi" : {
@@ -5228,6 +5237,9 @@
           }
         }
       }
+    },
+    "Last query: %@" : {
+
     },
     "Latency: %lldms" : {
       "localizations" : {
@@ -5594,6 +5606,9 @@
           }
         }
       }
+    },
+    "Modified" : {
+
     },
     "MongoDB" : {
       "localizations" : {
@@ -6104,6 +6119,9 @@
         }
       }
     },
+    "No parts found" : {
+
+    },
     "No pending changes" : {
       "localizations" : {
         "vi" : {
@@ -6316,6 +6334,9 @@
           }
         }
       }
+    },
+    "Not connected to ClickHouse" : {
+
     },
     "Not connected to database" : {
       "localizations" : {
@@ -6719,6 +6740,9 @@
           }
         }
       }
+    },
+    "Partition" : {
+
     },
     "Passphrase" : {
       "localizations" : {
@@ -8348,6 +8372,9 @@
         }
       }
     },
+    "Size" : {
+
+    },
     "SIZE" : {
       "localizations" : {
         "vi" : {
@@ -9937,6 +9964,9 @@
           }
         }
       }
+    },
+    "Your changes will be lost if you don't save them." : {
+
     },
     "Your database schema and query data will be sent to the AI provider for analysis. Allow for this connection?" : {
       "localizations" : {

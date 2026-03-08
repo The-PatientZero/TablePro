@@ -81,6 +81,9 @@ final class MainContentCoordinator {
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     @ObservationIgnored internal var isHandlingTabSwitch = false
 
+    /// Guards against re-entrant confirm dialogs (e.g. nested run loop during runModal)
+    @ObservationIgnored internal var isShowingConfirmAlert = false
+
     /// True while a database switch is in progress. Guards against
     /// side-effect window creation during the switch cascade.
     var isSwitchingDatabase = false
@@ -375,7 +378,8 @@ final class MainContentCoordinator {
         if statements.count == 1 {
             // Single statement — existing path (unchanged)
             Task { @MainActor in
-                guard await confirmDangerousQueryIfNeeded(statements[0]) else {
+                let window = NSApp.keyWindow
+                guard await confirmDangerousQueryIfNeeded(statements[0], window: window) else {
                     return
                 }
                 executeQueryInternal(statements[0])
@@ -383,9 +387,10 @@ final class MainContentCoordinator {
         } else {
             // Multiple statements — batch-check dangerous queries, then execute sequentially
             Task { @MainActor in
+                let window = NSApp.keyWindow
                 let dangerousStatements = statements.filter { isDangerousQuery($0) }
                 if !dangerousStatements.isEmpty {
-                    guard await confirmDangerousQueries(dangerousStatements) else { return }
+                    guard await confirmDangerousQueries(dangerousStatements, window: window) else { return }
                 }
                 executeMultipleStatements(statements)
             }
@@ -909,7 +914,9 @@ final class MainContentCoordinator {
         let hasEditedCells = changeManager.hasChanges
         let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
-        guard hasEditedCells || hasPendingTableOps else { return }
+        guard hasEditedCells || hasPendingTableOps else {
+            return
+        }
 
         let allStatements: [ParameterizedStatement]
         do {
@@ -1001,9 +1008,8 @@ final class MainContentCoordinator {
                     throw DatabaseError.notConnected
                 }
 
-                for statement in validStatements {
+                for (i, statement) in validStatements.enumerated() {
                     let statementStartTime = Date()
-
                     // Execute parameterized query if has parameters, otherwise use regular execute
                     if statement.parameters.isEmpty {
                         _ = try await driver.execute(query: statement.sql)
@@ -1107,7 +1113,6 @@ final class MainContentCoordinator {
             }
         }
     }
-
 }
 
 // MARK: - Query Execution Helpers
@@ -1247,28 +1252,26 @@ private extension MainContentCoordinator {
             && !updatedTab.isView && updatedTab.tableName != nil
         toolbarState.isTableTab = updatedTab.tabType == .table
 
+        let resolvedPK: String?
         if let pk = metadata?.primaryKeyColumn {
+            resolvedPK = pk
+        } else if conn.type == .redis {
+            resolvedPK = "Key"
+        } else {
+            resolvedPK = nil
+        }
+
+        if let pk = resolvedPK {
             tabManager.tabs[idx].primaryKeyColumn = pk
+        }
 
-            if tabManager.selectedTabId == tabId {
-                changeManager.configureForTable(
-                    tableName: tableName ?? "",
-                    columns: columns,
-                    primaryKeyColumn: pk,
-                    databaseType: conn.type
-                )
-            }
-        } else if conn.type == .redis, isEditable {
-            tabManager.tabs[idx].primaryKeyColumn = "Key"
-
-            if tabManager.selectedTabId == tabId {
-                changeManager.configureForTable(
-                    tableName: tableName ?? "",
-                    columns: columns,
-                    primaryKeyColumn: "Key",
-                    databaseType: .redis
-                )
-            }
+        if tabManager.selectedTabId == tabId {
+            changeManager.configureForTable(
+                tableName: tableName ?? "",
+                columns: columns,
+                primaryKeyColumn: resolvedPK,
+                databaseType: conn.type
+            )
         }
 
         QueryHistoryManager.shared.recordQuery(
