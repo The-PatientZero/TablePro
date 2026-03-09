@@ -28,7 +28,7 @@ struct SQLExportOptionsView: View {
 
                 Picker("", selection: $plugin.options.batchSize) {
                     ForEach(Self.batchSizeOptions, id: \.self) { size in
-                        Text(size == 1 ? String(localized: "1 (no batching)") : "\(size)")
+                        Text(size == 1 ? String(localized: "1 (no batching)", bundle: .main) : "\(size)")
                             .tag(size)
                     }
                 }

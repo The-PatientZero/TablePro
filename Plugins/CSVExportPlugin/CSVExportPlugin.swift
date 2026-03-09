@@ -34,7 +34,7 @@ final class CSVExportPlugin: ExportFormatPlugin {
         destination: URL,
         progress: PluginExportProgress
     ) async throws {
-        let fileHandle = try createFileHandle(at: destination)
+        let fileHandle = try PluginExportUtilities.createFileHandle(at: destination)
         defer { try? fileHandle.close() }
 
         let lineBreak = options.lineBreak.value
@@ -141,8 +141,6 @@ final class CSVExportPlugin: ExportFormatPlugin {
             try fileHandle.write(contentsOf: (rowLine + lineBreak).toUTF8Data())
             progress.incrementRow()
         }
-
-        progress.finalizeTable()
     }
 
     private func escapeCSVField(_ field: String, options: CSVExportOptions, originalHadLineBreaks: Bool = false) -> String {
@@ -175,10 +173,4 @@ final class CSVExportPlugin: ExportFormatPlugin {
         }
     }
 
-    private func createFileHandle(at url: URL) throws -> FileHandle {
-        guard FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil) else {
-            throw PluginExportError.fileWriteFailed(url.path(percentEncoded: false))
-        }
-        return try FileHandle(forWritingTo: url)
-    }
 }

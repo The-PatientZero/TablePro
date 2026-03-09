@@ -70,7 +70,7 @@ final class SQLExportPlugin: ExportFormatPlugin {
             targetURL = destination
         }
 
-        let fileHandle = try createFileHandle(at: targetURL)
+        let fileHandle = try PluginExportUtilities.createFileHandle(at: targetURL)
 
         do {
             let dateFormatter = ISO8601DateFormatter()
@@ -264,15 +264,6 @@ final class SQLExportPlugin: ExportFormatPlugin {
             let statement = insertPrefix + valuesBatch.joined(separator: ",\n") + ";\n\n"
             try fileHandle.write(contentsOf: statement.toUTF8Data())
         }
-
-        progress.finalizeTable()
-    }
-
-    private func createFileHandle(at url: URL) throws -> FileHandle {
-        guard FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil) else {
-            throw PluginExportError.fileWriteFailed(url.path(percentEncoded: false))
-        }
-        return try FileHandle(forWritingTo: url)
     }
 
     private func compressFile(source: URL, destination: URL) async throws {

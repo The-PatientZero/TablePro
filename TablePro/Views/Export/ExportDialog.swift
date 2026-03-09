@@ -70,6 +70,9 @@ struct ExportDialog: View {
                 }
             }
         }
+        .onChange(of: config.formatId) {
+            resetOptionValues()
+        }
         .onExitCommand {
             if !isExporting {
                 isPresented = false
@@ -386,6 +389,14 @@ struct ExportDialog: View {
     /// Validates that the filename is not empty and contains no invalid filesystem characters
     private var isFileNameValid: Bool {
         fileNameValidationError == nil
+    }
+
+    private func resetOptionValues() {
+        for dbIndex in databaseItems.indices {
+            for tableIndex in databaseItems[dbIndex].tables.indices {
+                databaseItems[dbIndex].tables[tableIndex].optionValues = []
+            }
+        }
     }
 
     // MARK: - Actions

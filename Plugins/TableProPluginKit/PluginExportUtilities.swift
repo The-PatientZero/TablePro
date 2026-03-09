@@ -44,6 +44,13 @@ public enum PluginExportUtilities {
         return String(bytes: utf8Result, encoding: .utf8) ?? string
     }
 
+    public static func createFileHandle(at url: URL) throws -> FileHandle {
+        guard FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil) else {
+            throw PluginExportError.fileWriteFailed(url.path(percentEncoded: false))
+        }
+        return try FileHandle(forWritingTo: url)
+    }
+
     public static func sanitizeForSQLComment(_ name: String) -> String {
         var result = name
         result = result.replacingOccurrences(of: "\n", with: " ")

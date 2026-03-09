@@ -31,7 +31,7 @@ final class JSONExportPlugin: ExportFormatPlugin {
         destination: URL,
         progress: PluginExportProgress
     ) async throws {
-        let fileHandle = try createFileHandle(at: destination)
+        let fileHandle = try PluginExportUtilities.createFileHandle(at: destination)
         defer { try? fileHandle.close() }
 
         let prettyPrint = options.prettyPrint
@@ -114,8 +114,6 @@ final class JSONExportPlugin: ExportFormatPlugin {
                 offset += result.rows.count
             }
 
-            progress.finalizeTable()
-
             if hasWrittenRow {
                 try fileHandle.write(contentsOf: newline.toUTF8Data())
             }
@@ -162,10 +160,4 @@ final class JSONExportPlugin: ExportFormatPlugin {
         return "\"\(PluginExportUtilities.escapeJSONString(val))\""
     }
 
-    private func createFileHandle(at url: URL) throws -> FileHandle {
-        guard FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil) else {
-            throw PluginExportError.fileWriteFailed(url.path(percentEncoded: false))
-        }
-        return try FileHandle(forWritingTo: url)
-    }
 }

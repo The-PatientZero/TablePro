@@ -131,18 +131,23 @@ final class ExportService {
         currentProgress = progress
         progress.setTotalRows(state.totalRows)
 
-        // Wire progress updates to UI state
+        // Wire progress updates to UI state (coalesced to avoid main actor flooding)
+        let pendingUpdate = ProgressUpdateCoalescer()
         progress.onUpdate = { [weak self] table, index, rows, total, status in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.state.currentTable = table
-                self.state.currentTableIndex = index
-                self.state.processedRows = rows
-                if total > 0 {
-                    self.state.progress = Double(rows) / Double(total)
-                }
-                if !status.isEmpty {
-                    self.state.statusMessage = status
+            let shouldDispatch = pendingUpdate.markPending()
+            if shouldDispatch {
+                Task { @MainActor [weak self] in
+                    pendingUpdate.clearPending()
+                    guard let self else { return }
+                    self.state.currentTable = table
+                    self.state.currentTableIndex = index
+                    self.state.processedRows = rows
+                    if total > 0 {
+                        self.state.progress = Double(rows) / Double(total)
+                    }
+                    if !status.isEmpty {
+                        self.state.statusMessage = status
+                    }
                 }
             }
         }
@@ -253,5 +258,29 @@ final class ExportService {
             state.statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
         }
         return total
+    }
+}
+
+// MARK: - Progress Update Coalescer
+
+/// Ensures only one `Task { @MainActor }` is in-flight at a time to prevent
+/// flooding the main actor queue during high-throughput exports.
+private final class ProgressUpdateCoalescer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isPending = false
+
+    /// Returns `true` if the caller should dispatch a UI update (no update is in-flight).
+    func markPending() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if isPending { return false }
+        isPending = true
+        return true
+    }
+
+    func clearPending() {
+        lock.lock()
+        isPending = false
+        lock.unlock()
     }
 }

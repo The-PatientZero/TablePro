@@ -46,7 +46,7 @@ final class MQLExportPlugin: ExportFormatPlugin {
         destination: URL,
         progress: PluginExportProgress
     ) async throws {
-        let fileHandle = try createFileHandle(at: destination)
+        let fileHandle = try PluginExportUtilities.createFileHandle(at: destination)
         defer { try? fileHandle.close() }
 
         let dateFormatter = ISO8601DateFormatter()
@@ -145,8 +145,6 @@ final class MQLExportPlugin: ExportFormatPlugin {
                 )
             }
 
-            progress.finalizeTable()
-
             if index < tables.count - 1 {
                 try fileHandle.write(contentsOf: "\n".toUTF8Data())
             }
@@ -212,10 +210,4 @@ final class MQLExportPlugin: ExportFormatPlugin {
         }
     }
 
-    private func createFileHandle(at url: URL) throws -> FileHandle {
-        guard FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil) else {
-            throw PluginExportError.fileWriteFailed(url.path(percentEncoded: false))
-        }
-        return try FileHandle(forWritingTo: url)
-    }
 }
