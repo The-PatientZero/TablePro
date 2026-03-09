@@ -23,7 +23,7 @@ struct MainEditorContentView: View {
     // MARK: - Dependencies
 
     var tabManager: QueryTabManager
-    @Bindable var coordinator: MainContentCoordinator
+    var coordinator: MainContentCoordinator
     var changeManager: DataChangeManager
     var filterStateManager: FilterStateManager
     let connection: DatabaseConnection
@@ -123,8 +123,17 @@ struct MainEditorContentView: View {
             tabProviderVersions = tabProviderVersions.filter { openTabIds.contains($0.key) }
             tabProviderMetaVersions = tabProviderMetaVersions.filter { openTabIds.contains($0.key) }
         }
-        .onChange(of: tabManager.selectedTabId) {
+        .onChange(of: tabManager.selectedTabId) { _, newId in
             updateHasQueryText()
+
+            guard let newId, let tab = tabManager.selectedTab else { return }
+            if tabProviderVersions[newId] != tab.resultVersion
+                || tabProviderMetaVersions[newId] != tab.metadataVersion {
+                let provider = makeRowProvider(for: tab)
+                tabRowProviders[newId] = provider
+                tabProviderVersions[newId] = tab.resultVersion
+                tabProviderMetaVersions[newId] = tab.metadataVersion
+            }
         }
         .onAppear {
             updateHasQueryText()
@@ -152,18 +161,6 @@ struct MainEditorContentView: View {
             tabProviderVersions[tab.id] = tab.resultVersion
             tabProviderMetaVersions[tab.id] = tab.metadataVersion
         }
-        .onChange(of: tabManager.selectedTabId) { _, newId in
-            guard let newId, let tab = tabManager.selectedTab else { return }
-
-            // Cache provider for new tab if not already cached
-            if tabProviderVersions[newId] != tab.resultVersion
-                || tabProviderMetaVersions[newId] != tab.metadataVersion {
-                let provider = makeRowProvider(for: tab)
-                tabRowProviders[newId] = provider
-                tabProviderVersions[newId] = tab.resultVersion
-                tabProviderMetaVersions[newId] = tab.metadataVersion
-            }
-        }
     }
 
     // MARK: - Tab Content
@@ -182,12 +179,13 @@ struct MainEditorContentView: View {
 
     @ViewBuilder
     private func queryTabContent(tab: QueryTab) -> some View {
+        @Bindable var bindableCoordinator = coordinator
         VSplitView {
             // Query Editor (top)
             VStack(spacing: 0) {
                 QueryEditorView(
                     queryText: queryTextBinding(for: tab),
-                    cursorPositions: $coordinator.cursorPositions,
+                    cursorPositions: $bindableCoordinator.cursorPositions,
                     onExecute: { coordinator.runQuery() },
                     schemaProvider: coordinator.schemaProvider,
                     databaseType: coordinator.connection.type,
