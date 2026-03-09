@@ -78,12 +78,14 @@ final class SQLImportPlugin: ImportFormatPlugin {
                 try await sink.enableForeignKeyChecks()
             }
         } catch {
+            let importError = error
+
             // Rollback on error
             if options.wrapInTransaction {
                 do {
                     try await sink.rollbackTransaction()
                 } catch {
-                    throw PluginImportError.rollbackFailed(underlyingError: error)
+                    throw PluginImportError.rollbackFailed(underlyingError: importError)
                 }
             }
 
@@ -93,13 +95,13 @@ final class SQLImportPlugin: ImportFormatPlugin {
             }
 
             // Re-throw cancellation as-is, wrap others
-            if error is PluginImportCancellationError {
-                throw error
+            if importError is PluginImportCancellationError {
+                throw importError
             }
-            if error is PluginImportError {
-                throw error
+            if importError is PluginImportError {
+                throw importError
             }
-            throw PluginImportError.importFailed(error.localizedDescription)
+            throw PluginImportError.importFailed(importError.localizedDescription)
         }
 
         progress.finalize()

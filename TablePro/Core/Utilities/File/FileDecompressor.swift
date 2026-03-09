@@ -9,14 +9,11 @@ import Foundation
 import os
 
 enum DecompressionError: LocalizedError {
-    case gunzipNotFound
     case decompressFailed
     case fileReadFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .gunzipNotFound:
-            return String(localized: "gunzip not found")
         case .decompressFailed:
             return String(localized: "Failed to decompress .gz file")
         case .fileReadFailed(let message):

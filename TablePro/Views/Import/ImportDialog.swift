@@ -196,8 +196,8 @@ struct ImportDialog: View {
                 .frame(width: 80, alignment: .leading)
 
             Picker("", selection: $selectedFormatId) {
-                ForEach(Array(availableFormats.enumerated()), id: \.offset) { _, plugin in
-                    Text(type(of: plugin).formatDisplayName).tag(type(of: plugin).formatId)
+                ForEach(availableFormats.map { (id: type(of: $0).formatId, name: type(of: $0).formatDisplayName) }, id: \.id) { item in
+                    Text(item.name).tag(item.id)
                 }
             }
             .pickerStyle(.menu)

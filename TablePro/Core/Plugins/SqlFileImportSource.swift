@@ -43,10 +43,14 @@ final class SqlFileImportSource: PluginImportSource, @unchecked Sendable {
 
         return AsyncThrowingStream { continuation in
             Task {
-                for await item in stream {
-                    continuation.yield(item)
+                do {
+                    for try await item in stream {
+                        continuation.yield(item)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
                 }
-                continuation.finish()
             }
         }
     }
