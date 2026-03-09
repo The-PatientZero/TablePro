@@ -16,9 +16,30 @@ struct InstalledPluginsView: View {
     @State private var showErrorAlert = false
     @State private var errorAlertTitle = ""
     @State private var errorAlertMessage = ""
+    @State private var dismissedRestartBanner = false
 
     var body: some View {
         Form {
+            if pluginManager.needsRestart && !dismissedRestartBanner {
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Restart TablePro to fully unload removed plugins.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            dismissedRestartBanner = true
+                        } label: {
+                            Image(systemName: "xmark")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
             Section("Installed Plugins") {
                 ForEach(pluginManager.plugins) { plugin in
                     pluginRow(plugin)

@@ -15,6 +15,8 @@ final class PluginManager {
 
     private(set) var plugins: [PluginEntry] = []
 
+    private(set) var needsRestart = false
+
     private(set) var driverPlugins: [String: any DriverPlugin] = [:]
 
     private(set) var exportPlugins: [String: any ExportFormatPlugin] = [:]
@@ -52,6 +54,8 @@ final class PluginManager {
         }
 
         loadPlugins(from: userPluginsDir, source: .userInstalled)
+
+        validateDependencies()
 
         Self.logger.info("Loaded \(self.plugins.count) plugin(s): \(self.driverPlugins.count) driver(s), \(self.exportPlugins.count) export format(s)")
     }
@@ -126,6 +130,7 @@ final class PluginManager {
         )
 
         plugins.append(entry)
+        validateCapabilityDeclarations(principalClass, pluginId: bundleId)
 
         if entry.isEnabled {
             let instance = principalClass.init()
@@ -140,7 +145,12 @@ final class PluginManager {
     // MARK: - Capability Registration
 
     private func registerCapabilities(_ instance: any TableProPlugin, pluginId: String) {
+        let declared = Set(type(of: instance).capabilities)
+
         if let driver = instance as? any DriverPlugin {
+            if !declared.contains(.databaseDriver) {
+                Self.logger.warning("Plugin '\(pluginId)' conforms to DriverPlugin but does not declare .databaseDriver capability — registering anyway")
+            }
             let typeId = type(of: driver).databaseTypeId
             driverPlugins[typeId] = driver
             for additionalId in type(of: driver).additionalDatabaseTypeIds {
@@ -150,9 +160,25 @@ final class PluginManager {
         }
 
         if let exportPlugin = instance as? any ExportFormatPlugin {
+            if !declared.contains(.exportFormat) {
+                Self.logger.warning("Plugin '\(pluginId)' conforms to ExportFormatPlugin but does not declare .exportFormat capability — registering anyway")
+            }
             let formatId = type(of: exportPlugin).formatId
             exportPlugins[formatId] = exportPlugin
             Self.logger.debug("Registered export plugin '\(pluginId)' for format '\(formatId)'")
+        }
+    }
+
+    private func validateCapabilityDeclarations(_ pluginType: any TableProPlugin.Type, pluginId: String) {
+        let declared = Set(pluginType.capabilities)
+        let isDriver = pluginType is any DriverPlugin.Type
+        let isExporter = pluginType is any ExportFormatPlugin.Type
+
+        if declared.contains(.databaseDriver) && !isDriver {
+            Self.logger.warning("Plugin '\(pluginId)' declares .databaseDriver but does not conform to DriverPlugin")
+        }
+        if declared.contains(.exportFormat) && !isExporter {
+            Self.logger.warning("Plugin '\(pluginId)' declares .exportFormat but does not conform to ExportFormatPlugin")
         }
     }
 
@@ -200,6 +226,7 @@ final class PluginManager {
         }
 
         Self.logger.info("Plugin '\(pluginId)' \(enabled ? "enabled" : "disabled")")
+        NotificationCenter.default.post(name: .pluginStateDidChange, object: nil, userInfo: ["pluginId": pluginId])
     }
 
     // MARK: - Install / Uninstall
@@ -292,12 +319,29 @@ final class PluginManager {
         disabledPluginIds = disabled
 
         Self.logger.info("Uninstalled plugin '\(id)'")
+        needsRestart = true
+    }
+
+    // MARK: - Dependency Validation
+
+    private func validateDependencies() {
+        let loadedIds = Set(plugins.map(\.id))
+        for plugin in plugins where plugin.isEnabled {
+            guard let principalClass = plugin.bundle.principalClass as? any TableProPlugin.Type else { continue }
+            let deps = principalClass.dependencies
+            for dep in deps {
+                if !loadedIds.contains(dep) {
+                    Self.logger.warning("Plugin '\(plugin.id)' requires '\(dep)' which is not installed")
+                } else if let depEntry = plugins.first(where: { $0.id == dep }), !depEntry.isEnabled {
+                    Self.logger.warning("Plugin '\(plugin.id)' requires '\(dep)' which is disabled")
+                }
+            }
+        }
     }
 
     // MARK: - Code Signature Verification
 
-    // TODO: Replace with actual team identifier
-    private static let signingTeamId = "YOURTEAMID"
+    private static let signingTeamId = "D7HJ5TFYCU"
 
     private func createSigningRequirement() -> SecRequirement? {
         var requirement: SecRequirement?

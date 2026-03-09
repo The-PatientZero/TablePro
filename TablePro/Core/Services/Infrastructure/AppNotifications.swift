@@ -34,4 +34,8 @@ extension Notification.Name {
 
     static let sshTunnelDied = Notification.Name("sshTunnelDied")
     static let lastWindowDidClose = Notification.Name("lastWindowDidClose")
+
+    // MARK: - Plugins
+
+    static let pluginStateDidChange = Notification.Name("pluginStateDidChange")
 }

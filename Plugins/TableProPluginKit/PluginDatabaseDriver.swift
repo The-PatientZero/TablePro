@@ -136,13 +136,46 @@ public extension PluginDatabaseDriver {
     }
 
     func executeParameterized(query: String, parameters: [String?]) async throws -> PluginQueryResult {
-        var sql = query
-        for param in parameters.reversed() {
-            if let range = sql.range(of: "?", options: .backwards) {
-                let replacement = param.map { "'\($0.replacingOccurrences(of: "'", with: "''"))'" } ?? "NULL"
-                sql.replaceSubrange(range, with: replacement)
+        var sql = ""
+        var paramIndex = 0
+        var inSingleQuote = false
+        var inDoubleQuote = false
+        var isEscaped = false
+
+        for char in query {
+            if isEscaped {
+                isEscaped = false
+                sql.append(char)
+                continue
+            }
+
+            if char == "\\" && (inSingleQuote || inDoubleQuote) {
+                isEscaped = true
+                sql.append(char)
+                continue
+            }
+
+            if char == "'" && !inDoubleQuote {
+                inSingleQuote.toggle()
+            } else if char == "\"" && !inSingleQuote {
+                inDoubleQuote.toggle()
+            }
+
+            if char == "?" && !inSingleQuote && !inDoubleQuote && paramIndex < parameters.count {
+                if let value = parameters[paramIndex] {
+                    let escaped = value
+                        .replacingOccurrences(of: "\\", with: "\\\\")
+                        .replacingOccurrences(of: "'", with: "''")
+                    sql.append("'\(escaped)'")
+                } else {
+                    sql.append("NULL")
+                }
+                paramIndex += 1
+            } else {
+                sql.append(char)
             }
         }
+
         return try await execute(query: sql)
     }
 

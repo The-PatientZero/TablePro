@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Plugin capability enforcement — registration now gated on declared capabilities, with validation warnings for mismatches
+- Plugin dependency declarations — plugins can declare required dependencies via `TableProPlugin.dependencies`, validated at load time
+- Plugin state change notification (`pluginStateDidChange`) posted when plugins are enabled/disabled
+- Restart recommendation banner in Settings > Plugins after uninstalling a plugin
 - Startup commands — run custom SQL after connecting (e.g., SET time_zone) in Connection > Advanced tab
 - Plugin system architecture — all 8 database drivers (MySQL, PostgreSQL, SQLite, ClickHouse, MSSQL, MongoDB, Redis, Oracle) extracted into `.tableplugin` bundles loaded at runtime
 - Export format plugins — all 5 export formats (CSV, JSON, SQL, XLSX, MQL) extracted into `.tableplugin` bundles with plugin-provided option views and per-table option columns
