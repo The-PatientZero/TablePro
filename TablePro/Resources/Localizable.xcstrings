@@ -8587,6 +8587,9 @@
         }
       }
     },
+    "SQL commands to run after connecting, e.g. SET time_zone = 'Asia/Ho_Chi_Minh'. One per line or separated by semicolons." : {
+
+    },
     "SQL Dialect" : {
 
     },
@@ -8781,6 +8784,9 @@
           }
         }
       }
+    },
+    "Startup Commands" : {
+
     },
     "statement" : {
       "localizations" : {

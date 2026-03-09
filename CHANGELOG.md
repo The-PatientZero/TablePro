@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Startup commands — run custom SQL after connecting (e.g., SET time_zone) in Connection > Advanced tab
 - Plugin system architecture — all 8 database drivers (MySQL, PostgreSQL, SQLite, ClickHouse, MSSQL, MongoDB, Redis, Oracle) extracted into `.tableplugin` bundles loaded at runtime
 - Settings > Plugins tab for plugin management — list installed plugins, enable/disable, install from file, uninstall user plugins, view plugin details
 - Plugin marketplace — browse, search, and install plugins from the GitHub-hosted registry with SHA-256 checksum verification, ETag caching, and offline fallback

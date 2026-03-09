@@ -408,6 +408,7 @@ struct DatabaseConnection: Identifiable, Hashable {
     var redisDatabase: Int?
     var mssqlSchema: String?
     var oracleServiceName: String?
+    var startupCommands: String?
 
     init(
         id: UUID = UUID(),
@@ -428,7 +429,8 @@ struct DatabaseConnection: Identifiable, Hashable {
         mongoWriteConcern: String? = nil,
         redisDatabase: Int? = nil,
         mssqlSchema: String? = nil,
-        oracleServiceName: String? = nil
+        oracleServiceName: String? = nil,
+        startupCommands: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -449,6 +451,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.redisDatabase = redisDatabase
         self.mssqlSchema = mssqlSchema
         self.oracleServiceName = oracleServiceName
+        self.startupCommands = startupCommands
     }
 
     /// Returns the display color (custom color or database type color)

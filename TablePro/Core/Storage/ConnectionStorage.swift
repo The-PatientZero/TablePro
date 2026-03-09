@@ -115,9 +115,18 @@ final class ConnectionStorage {
             username: connection.username,
             type: connection.type,
             sshConfig: connection.sshConfig,
+            sslConfig: connection.sslConfig,
             color: connection.color,
             tagId: connection.tagId,
-            groupId: connection.groupId
+            groupId: connection.groupId,
+            isReadOnly: connection.isReadOnly,
+            aiPolicy: connection.aiPolicy,
+            mongoReadPreference: connection.mongoReadPreference,
+            mongoWriteConcern: connection.mongoWriteConcern,
+            redisDatabase: connection.redisDatabase,
+            mssqlSchema: connection.mssqlSchema,
+            oracleServiceName: connection.oracleServiceName,
+            startupCommands: connection.startupCommands
         )
 
         // Save the duplicate connection
@@ -365,6 +374,9 @@ private struct StoredConnection: Codable {
     // Oracle service name
     let oracleServiceName: String?
 
+    // Startup commands
+    let startupCommands: String?
+
     init(from connection: DatabaseConnection) {
         self.id = connection.id
         self.name = connection.name
@@ -406,6 +418,9 @@ private struct StoredConnection: Codable {
 
         // Oracle service name
         self.oracleServiceName = connection.oracleServiceName
+
+        // Startup commands
+        self.startupCommands = connection.startupCommands
     }
 
     // Custom decoder to handle migration from old format
@@ -445,6 +460,7 @@ private struct StoredConnection: Codable {
         aiPolicy = try container.decodeIfPresent(String.self, forKey: .aiPolicy)
         mssqlSchema = try container.decodeIfPresent(String.self, forKey: .mssqlSchema)
         oracleServiceName = try container.decodeIfPresent(String.self, forKey: .oracleServiceName)
+        startupCommands = try container.decodeIfPresent(String.self, forKey: .startupCommands)
     }
 
     func toConnection() -> DatabaseConnection {
@@ -487,7 +503,8 @@ private struct StoredConnection: Codable {
             isReadOnly: isReadOnly,
             aiPolicy: parsedAIPolicy,
             mssqlSchema: mssqlSchema,
-            oracleServiceName: oracleServiceName
+            oracleServiceName: oracleServiceName,
+            startupCommands: startupCommands
         )
     }
 }

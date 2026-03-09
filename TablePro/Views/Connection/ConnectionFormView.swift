@@ -77,6 +77,9 @@ struct ConnectionFormView: View {
     // Oracle-specific settings
     @State private var oracleServiceName: String = ""
 
+    // Startup commands
+    @State private var startupCommands: String = ""
+
     @State private var isTesting: Bool = false
     @State private var testResult: TestResult?
 
@@ -123,7 +126,9 @@ struct ConnectionFormView: View {
             footer
         }
         .frame(width: 480, height: 520)
-        .navigationTitle(isNew ? String(localized: "New Connection") : String(localized: "Edit Connection"))
+        .navigationTitle(
+            isNew ? String(localized: "New Connection") : String(localized: "Edit Connection")
+        )
         .onAppear {
             loadConnectionData()
             loadSSHConfig()
@@ -316,7 +321,8 @@ struct ConnectionFormView: View {
             if sshEnabled {
                 Section(String(localized: "Server")) {
                     if !sshConfigEntries.isEmpty {
-                        Picker(String(localized: "Config Host"), selection: $selectedSSHConfigHost) {
+                        Picker(String(localized: "Config Host"), selection: $selectedSSHConfigHost)
+                        {
                             Text(String(localized: "Manual")).tag("")
                             ForEach(sshConfigEntries) { entry in
                                 Text(entry.displayName).tag(entry.host)
@@ -371,7 +377,8 @@ struct ConnectionFormView: View {
                     } else {
                         LabeledContent(String(localized: "Key File")) {
                             HStack {
-                                TextField("", text: $sshPrivateKeyPath, prompt: Text("~/.ssh/id_rsa"))
+                                TextField(
+                                    "", text: $sshPrivateKeyPath, prompt: Text("~/.ssh/id_rsa"))
                                 Button(String(localized: "Browse")) { browseForPrivateKey() }
                                     .controlSize(.small)
                             }
@@ -413,7 +420,9 @@ struct ConnectionFormView: View {
                                 if jumpHost.authMethod == .privateKey {
                                     LabeledContent(String(localized: "Key File")) {
                                         HStack {
-                                            TextField("", text: $jumpHost.privateKeyPath, prompt: Text("~/.ssh/id_rsa"))
+                                            TextField(
+                                                "", text: $jumpHost.privateKeyPath,
+                                                prompt: Text("~/.ssh/id_rsa"))
                                             Button(String(localized: "Browse")) {
                                                 browseForJumpHostKey(jumpHost: $jumpHost)
                                             }
@@ -423,8 +432,12 @@ struct ConnectionFormView: View {
                                 }
                             } label: {
                                 HStack {
-                                    Text(jumpHost.host.isEmpty ? String(localized: "New Jump Host") : "\(jumpHost.username)@\(jumpHost.host)")
-                                        .foregroundStyle(jumpHost.host.isEmpty ? .secondary : .primary)
+                                    Text(
+                                        jumpHost.host.isEmpty
+                                            ? String(localized: "New Jump Host")
+                                            : "\(jumpHost.username)@\(jumpHost.host)"
+                                    )
+                                    .foregroundStyle(jumpHost.host.isEmpty ? .secondary : .primary)
                                     Spacer()
                                     Button {
                                         let idToRemove = jumpHost.id
@@ -449,9 +462,11 @@ struct ConnectionFormView: View {
                             Label(String(localized: "Add Jump Host"), systemImage: "plus")
                         }
 
-                        Text("Jump hosts are connected in order before reaching the SSH server above. Only key and agent auth are supported for jumps.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Text(
+                            "Jump hosts are connected in order before reaching the SSH server above. Only key and agent auth are supported for jumps."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -482,7 +497,8 @@ struct ConnectionFormView: View {
                     Section(String(localized: "CA Certificate")) {
                         LabeledContent(String(localized: "CA Cert")) {
                             HStack {
-                                TextField("", text: $sslCaCertPath, prompt: Text("/path/to/ca-cert.pem"))
+                                TextField(
+                                    "", text: $sslCaCertPath, prompt: Text("/path/to/ca-cert.pem"))
                                 Button(String(localized: "Browse")) {
                                     browseForCertificate(binding: $sslCaCertPath)
                                 }
@@ -495,7 +511,9 @@ struct ConnectionFormView: View {
                 Section(String(localized: "Client Certificates (Optional)")) {
                     LabeledContent(String(localized: "Client Cert")) {
                         HStack {
-                            TextField("", text: $sslClientCertPath, prompt: Text(String(localized: "(optional)")))
+                            TextField(
+                                "", text: $sslClientCertPath,
+                                prompt: Text(String(localized: "(optional)")))
                             Button(String(localized: "Browse")) {
                                 browseForCertificate(binding: $sslClientCertPath)
                             }
@@ -504,7 +522,9 @@ struct ConnectionFormView: View {
                     }
                     LabeledContent(String(localized: "Client Key")) {
                         HStack {
-                            TextField("", text: $sslClientKeyPath, prompt: Text(String(localized: "(optional)")))
+                            TextField(
+                                "", text: $sslClientKeyPath,
+                                prompt: Text(String(localized: "(optional)")))
                             Button(String(localized: "Browse")) {
                                 browseForCertificate(binding: $sslClientKeyPath)
                             }
@@ -558,22 +578,44 @@ struct ConnectionFormView: View {
 
             if type == .mssql {
                 Section("SQL Server") {
-                    TextField(String(localized: "Schema"), text: Binding(
-                        get: { mssqlSchema },
-                        set: { mssqlSchema = $0 }
-                    ))
+                    TextField(
+                        String(localized: "Schema"),
+                        text: Binding(
+                            get: { mssqlSchema },
+                            set: { mssqlSchema = $0 }
+                        )
+                    )
                     .textFieldStyle(.roundedBorder)
                 }
             }
 
             if type == .oracle {
                 Section(String(localized: "Oracle")) {
-                    TextField(String(localized: "Service Name"), text: Binding(
-                        get: { oracleServiceName },
-                        set: { oracleServiceName = $0 }
-                    ))
+                    TextField(
+                        String(localized: "Service Name"),
+                        text: Binding(
+                            get: { oracleServiceName },
+                            set: { oracleServiceName = $0 }
+                        )
+                    )
                     .textFieldStyle(.roundedBorder)
                 }
+            }
+
+            Section(String(localized: "Startup Commands")) {
+                StartupCommandsEditor(text: $startupCommands)
+                    .frame(height: 80)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                Text(
+                    "SQL commands to run after connecting, e.g. SET time_zone = 'Asia/Ho_Chi_Minh'. One per line or separated by semicolons."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Section(String(localized: "AI")) {
@@ -677,7 +719,9 @@ struct ConnectionFormView: View {
         let basicValid = !name.isEmpty && (type == .sqlite ? !database.isEmpty : true)
         if sshEnabled {
             let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty
-            let authValid = sshAuthMethod == .password || sshAuthMethod == .sshAgent || !sshPrivateKeyPath.isEmpty
+            let authValid =
+                sshAuthMethod == .password || sshAuthMethod == .sshAgent
+                || !sshPrivateKeyPath.isEmpty
             let jumpValid = jumpHosts.allSatisfy(\.isValid)
             return basicValid && sshValid && authValid && jumpValid
         }
@@ -703,7 +747,8 @@ struct ConnectionFormView: View {
     private func loadConnectionData() {
         // If editing, load from storage
         if let id = connectionId,
-           let existing = storage.loadConnections().first(where: { $0.id == id }) {
+            let existing = storage.loadConnections().first(where: { $0.id == id })
+        {
             originalConnection = existing
             name = existing.name
             host = existing.host
@@ -744,6 +789,9 @@ struct ConnectionFormView: View {
 
             // Load Oracle settings
             oracleServiceName = existing.oracleServiceName ?? ""
+
+            // Load startup commands
+            startupCommands = existing.startupCommands ?? ""
 
             // Load passwords from Keychain
             if let savedSSHPassword = storage.loadSSHPassword(for: existing.id) {
@@ -786,7 +834,8 @@ struct ConnectionFormView: View {
         let finalHost = host.trimmingCharacters(in: .whitespaces).isEmpty ? "localhost" : host
         let finalPort = Int(port) ?? type.defaultPort
         let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
-        let finalUsername = trimmedUsername.isEmpty && type.requiresAuthentication ? "root" : trimmedUsername
+        let finalUsername =
+            trimmedUsername.isEmpty && type.requiresAuthentication ? "root" : trimmedUsername
 
         let connectionToSave = DatabaseConnection(
             id: connectionId ?? UUID(),
@@ -806,7 +855,9 @@ struct ConnectionFormView: View {
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
             mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
-            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName
+            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName,
+            startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? nil : startupCommands
         )
 
         // Save passwords to Keychain
@@ -855,7 +906,8 @@ struct ConnectionFormView: View {
             do {
                 try await dbManager.connectToSession(connection)
             } catch {
-                Self.logger.error("Failed to connect: \(error.localizedDescription, privacy: .public)")
+                Self.logger.error(
+                    "Failed to connect: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -889,7 +941,8 @@ struct ConnectionFormView: View {
         let finalHost = host.trimmingCharacters(in: .whitespaces).isEmpty ? "localhost" : host
         let finalPort = Int(port) ?? type.defaultPort
         let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
-        let finalUsername = trimmedUsername.isEmpty && type.requiresAuthentication ? "root" : trimmedUsername
+        let finalUsername =
+            trimmedUsername.isEmpty && type.requiresAuthentication ? "root" : trimmedUsername
 
         // Build connection from form values
         let testConn = DatabaseConnection(
@@ -907,7 +960,9 @@ struct ConnectionFormView: View {
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
             mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
-            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName
+            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName,
+            startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? nil : startupCommands
         )
 
         Task {
@@ -927,7 +982,8 @@ struct ConnectionFormView: View {
                     testConn, sshPassword: sshPassword)
                 await MainActor.run {
                     isTesting = false
-                    testResult = success ? .success : .failure(String(localized: "Connection test failed"))
+                    testResult =
+                        success ? .success : .failure(String(localized: "Connection test failed"))
                 }
             } catch {
                 await MainActor.run {
@@ -955,7 +1011,8 @@ struct ConnectionFormView: View {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+            ".ssh")
         panel.showsHiddenFiles = true
 
         panel.begin { response in
@@ -969,7 +1026,8 @@ struct ConnectionFormView: View {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+            ".ssh")
         panel.showsHiddenFiles = true
 
         panel.begin { response in
@@ -1069,6 +1127,58 @@ struct ConnectionFormView: View {
             customSSHAgentSocketPath = socketPath.trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
             customSSHAgentSocketPath = ""
+        }
+    }
+}
+
+// MARK: - Startup Commands Editor
+
+private struct StartupCommandsEditor: NSViewRepresentable {
+    @Binding var text: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        guard let textView = scrollView.documentView as? NSTextView else { return scrollView }
+
+        textView.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isRichText = false
+        textView.string = text
+        textView.textContainerInset = NSSize(width: 2, height: 6)
+        textView.drawsBackground = false
+        textView.delegate = context.coordinator
+
+        scrollView.borderType = .noBorder
+        scrollView.hasVerticalScroller = true
+        scrollView.drawsBackground = false
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? NSTextView else { return }
+        if textView.string != text {
+            textView.string = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        private var text: Binding<String>
+
+        init(text: Binding<String>) {
+            self.text = text
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            text.wrappedValue = textView.string
         }
     }
 }

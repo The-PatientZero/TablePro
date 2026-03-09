@@ -138,6 +138,11 @@ final class DatabaseManager {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
+            // Run startup commands before schema init
+            await executeStartupCommands(
+                connection.startupCommands, on: driver, connectionName: connection.name
+            )
+
             // Initialize schema for drivers that support schema switching
             if let schemaDriver = driver as? SchemaSwitchable {
                 activeSessions[connection.id]?.currentSchema = schemaDriver.currentSchema
@@ -190,6 +195,9 @@ final class DatabaseManager {
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
                     }
+                    await self.executeStartupCommands(
+                        connection.startupCommands, on: metaDriver, connectionName: connection.name
+                    )
                     if let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema,
                        let schemaMetaDriver = metaDriver as? SchemaSwitchable {
                         try? await schemaMetaDriver.switchSchema(to: savedSchema)
@@ -547,6 +555,10 @@ final class DatabaseManager {
             try await driver.applyQueryTimeout(timeoutSeconds)
         }
 
+        await executeStartupCommands(
+            session.connection.startupCommands, on: driver, connectionName: session.connection.name
+        )
+
         if let savedSchema = session.currentSchema,
            let schemaDriver = driver as? SchemaSwitchable {
             try? await schemaDriver.switchSchema(to: savedSchema)
@@ -617,6 +629,10 @@ final class DatabaseManager {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
+            await executeStartupCommands(
+                session.connection.startupCommands, on: driver, connectionName: session.connection.name
+            )
+
             if let savedSchema = activeSessions[sessionId]?.currentSchema,
                let schemaDriver = driver as? SchemaSwitchable {
                 try? await schemaDriver.switchSchema(to: savedSchema)
@@ -639,6 +655,8 @@ final class DatabaseManager {
             let metaConnection = effectiveConnection
             let metaConnectionId = sessionId
             let metaTimeout = AppSettingsManager.shared.general.queryTimeoutSeconds
+            let startupCmds = session.connection.startupCommands
+            let connName = session.connection.name
             Task { [weak self] in
                 guard let self else { return }
                 do {
@@ -647,6 +665,9 @@ final class DatabaseManager {
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
                     }
+                    await self.executeStartupCommands(
+                        startupCmds, on: metaDriver, connectionName: connName
+                    )
                     if let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema,
                        let schemaMetaDriver = metaDriver as? SchemaSwitchable {
                         try? await schemaMetaDriver.switchSchema(to: savedSchema)
@@ -717,6 +738,34 @@ final class DatabaseManager {
         updateSession(connectionId) { session in
             session.status = .error("SSH tunnel disconnected. Click to reconnect.")
             session.clearCachedData()
+        }
+    }
+
+    // MARK: - Startup Commands
+
+    nonisolated private func executeStartupCommands(
+        _ commands: String?, on driver: DatabaseDriver, connectionName: String
+    ) async {
+        guard let commands, !commands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+
+        let statements = commands
+            .components(separatedBy: CharacterSet(charactersIn: ";\n"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        for statement in statements {
+            do {
+                _ = try await driver.execute(query: statement)
+                Self.logger.info(
+                    "Startup command succeeded for '\(connectionName)': \(statement)"
+                )
+            } catch {
+                Self.logger.warning(
+                    "Startup command failed for '\(connectionName)': \(statement) — \(error.localizedDescription)"
+                )
+            }
         }
     }
 
