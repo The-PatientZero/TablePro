@@ -306,6 +306,9 @@ extension MainContentCoordinator {
             return
         }
 
+        // Snapshot current state for rollback on failure
+        let previousDatabase = toolbarState.databaseName
+
         // Immediately clear UI state so the sidebar shows a loading spinner
         // instead of stale tables from the previous database/schema.
         toolbarState.databaseName = database
@@ -404,6 +407,11 @@ extension MainContentCoordinator {
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             }
         } catch {
+            // Restore toolbar to previous database on failure
+            toolbarState.databaseName = previousDatabase
+            // Reload previous tables so sidebar isn't left empty
+            NotificationCenter.default.post(name: .refreshData, object: nil)
+
             navigationLogger.error("Failed to switch database: \(error.localizedDescription, privacy: .public)")
             AlertHelper.showErrorSheet(
                 title: String(localized: "Database Switch Failed"),
@@ -420,6 +428,9 @@ extension MainContentCoordinator {
 
         // Clear stale filter state from previous schema
         filterStateManager.clearAll()
+
+        // Snapshot current state for rollback on failure
+        let previousSchema = toolbarState.databaseName
 
         // Immediately clear UI state so sidebar shows loading state
         toolbarState.databaseName = schema
@@ -443,6 +454,10 @@ extension MainContentCoordinator {
 
             NotificationCenter.default.post(name: .refreshData, object: nil)
         } catch {
+            // Restore toolbar to previous schema on failure
+            toolbarState.databaseName = previousSchema
+            NotificationCenter.default.post(name: .refreshData, object: nil)
+
             navigationLogger.error("Failed to switch schema: \(error.localizedDescription, privacy: .public)")
             AlertHelper.showErrorSheet(
                 title: String(localized: "Schema Switch Failed"),

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Stale filter causing repeated errors when restoring tabs after schema/database switch (#237)
+- Sidebar showing old tables during database/schema switch instead of loading state
+
 ## [0.16.0] - 2026-03-09
 
 ### Fixed
