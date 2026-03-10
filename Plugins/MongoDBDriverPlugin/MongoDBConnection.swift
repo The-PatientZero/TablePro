@@ -369,7 +369,7 @@ final class MongoDBConnection: @unchecked Sendable {
         projection: String? = nil,
         skip: Int,
         limit: Int
-    ) async throws -> [[String: Any]] {
+    ) async throws -> (docs: [[String: Any]], isTruncated: Bool) {
         #if canImport(CLibMongoc)
         resetCancellation()
         return try await pluginDispatchAsync(on: queue) { [self] in
@@ -387,7 +387,7 @@ final class MongoDBConnection: @unchecked Sendable {
         #endif
     }
 
-    func aggregate(database: String, collection: String, pipeline: String) async throws -> [[String: Any]] {
+    func aggregate(database: String, collection: String, pipeline: String) async throws -> (docs: [[String: Any]], isTruncated: Bool) {
         #if canImport(CLibMongoc)
         resetCancellation()
         return try await pluginDispatchAsync(on: queue) { [self] in
@@ -595,7 +595,7 @@ private extension MongoDBConnection {
     func findSync(
         client: OpaquePointer, database: String, collection: String,
         filter: String, sort: String?, projection: String?, skip: Int, limit: Int
-    ) throws -> [[String: Any]] {
+    ) throws -> (docs: [[String: Any]], isTruncated: Bool) {
         try checkCancelled()
 
         guard let filterBson = jsonToBson(filter) else {
@@ -640,7 +640,7 @@ private extension MongoDBConnection {
 
     func aggregateSync(
         client: OpaquePointer, database: String, collection: String, pipeline: String
-    ) throws -> [[String: Any]] {
+    ) throws -> (docs: [[String: Any]], isTruncated: Bool) {
         try checkCancelled()
 
         guard let pipelineBson = jsonToBson(pipeline) else {
@@ -833,14 +833,15 @@ private extension MongoDBConnection {
         }
         defer { mongoc_cursor_destroy(cursor) }
 
-        return try iterateCursor(cursor)
+        return try iterateCursor(cursor).docs
     }
 
-    func iterateCursor(_ cursor: OpaquePointer) throws -> [[String: Any]] {
+    func iterateCursor(_ cursor: OpaquePointer) throws -> (docs: [[String: Any]], isTruncated: Bool) {
         try checkCancelled()
 
         var results: [[String: Any]] = []
         var docPtr: OpaquePointer?
+        var truncated = false
 
         while mongoc_cursor_next(cursor, &docPtr) {
             try checkCancelled()
@@ -850,6 +851,7 @@ private extension MongoDBConnection {
             }
 
             if results.count >= PluginRowLimits.defaultMax {
+                truncated = true
                 logger.warning("Result set truncated at \(PluginRowLimits.defaultMax) documents")
                 break
             }
@@ -859,7 +861,7 @@ private extension MongoDBConnection {
         if mongoc_cursor_error(cursor, &error) {
             throw makeError(error)
         }
-        return results
+        return (docs: results, isTruncated: truncated)
     }
 }
 #endif

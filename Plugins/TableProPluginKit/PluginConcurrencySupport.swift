@@ -32,7 +32,7 @@ public func pluginDispatchAsync(
     }
 }
 
-public func pluginDispatchAsync<T: Sendable>(
+public func pluginDispatchAsyncCancellable<T: Sendable>(
     on queue: DispatchQueue,
     cancellationCheck: (@Sendable () -> Bool)? = nil,
     execute work: @escaping @Sendable () throws -> T

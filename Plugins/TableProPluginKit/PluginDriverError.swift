@@ -19,14 +19,14 @@ public extension PluginDriverError {
 
     var errorDescription: String? {
         var desc = pluginErrorMessage
-        if let code = pluginErrorCode {
+        if let code = pluginErrorCode, code != 0 {
             desc = "[\(code)] \(desc)"
         }
         if let state = pluginSqlState {
             desc += " (SQLSTATE: \(state))"
         }
         if let detail = pluginErrorDetail, !detail.isEmpty {
-            desc += "\n\(detail)"
+            desc += "\nDetail: \(detail)"
         }
         return desc
     }

@@ -123,8 +123,8 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
         case .findOne:
             return 1
         case .aggregate(let collection, let pipeline):
-            let docs = try await conn.aggregate(database: db, collection: collection, pipeline: pipeline)
-            return docs.count
+            let result = try await conn.aggregate(database: db, collection: collection, pipeline: pipeline)
+            return result.docs.count
         case .countDocuments(let collection, let filter):
             let count = try await conn.countDocuments(database: db, collection: collection, filter: filter)
             return Int(count)
@@ -148,12 +148,12 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
         case .find(let collection, let filter, var options):
             options.skip = offset
             options.limit = limit
-            let docs = try await conn.find(
+            let result = try await conn.find(
                 database: db, collection: collection, filter: filter,
                 sort: options.sort, projection: options.projection,
                 skip: offset, limit: limit
             )
-            return buildPluginResult(from: docs, startTime: startTime)
+            return buildPluginResult(from: result.docs, startTime: startTime, isTruncated: result.isTruncated)
         default:
             return try await executeOperation(operation, connection: conn, startTime: startTime)
         }
@@ -178,7 +178,7 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
         let docs = try await conn.find(
             database: currentDb, collection: table,
             filter: "{}", sort: nil, projection: nil, skip: 0, limit: 500
-        )
+        ).docs
 
         if docs.isEmpty {
             return [
@@ -527,30 +527,29 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
 
         switch operation {
         case .find(let collection, let filter, let options):
-            let docs = try await conn.find(
+            let result = try await conn.find(
                 database: db, collection: collection, filter: filter,
                 sort: options.sort, projection: options.projection,
                 skip: options.skip ?? 0, limit: options.limit ?? PluginRowLimits.defaultMax
             )
-            if docs.isEmpty {
+            if result.docs.isEmpty {
                 return PluginQueryResult(
                     columns: ["_id"], columnTypeNames: ["ObjectId"],
                     rows: [], rowsAffected: 0, executionTime: Date().timeIntervalSince(startTime)
                 )
             }
-            let truncated = docs.count >= PluginRowLimits.defaultMax
-            return buildPluginResult(from: docs, startTime: startTime, isTruncated: truncated)
+            return buildPluginResult(from: result.docs, startTime: startTime, isTruncated: result.isTruncated)
 
         case .findOne(let collection, let filter):
-            let docs = try await conn.find(
+            let result = try await conn.find(
                 database: db, collection: collection, filter: filter,
                 sort: nil, projection: nil, skip: 0, limit: 1
             )
-            return buildPluginResult(from: docs, startTime: startTime)
+            return buildPluginResult(from: result.docs, startTime: startTime)
 
         case .aggregate(let collection, let pipeline):
-            let docs = try await conn.aggregate(database: db, collection: collection, pipeline: pipeline)
-            return buildPluginResult(from: docs, startTime: startTime)
+            let result = try await conn.aggregate(database: db, collection: collection, pipeline: pipeline)
+            return buildPluginResult(from: result.docs, startTime: startTime, isTruncated: result.isTruncated)
 
         case .countDocuments(let collection, let filter):
             let count = try await conn.countDocuments(database: db, collection: collection, filter: filter)
