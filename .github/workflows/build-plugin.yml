@@ -81,6 +81,8 @@ jobs:
         run: ./scripts/build-plugin.sh "${{ steps.plugin-info.outputs.target }}" x86_64
 
       - name: Capture SHA-256 hashes
+        # Hashes are captured before notarize intentionally: notarytool does not
+        # modify the ZIP on disk, and stapling applies to app bundles, not ZIPs.
         id: sha256
         run: |
           BUNDLE_NAME="${{ steps.plugin-info.outputs.bundle_name }}"
@@ -125,9 +127,8 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
 
-          # Registry entry uses arm64 ZIP (Apple Silicon, vast majority of users).
-          # x86_64 ZIP is available on the release page for manual install.
-          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${{ steps.plugin-info.outputs.bundle_name }}-arm64.zip"
+          ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${{ steps.plugin-info.outputs.bundle_name }}-arm64.zip"
+          X86_64_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${{ steps.plugin-info.outputs.bundle_name }}-x86_64.zip"
 
           # Get current app version as minAppVersion
           MIN_APP_VERSION=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' \
@@ -147,8 +148,10 @@ jobs:
             "${{ steps.plugin-info.outputs.version }}" \
             "${{ steps.plugin-info.outputs.summary }}" \
             '${{ steps.plugin-info.outputs.db_type_ids }}' \
-            "$DOWNLOAD_URL" \
+            "$ARM64_URL" \
             "${{ steps.sha256.outputs.arm64 }}" \
+            "$X86_64_URL" \
+            "${{ steps.sha256.outputs.x86_64 }}" \
             "$MIN_APP_VERSION" \
             "${{ steps.plugin-info.outputs.icon }}" \
             "${{ steps.plugin-info.outputs.homepage }}" \
@@ -160,11 +163,13 @@ jobs:
           version = sys.argv[3]
           summary = sys.argv[4]
           db_type_ids = json.loads(sys.argv[5])
-          download_url = sys.argv[6]
-          sha256 = sys.argv[7]
-          min_app_version = sys.argv[8]
-          icon = sys.argv[9]
-          homepage = sys.argv[10]
+          arm64_url = sys.argv[6]
+          arm64_sha = sys.argv[7]
+          x86_64_url = sys.argv[8]
+          x86_64_sha = sys.argv[9]
+          min_app_version = sys.argv[10]
+          icon = sys.argv[11]
+          homepage = sys.argv[12]
 
           with open("plugins.json", "r") as f:
               manifest = json.load(f)
@@ -178,8 +183,12 @@ jobs:
               "homepage": homepage,
               "category": "database-driver",
               "databaseTypeIds": db_type_ids,
-              "downloadURL": download_url,
-              "sha256": sha256,
+              "downloadURL": arm64_url,
+              "sha256": arm64_sha,
+              "binaries": [
+                  {"architecture": "arm64", "downloadURL": arm64_url, "sha256": arm64_sha},
+                  {"architecture": "x86_64", "downloadURL": x86_64_url, "sha256": x86_64_sha}
+              ],
               "minAppVersion": min_app_version,
               "minPluginKitVersion": 1,
               "iconName": icon,

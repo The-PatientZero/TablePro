@@ -26,7 +26,9 @@ extension PluginManager {
             throw PluginError.pluginConflict(existingName: registryPlugin.name)
         }
 
-        guard let downloadURL = URL(string: registryPlugin.downloadURL) else {
+        let resolved = try registryPlugin.resolvedBinary()
+
+        guard let downloadURL = URL(string: resolved.url) else {
             throw PluginError.downloadFailed("Invalid download URL")
         }
 
@@ -57,7 +59,7 @@ extension PluginManager {
         let digest = SHA256.hash(data: downloadedData)
         let hexChecksum = digest.map { String(format: "%02x", $0) }.joined()
 
-        if hexChecksum != registryPlugin.sha256.lowercased() {
+        if hexChecksum != resolved.sha256.lowercased() {
             throw PluginError.checksumMismatch
         }
 
