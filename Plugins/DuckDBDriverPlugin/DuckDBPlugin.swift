@@ -727,26 +727,47 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         length: Int
     ) -> Int? {
         let keyLen = keyword.count
+        let parenOpen = UInt16(UnicodeScalar("(").value)
+        let parenClose = UInt16(UnicodeScalar(")").value)
+        let singleQuote = UInt16(UnicodeScalar("'").value)
+
         var depth = 0
+        var inString = false
         var i = length - 1
 
-        while i >= keyLen {
+        while i >= 0 {
             let ch = upper.character(at: i)
-            if ch == UInt16(UnicodeScalar(")").value) {
-                depth += 1
-            } else if ch == UInt16(UnicodeScalar("(").value) {
-                depth -= 1
-            } else if depth == 0 {
-                let start = i - keyLen + 1
-                if start >= 0 {
-                    let candidate = upper.substring(with: NSRange(location: start, length: keyLen))
-                    if candidate == keyword {
-                        let beforeOk = start == 0
-                            || CharacterSet.whitespaces.contains(
-                                Unicode.Scalar(upper.character(at: start - 1))!
-                            )
-                        if beforeOk {
-                            return start
+
+            if inString {
+                if ch == singleQuote {
+                    // Check for escaped quote ('')
+                    if i > 0 && upper.character(at: i - 1) == singleQuote {
+                        i -= 1 // Skip escaped quote pair
+                    } else {
+                        inString = false
+                    }
+                }
+            } else {
+                if ch == singleQuote {
+                    inString = true
+                } else if ch == parenClose {
+                    depth += 1
+                } else if ch == parenOpen {
+                    depth -= 1
+                } else if depth == 0 {
+                    let start = i - keyLen + 1
+                    if start >= 0 {
+                        let candidate = upper.substring(with: NSRange(location: start, length: keyLen))
+                        if candidate == keyword {
+                            let beforeOk = start == 0 || {
+                                guard let scalar = Unicode.Scalar(upper.character(at: start - 1)) else {
+                                    return false
+                                }
+                                return CharacterSet.whitespaces.contains(scalar)
+                            }()
+                            if beforeOk {
+                                return start
+                            }
                         }
                     }
                 }
