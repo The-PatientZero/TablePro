@@ -59,6 +59,7 @@ final class MongoDBConnection: @unchecked Sendable {
     private let sslMode: String
     private let sslCACertPath: String
     private let sslClientCertPath: String
+    private let authSource: String?
     private let readPreference: String?
     private let writeConcern: String?
 
@@ -111,6 +112,7 @@ final class MongoDBConnection: @unchecked Sendable {
         sslMode: String = "Disabled",
         sslCACertPath: String = "",
         sslClientCertPath: String = "",
+        authSource: String? = nil,
         readPreference: String? = nil,
         writeConcern: String? = nil
     ) {
@@ -122,6 +124,7 @@ final class MongoDBConnection: @unchecked Sendable {
         self.sslMode = sslMode
         self.sslCACertPath = sslCACertPath
         self.sslClientCertPath = sslClientCertPath
+        self.authSource = authSource
         self.readPreference = readPreference
         self.writeConcern = writeConcern
     }
@@ -167,10 +170,13 @@ final class MongoDBConnection: @unchecked Sendable {
         uri += "\(encodedHost):\(port)"
         uri += database.isEmpty ? "/" : "/\(encodedDb)"
 
+        let effectiveAuthSource = authSource.flatMap { $0.isEmpty ? nil : $0 } ?? "admin"
+        let encodedAuthSource = effectiveAuthSource
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? effectiveAuthSource
         var params: [String] = [
             "connectTimeoutMS=10000",
             "serverSelectionTimeoutMS=10000",
-            "authSource=admin"
+            "authSource=\(encodedAuthSource)"
         ]
 
         let sslEnabled = ["Preferred", "Required", "Verify CA", "Verify Identity"].contains(sslMode)

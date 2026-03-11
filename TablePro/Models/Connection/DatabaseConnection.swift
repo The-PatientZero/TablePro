@@ -405,6 +405,7 @@ struct DatabaseConnection: Identifiable, Hashable {
     var groupId: UUID?
     var safeModeLevel: SafeModeLevel
     var aiPolicy: AIConnectionPolicy?
+    var mongoAuthSource: String?
     var mongoReadPreference: String?
     var mongoWriteConcern: String?
     var redisDatabase: Int?
@@ -427,6 +428,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         groupId: UUID? = nil,
         safeModeLevel: SafeModeLevel = .silent,
         aiPolicy: AIConnectionPolicy? = nil,
+        mongoAuthSource: String? = nil,
         mongoReadPreference: String? = nil,
         mongoWriteConcern: String? = nil,
         redisDatabase: Int? = nil,
@@ -448,6 +450,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.groupId = groupId
         self.safeModeLevel = safeModeLevel
         self.aiPolicy = aiPolicy
+        self.mongoAuthSource = mongoAuthSource
         self.mongoReadPreference = mongoReadPreference
         self.mongoWriteConcern = mongoWriteConcern
         self.redisDatabase = redisDatabase

@@ -346,6 +346,7 @@ enum DatabaseDriverFactory {
         switch connection.type {
         case .mongodb:
             fields["sslCACertPath"] = ssl.caCertificatePath
+            fields["mongoAuthSource"] = connection.mongoAuthSource ?? ""
             fields["mongoReadPreference"] = connection.mongoReadPreference ?? ""
             fields["mongoWriteConcern"] = connection.mongoWriteConcern ?? ""
         case .redis:

@@ -17,6 +17,7 @@ final class MongoDBPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let iconName = "leaf.fill"
     static let defaultPort = 27017
     static let additionalConnectionFields: [ConnectionField] = [
+        ConnectionField(id: "mongoAuthSource", label: "Auth Database", placeholder: "admin"),
         ConnectionField(id: "mongoReadPreference", label: "Read Preference", placeholder: "primary"),
         ConnectionField(id: "mongoWriteConcern", label: "Write Concern", placeholder: "majority")
     ]

@@ -10,8 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - DuckDB database support — connect to `.duckdb` files, query CSV/Parquet/JSON files via SQL, schema navigation, and DuckDB extension management
+- MongoDB configurable auth database (`authSource`) — authenticate against any database instead of hardcoded `admin`
 
 ### Fixed
+
+- MongoDB Read Preference, Write Concern, and Redis Database not persisted across app restarts
 
 - Result truncation at 100K rows now reported to UI via `PluginQueryResult.isTruncated` instead of being silently discarded
 - DELETE and UPDATE queries using all columns in WHERE clause instead of just the primary key for PostgreSQL, Redshift, MSSQL, and ClickHouse

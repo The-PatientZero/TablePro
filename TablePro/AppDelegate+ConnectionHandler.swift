@@ -404,6 +404,7 @@ extension AppDelegate {
             sslConfig: sslConfig,
             color: color,
             tagId: tagId,
+            mongoAuthSource: parsed.authSource,
             redisDatabase: parsed.redisDatabase,
             oracleServiceName: parsed.oracleServiceName
         )

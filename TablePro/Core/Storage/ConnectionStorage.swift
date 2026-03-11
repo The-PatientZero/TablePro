@@ -121,6 +121,7 @@ final class ConnectionStorage {
             groupId: connection.groupId,
             safeModeLevel: connection.safeModeLevel,
             aiPolicy: connection.aiPolicy,
+            mongoAuthSource: connection.mongoAuthSource,
             mongoReadPreference: connection.mongoReadPreference,
             mongoWriteConcern: connection.mongoWriteConcern,
             redisDatabase: connection.redisDatabase,
@@ -368,6 +369,14 @@ private struct StoredConnection: Codable {
     // AI policy
     let aiPolicy: String?
 
+    // MongoDB-specific
+    let mongoAuthSource: String?
+    let mongoReadPreference: String?
+    let mongoWriteConcern: String?
+
+    // Redis-specific
+    let redisDatabase: Int?
+
     // MSSQL schema
     let mssqlSchema: String?
 
@@ -413,6 +422,14 @@ private struct StoredConnection: Codable {
         // AI policy
         self.aiPolicy = connection.aiPolicy?.rawValue
 
+        // MongoDB-specific
+        self.mongoAuthSource = connection.mongoAuthSource
+        self.mongoReadPreference = connection.mongoReadPreference
+        self.mongoWriteConcern = connection.mongoWriteConcern
+
+        // Redis-specific
+        self.redisDatabase = connection.redisDatabase
+
         // MSSQL schema
         self.mssqlSchema = connection.mssqlSchema
 
@@ -431,7 +448,9 @@ private struct StoredConnection: Codable {
         case color, tagId, groupId
         case safeModeLevel
         case isReadOnly // Legacy key for migration reading only
-        case aiPolicy, mssqlSchema, oracleServiceName, startupCommands
+        case aiPolicy
+        case mongoAuthSource, mongoReadPreference, mongoWriteConcern, redisDatabase
+        case mssqlSchema, oracleServiceName, startupCommands
     }
 
     func encode(to encoder: Encoder) throws {
@@ -460,6 +479,10 @@ private struct StoredConnection: Codable {
         try container.encodeIfPresent(groupId, forKey: .groupId)
         try container.encode(safeModeLevel, forKey: .safeModeLevel)
         try container.encodeIfPresent(aiPolicy, forKey: .aiPolicy)
+        try container.encodeIfPresent(mongoAuthSource, forKey: .mongoAuthSource)
+        try container.encodeIfPresent(mongoReadPreference, forKey: .mongoReadPreference)
+        try container.encodeIfPresent(mongoWriteConcern, forKey: .mongoWriteConcern)
+        try container.encodeIfPresent(redisDatabase, forKey: .redisDatabase)
         try container.encodeIfPresent(mssqlSchema, forKey: .mssqlSchema)
         try container.encodeIfPresent(oracleServiceName, forKey: .oracleServiceName)
         try container.encodeIfPresent(startupCommands, forKey: .startupCommands)
@@ -506,6 +529,10 @@ private struct StoredConnection: Codable {
             safeModeLevel = wasReadOnly ? SafeModeLevel.readOnly.rawValue : SafeModeLevel.silent.rawValue
         }
         aiPolicy = try container.decodeIfPresent(String.self, forKey: .aiPolicy)
+        mongoAuthSource = try container.decodeIfPresent(String.self, forKey: .mongoAuthSource)
+        mongoReadPreference = try container.decodeIfPresent(String.self, forKey: .mongoReadPreference)
+        mongoWriteConcern = try container.decodeIfPresent(String.self, forKey: .mongoWriteConcern)
+        redisDatabase = try container.decodeIfPresent(Int.self, forKey: .redisDatabase)
         mssqlSchema = try container.decodeIfPresent(String.self, forKey: .mssqlSchema)
         oracleServiceName = try container.decodeIfPresent(String.self, forKey: .oracleServiceName)
         startupCommands = try container.decodeIfPresent(String.self, forKey: .startupCommands)
@@ -550,6 +577,10 @@ private struct StoredConnection: Codable {
             groupId: parsedGroupId,
             safeModeLevel: SafeModeLevel(rawValue: safeModeLevel) ?? .silent,
             aiPolicy: parsedAIPolicy,
+            mongoAuthSource: mongoAuthSource,
+            mongoReadPreference: mongoReadPreference,
+            mongoWriteConcern: mongoWriteConcern,
+            redisDatabase: redisDatabase,
             mssqlSchema: mssqlSchema,
             oracleServiceName: oracleServiceName,
             startupCommands: startupCommands

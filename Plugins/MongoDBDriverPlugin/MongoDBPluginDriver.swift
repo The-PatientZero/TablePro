@@ -40,6 +40,7 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
             sslMode: config.additionalFields["sslMode"] ?? "Disabled",
             sslCACertPath: config.additionalFields["sslCACertPath"] ?? "",
             sslClientCertPath: config.additionalFields["sslClientCertPath"] ?? "",
+            authSource: config.additionalFields["mongoAuthSource"],
             readPreference: config.additionalFields["mongoReadPreference"],
             writeConcern: config.additionalFields["mongoWriteConcern"]
         )
