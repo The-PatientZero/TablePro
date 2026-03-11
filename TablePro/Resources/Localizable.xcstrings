@@ -955,6 +955,46 @@
         }
       }
     },
+    "~/.pgpass found — matching entry exists" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tìm thấy ~/.pgpass — có entry khớp"
+          }
+        }
+      }
+    },
+    "~/.pgpass found — no matching entry" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tìm thấy ~/.pgpass — không có entry khớp"
+          }
+        }
+      }
+    },
+    "~/.pgpass has incorrect permissions (needs chmod 0600)" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~/.pgpass có quyền không đúng (cần chmod 0600)"
+          }
+        }
+      }
+    },
+    "~/.pgpass not found" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không tìm thấy ~/.pgpass"
+          }
+        }
+      }
+    },
     "~/.ssh/id_rsa" : {
       "localizations" : {
         "vi" : {
@@ -9343,6 +9383,9 @@
         }
       }
     },
+    "Loading..." : {
+
+    },
     "localhost" : {
       "localizations" : {
         "vi" : {
@@ -10444,6 +10487,9 @@
         }
       }
     },
+    "No matching objects" : {
+
+    },
     "No Matching Queries" : {
       "localizations" : {
         "vi" : {
@@ -10524,6 +10570,12 @@
           }
         }
       }
+    },
+    "No objects found" : {
+
+    },
+    "No objects match \"%@\"" : {
+
     },
     "No parts found" : {
       "localizations" : {
@@ -11983,6 +12035,61 @@
         }
       }
     },
+    "Pre-Connect Script" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Script pre-connect"
+          }
+        }
+      }
+    },
+    "Pre-connect script failed (exit %d): %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pre-connect script failed (exit %1$d): %2$@"
+          }
+        }
+      }
+    },
+    "Pre-connect script failed (exit %lld): %@" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Script pre-connect thất bại (exit %lld): %@"
+          }
+        }
+      }
+    },
+    "Pre-connect script failed with exit code %d" : {
+
+    },
+    "Pre-connect script failed with exit code %lld" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Script pre-connect thất bại với exit code %lld"
+          }
+        }
+      }
+    },
+    "Pre-connect script timed out after 10 seconds" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Script pre-connect hết thời gian chờ sau 10 giây"
+          }
+        }
+      }
+    },
     "Precision" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -12552,6 +12659,15 @@
           }
         }
       }
+    },
+    "Quick Switcher" : {
+
+    },
+    "Quick Switcher (⌘P)" : {
+
+    },
+    "Quick Switcher..." : {
+
     },
     "Quote" : {
       "extractionState" : "stale",
@@ -13712,7 +13828,6 @@
       }
     },
     "Schema" : {
-      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -13887,6 +14002,9 @@
           }
         }
       }
+    },
+    "Search tables, views, databases..." : {
+
     },
     "Search..." : {
       "localizations" : {
@@ -14280,6 +14398,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "共享匿名使用数据"
+          }
+        }
+      }
+    },
+    "Shell script to run before connecting. Non-zero exit aborts connection." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell script chạy trước khi kết nối. Exit code khác 0 sẽ hủy kết nối."
           }
         }
       }
@@ -15336,6 +15464,9 @@
         }
       }
     },
+    "System Table" : {
+
+    },
     "Tab Behavior" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -15368,6 +15499,9 @@
           }
         }
       }
+    },
+    "Table" : {
+
     },
     "Table '%@' has no columns or does not exist" : {
       "extractionState" : "stale",
@@ -16722,6 +16856,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "美式短格式 (12/31/2024)"
+          }
+        }
+      }
+    },
+    "Use ~/.pgpass" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sử dụng ~/.pgpass"
           }
         }
       }

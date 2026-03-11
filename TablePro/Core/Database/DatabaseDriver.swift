@@ -319,12 +319,21 @@ enum DatabaseDriverFactory {
             host: connection.host,
             port: connection.port,
             username: connection.username,
-            password: ConnectionStorage.shared.loadPassword(for: connection.id) ?? "",
+            password: resolvePassword(for: connection),
             database: connection.database,
             additionalFields: buildAdditionalFields(for: connection, plugin: plugin)
         )
         let pluginDriver = plugin.createDriver(config: config)
         return PluginDriverAdapter(connection: connection, pluginDriver: pluginDriver)
+    }
+
+    private static func resolvePassword(for connection: DatabaseConnection) -> String {
+        if connection.usePgpass
+            && (connection.type == .postgresql || connection.type == .redshift)
+        {
+            return ""
+        }
+        return ConnectionStorage.shared.loadPassword(for: connection.id) ?? ""
     }
 
     private static func buildAdditionalFields(

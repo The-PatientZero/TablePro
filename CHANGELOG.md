@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Copy as INSERT/UPDATE SQL statements from data grid context menu
 - Plugin download count display in Browse Plugins — fetched from GitHub Releases API and cached for 1 hour
 - MSSQL query cancellation (`cancelQuery`) and lock timeout (`applyQueryTimeout`) support
+- `~/.pgpass` file support for PostgreSQL/Redshift connections with live validation in the connection form
+- Pre-connect script: run a shell command before each connection (e.g., to refresh credentials or update ~/.pgpass)
 
 ### Fixed
 

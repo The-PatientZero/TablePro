@@ -436,6 +436,16 @@ struct DatabaseConnection: Identifiable, Hashable {
         set { additionalFields["oracleServiceName"] = newValue ?? "" }
     }
 
+    var usePgpass: Bool {
+        get { additionalFields["usePgpass"] == "true" }
+        set { additionalFields["usePgpass"] = newValue ? "true" : "" }
+    }
+
+    var preConnectScript: String? {
+        get { additionalFields["preConnectScript"]?.nilIfEmpty }
+        set { additionalFields["preConnectScript"] = newValue ?? "" }
+    }
+
     init(
         id: UUID = UUID(),
         name: String,

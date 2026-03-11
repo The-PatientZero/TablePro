@@ -138,6 +138,19 @@ final class DatabaseManager {
             throw error
         }
 
+        // Run pre-connect hook if configured (only on explicit connect, not auto-reconnect)
+        if let script = connection.preConnectScript,
+           !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            do {
+                try await PreConnectHookRunner.run(script: script)
+            } catch {
+                activeSessions.removeValue(forKey: connection.id)
+                currentSessionId = nil
+                throw error
+            }
+        }
+
         // Create appropriate driver with effective connection
         let driver = try DatabaseDriverFactory.createDriver(for: effectiveConnection)
 
