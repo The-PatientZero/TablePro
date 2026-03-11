@@ -187,22 +187,10 @@ struct InstalledPluginsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let exportPlugin = pluginManager.pluginInstances[plugin.id] as? any ExportFormatPlugin,
-               let exportSettings = exportPlugin.optionsView() {
+            if let settable = pluginManager.pluginInstances[plugin.id] as? any SettablePluginDiscoverable,
+               let pluginSettings = settable.settingsView() {
                 Divider()
-                exportSettings
-            }
-
-            if let importPlugin = pluginManager.pluginInstances[plugin.id] as? any ImportFormatPlugin,
-               let importSettings = importPlugin.optionsView() {
-                Divider()
-                importSettings
-            }
-
-            if let driverPlugin = pluginManager.pluginInstances[plugin.id] as? any DriverPlugin,
-               let driverSettings = driverPlugin.settingsView() {
-                Divider()
-                driverSettings
+                pluginSettings
             }
 
             if plugin.source == .userInstalled {

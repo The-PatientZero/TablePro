@@ -8,7 +8,7 @@ import SwiftUI
 import TableProPluginKit
 
 @Observable
-final class MQLExportPlugin: ExportFormatPlugin {
+final class MQLExportPlugin: ExportFormatPlugin, SettablePlugin {
     static let pluginName = "MQL Export"
     static let pluginVersion = "1.0.0"
     static let pluginDescription = "Export data to MongoDB Query Language format"
@@ -24,17 +24,14 @@ final class MQLExportPlugin: ExportFormatPlugin {
         PluginExportOptionColumn(id: "data", label: "Data", width: 44)
     ]
 
-    private let storage = PluginSettingsStorage(pluginId: "mql")
+    typealias Settings = MQLExportOptions
+    static let settingsStorageId = "mql"
 
-    var options = MQLExportOptions() {
-        didSet { storage.save(options) }
+    var settings = MQLExportOptions() {
+        didSet { saveSettings() }
     }
 
-    required init() {
-        if let saved = storage.load(MQLExportOptions.self) {
-            options = saved
-        }
-    }
+    required init() { loadSettings() }
 
     func defaultTableOptionValues() -> [Bool] {
         [true, true, true]
@@ -44,7 +41,7 @@ final class MQLExportPlugin: ExportFormatPlugin {
         optionValues.contains(true)
     }
 
-    func optionsView() -> AnyView? {
+    func settingsView() -> AnyView? {
         AnyView(MQLExportOptionsView(plugin: self))
     }
 
@@ -67,7 +64,7 @@ final class MQLExportPlugin: ExportFormatPlugin {
         }
         try fileHandle.write(contentsOf: "\n".toUTF8Data())
 
-        let batchSize = options.batchSize
+        let batchSize = settings.batchSize
 
         for (index, table) in tables.enumerated() {
             try progress.checkCancellation()
@@ -219,5 +216,4 @@ final class MQLExportPlugin: ExportFormatPlugin {
             try fileHandle.write(contentsOf: "\(indexContent)\n".toUTF8Data())
         }
     }
-
 }

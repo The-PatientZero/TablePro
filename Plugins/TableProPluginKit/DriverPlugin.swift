@@ -13,8 +13,6 @@ public protocol DriverPlugin: TableProPlugin {
 
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver
 
-    func settingsView() -> AnyView?
-
     // MARK: - UI/Capability Metadata
 
     static var requiresAuthentication: Bool { get }
@@ -42,7 +40,6 @@ public extension DriverPlugin {
     static var additionalConnectionFields: [ConnectionField] { [] }
     static var additionalDatabaseTypeIds: [String] { [] }
     static func driverVariant(for databaseTypeId: String) -> String? { nil }
-    func settingsView() -> AnyView? { nil }
 
     // MARK: - UI/Capability Metadata Defaults
 

@@ -8,7 +8,7 @@ import SwiftUI
 import TableProPluginKit
 
 @Observable
-final class SQLImportPlugin: ImportFormatPlugin {
+final class SQLImportPlugin: ImportFormatPlugin, SettablePlugin {
     static let pluginName = "SQL Import"
     static let pluginVersion = "1.0.0"
     static let pluginDescription = "Import data from SQL files"
@@ -17,19 +17,16 @@ final class SQLImportPlugin: ImportFormatPlugin {
     static let acceptedFileExtensions = ["sql", "gz"]
     static let iconName = "doc.text"
 
-    private let storage = PluginSettingsStorage(pluginId: "sql-import")
+    typealias Settings = SQLImportOptions
+    static let settingsStorageId = "sql-import"
 
-    var options = SQLImportOptions() {
-        didSet { storage.save(options) }
+    var settings = SQLImportOptions() {
+        didSet { saveSettings() }
     }
 
-    required init() {
-        if let saved = storage.load(SQLImportOptions.self) {
-            options = saved
-        }
-    }
+    required init() { loadSettings() }
 
-    func optionsView() -> AnyView? {
+    func settingsView() -> AnyView? {
         AnyView(SQLImportOptionsView(plugin: self))
     }
 
@@ -48,12 +45,12 @@ final class SQLImportPlugin: ImportFormatPlugin {
 
         do {
             // Disable FK checks if enabled
-            if options.disableForeignKeyChecks {
+            if settings.disableForeignKeyChecks {
                 try await sink.disableForeignKeyChecks()
             }
 
             // Begin transaction if enabled
-            if options.wrapInTransaction {
+            if settings.wrapInTransaction {
                 try await sink.beginTransaction()
             }
 
@@ -77,19 +74,19 @@ final class SQLImportPlugin: ImportFormatPlugin {
             }
 
             // Commit transaction
-            if options.wrapInTransaction {
+            if settings.wrapInTransaction {
                 try await sink.commitTransaction()
             }
 
             // Re-enable FK checks
-            if options.disableForeignKeyChecks {
+            if settings.disableForeignKeyChecks {
                 try await sink.enableForeignKeyChecks()
             }
         } catch {
             let importError = error
 
             // Rollback on error
-            if options.wrapInTransaction {
+            if settings.wrapInTransaction {
                 do {
                     try await sink.rollbackTransaction()
                 } catch {
@@ -98,7 +95,7 @@ final class SQLImportPlugin: ImportFormatPlugin {
             }
 
             // Re-enable FK checks (best-effort)
-            if options.disableForeignKeyChecks {
+            if settings.disableForeignKeyChecks {
                 try? await sink.enableForeignKeyChecks()
             }
 

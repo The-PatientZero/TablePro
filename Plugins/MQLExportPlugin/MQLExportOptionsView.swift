@@ -26,7 +26,7 @@ struct MQLExportOptionsView: View {
 
                 Spacer()
 
-                Picker("", selection: $plugin.options.batchSize) {
+                Picker("", selection: $plugin.settings.batchSize) {
                     ForEach(Self.batchSizeOptions, id: \.self) { size in
                         Text("\(size)")
                             .tag(size)

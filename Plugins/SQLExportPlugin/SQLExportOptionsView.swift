@@ -26,7 +26,7 @@ struct SQLExportOptionsView: View {
 
                 Spacer()
 
-                Picker("", selection: $plugin.options.batchSize) {
+                Picker("", selection: $plugin.settings.batchSize) {
                     ForEach(Self.batchSizeOptions, id: \.self) { size in
                         Text(size == 1 ? String(localized: "1 (no batching)", bundle: .main) : "\(size)")
                             .tag(size)
@@ -38,7 +38,7 @@ struct SQLExportOptionsView: View {
             }
             .help("Higher values create fewer INSERT statements, resulting in smaller files and faster imports")
 
-            Toggle("Compress the file using Gzip", isOn: $plugin.options.compressWithGzip)
+            Toggle("Compress the file using Gzip", isOn: $plugin.settings.compressWithGzip)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 13))
         }

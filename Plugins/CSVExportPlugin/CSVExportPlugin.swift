@@ -8,7 +8,7 @@ import SwiftUI
 import TableProPluginKit
 
 @Observable
-final class CSVExportPlugin: ExportFormatPlugin {
+final class CSVExportPlugin: ExportFormatPlugin, SettablePlugin {
     static let pluginName = "CSV Export"
     static let pluginVersion = "1.0.0"
     static let pluginDescription = "Export data to CSV format"
@@ -20,19 +20,16 @@ final class CSVExportPlugin: ExportFormatPlugin {
     // swiftlint:disable:next force_try
     static let decimalFormatRegex = try! NSRegularExpression(pattern: #"^[+-]?\d+\.\d+$"#)
 
-    private let storage = PluginSettingsStorage(pluginId: "csv")
+    typealias Settings = CSVExportOptions
+    static let settingsStorageId = "csv"
 
-    var options = CSVExportOptions() {
-        didSet { storage.save(options) }
+    var settings = CSVExportOptions() {
+        didSet { saveSettings() }
     }
 
-    required init() {
-        if let saved = storage.load(CSVExportOptions.self) {
-            options = saved
-        }
-    }
+    required init() { loadSettings() }
 
-    func optionsView() -> AnyView? {
+    func settingsView() -> AnyView? {
         AnyView(CSVExportOptionsView(plugin: self))
     }
 
@@ -45,7 +42,7 @@ final class CSVExportPlugin: ExportFormatPlugin {
         let fileHandle = try PluginExportUtilities.createFileHandle(at: destination)
         defer { try? fileHandle.close() }
 
-        let lineBreak = options.lineBreak.value
+        let lineBreak = settings.lineBreak.value
 
         for (index, table) in tables.enumerated() {
             try progress.checkCancellation()
@@ -73,15 +70,15 @@ final class CSVExportPlugin: ExportFormatPlugin {
 
                 if result.rows.isEmpty { break }
 
-                var batchOptions = options
+                var batchSettings = settings
                 if !isFirstBatch {
-                    batchOptions.includeFieldNames = false
+                    batchSettings.includeFieldNames = false
                 }
 
                 try writeCSVContent(
                     columns: result.columns,
                     rows: result.rows,
-                    options: batchOptions,
+                    options: batchSettings,
                     to: fileHandle,
                     progress: progress
                 )
@@ -109,7 +106,7 @@ final class CSVExportPlugin: ExportFormatPlugin {
         progress: PluginExportProgress
     ) throws {
         let delimiter = options.delimiter.actualValue
-        let lineBreak = options.lineBreak.value
+        let lineBreak = settings.lineBreak.value
 
         if options.includeFieldNames {
             let headerLine = columns
@@ -180,5 +177,4 @@ final class CSVExportPlugin: ExportFormatPlugin {
             return processed
         }
     }
-
 }

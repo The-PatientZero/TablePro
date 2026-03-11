@@ -11,16 +11,16 @@ struct CSVExportOptionsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 8) {
-                Toggle("Convert NULL to EMPTY", isOn: $plugin.options.convertNullToEmpty)
+                Toggle("Convert NULL to EMPTY", isOn: $plugin.settings.convertNullToEmpty)
                     .toggleStyle(.checkbox)
 
-                Toggle("Convert line break to space", isOn: $plugin.options.convertLineBreakToSpace)
+                Toggle("Convert line break to space", isOn: $plugin.settings.convertLineBreakToSpace)
                     .toggleStyle(.checkbox)
 
-                Toggle("Put field names in the first row", isOn: $plugin.options.includeFieldNames)
+                Toggle("Put field names in the first row", isOn: $plugin.settings.includeFieldNames)
                     .toggleStyle(.checkbox)
 
-                Toggle("Sanitize formula-like values", isOn: $plugin.options.sanitizeFormulas)
+                Toggle("Sanitize formula-like values", isOn: $plugin.settings.sanitizeFormulas)
                     .toggleStyle(.checkbox)
                     .help("Prevent CSV formula injection by prefixing values starting with =, +, -, @ with a single quote")
             }
@@ -30,7 +30,7 @@ struct CSVExportOptionsView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 optionRow(String(localized: "Delimiter", bundle: .main)) {
-                    Picker("", selection: $plugin.options.delimiter) {
+                    Picker("", selection: $plugin.settings.delimiter) {
                         ForEach(CSVDelimiter.allCases) { delimiter in
                             Text(delimiter.displayName).tag(delimiter)
                         }
@@ -41,7 +41,7 @@ struct CSVExportOptionsView: View {
                 }
 
                 optionRow(String(localized: "Quote", bundle: .main)) {
-                    Picker("", selection: $plugin.options.quoteHandling) {
+                    Picker("", selection: $plugin.settings.quoteHandling) {
                         ForEach(CSVQuoteHandling.allCases) { handling in
                             Text(handling.rawValue).tag(handling)
                         }
@@ -52,7 +52,7 @@ struct CSVExportOptionsView: View {
                 }
 
                 optionRow(String(localized: "Line break", bundle: .main)) {
-                    Picker("", selection: $plugin.options.lineBreak) {
+                    Picker("", selection: $plugin.settings.lineBreak) {
                         ForEach(CSVLineBreak.allCases) { lineBreak in
                             Text(lineBreak.rawValue).tag(lineBreak)
                         }
@@ -63,7 +63,7 @@ struct CSVExportOptionsView: View {
                 }
 
                 optionRow(String(localized: "Decimal", bundle: .main)) {
-                    Picker("", selection: $plugin.options.decimalFormat) {
+                    Picker("", selection: $plugin.settings.decimalFormat) {
                         ForEach(CSVDecimalFormat.allCases) { format in
                             Text(format.rawValue).tag(format)
                         }

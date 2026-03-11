@@ -9,7 +9,7 @@ import SwiftUI
 import TableProPluginKit
 
 @Observable
-final class SQLExportPlugin: ExportFormatPlugin {
+final class SQLExportPlugin: ExportFormatPlugin, SettablePlugin {
     static let pluginName = "SQL Export"
     static let pluginVersion = "1.0.0"
     static let pluginDescription = "Export data to SQL format"
@@ -25,21 +25,18 @@ final class SQLExportPlugin: ExportFormatPlugin {
         PluginExportOptionColumn(id: "data", label: "Data", width: 44)
     ]
 
-    private let storage = PluginSettingsStorage(pluginId: "sql")
+    typealias Settings = SQLExportOptions
+    static let settingsStorageId = "sql"
 
-    var options = SQLExportOptions() {
-        didSet { storage.save(options) }
+    var settings = SQLExportOptions() {
+        didSet { saveSettings() }
     }
 
     var ddlFailures: [String] = []
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "SQLExportPlugin")
 
-    required init() {
-        if let saved = storage.load(SQLExportOptions.self) {
-            options = saved
-        }
-    }
+    required init() { loadSettings() }
 
     func defaultTableOptionValues() -> [Bool] {
         [true, true, true]
@@ -50,7 +47,7 @@ final class SQLExportPlugin: ExportFormatPlugin {
     }
 
     var currentFileExtension: String {
-        options.compressWithGzip ? "sql.gz" : "sql"
+        settings.compressWithGzip ? "sql.gz" : "sql"
     }
 
     var warnings: [String] {
@@ -59,7 +56,7 @@ final class SQLExportPlugin: ExportFormatPlugin {
         return ["Could not fetch table structure for: \(failedTables)"]
     }
 
-    func optionsView() -> AnyView? {
+    func settingsView() -> AnyView? {
         AnyView(SQLExportOptionsView(plugin: self))
     }
 
@@ -75,7 +72,7 @@ final class SQLExportPlugin: ExportFormatPlugin {
         let targetURL: URL
         let tempFileURL: URL?
 
-        if options.compressWithGzip {
+        if settings.compressWithGzip {
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString + ".sql")
             tempFileURL = tempURL
@@ -171,7 +168,7 @@ final class SQLExportPlugin: ExportFormatPlugin {
                 }
 
                 if includeData {
-                    let batchSize = options.batchSize
+                    let batchSize = settings.batchSize
                     var offset = 0
                     var wroteAnyRows = false
 
@@ -218,7 +215,7 @@ final class SQLExportPlugin: ExportFormatPlugin {
         }
 
         // Handle gzip compression
-        if options.compressWithGzip, let tempURL = tempFileURL {
+        if settings.compressWithGzip, let tempURL = tempFileURL {
             progress.setStatus("Compressing...")
 
             do {

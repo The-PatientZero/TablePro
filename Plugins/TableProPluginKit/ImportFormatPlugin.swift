@@ -14,8 +14,6 @@ public protocol ImportFormatPlugin: TableProPlugin {
     static var supportedDatabaseTypeIds: [String] { get }
     static var excludedDatabaseTypeIds: [String] { get }
 
-    func optionsView() -> AnyView?
-
     func performImport(
         source: any PluginImportSource,
         sink: any PluginImportDataSink,
@@ -27,5 +25,4 @@ public extension ImportFormatPlugin {
     static var capabilities: [PluginCapability] { [.importFormat] }
     static var supportedDatabaseTypeIds: [String] { [] }
     static var excludedDatabaseTypeIds: [String] { [] }
-    func optionsView() -> AnyView? { nil }
 }

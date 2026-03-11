@@ -255,7 +255,8 @@ struct ExportDialog: View {
             // Format-specific options
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let optionsView = currentPlugin?.optionsView() {
+                    if let settable = currentPlugin as? any SettablePluginDiscoverable,
+                       let optionsView = settable.settingsView() {
                         optionsView
                     }
                 }
