@@ -5,8 +5,8 @@ on:
     tags: ["plugin-*-v*"]
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Plugin tag to build (e.g., plugin-oracle-v1.0.1)"
+      tags:
+        description: "Plugin tags, comma-separated (e.g., plugin-oracle-v1.0.1,plugin-sqlite-v1.0.1)"
         required: true
         type: string
 
@@ -20,75 +20,9 @@ jobs:
   build-plugin:
     name: Build Plugin
     runs-on: self-hosted
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
-      - name: Extract plugin info from tag
-        id: plugin-info
-        run: |
-          TAG="${{ inputs.tag || github.ref_name }}"
-          # Tag format: plugin-<name>-v<version>
-          # e.g., plugin-oracle-v1.0.0 -> OracleDriverPlugin
-          PLUGIN_NAME=$(echo "$TAG" | sed -E 's/^plugin-([a-z]+)-v.*$/\1/')
-          VERSION=$(echo "$TAG" | sed -E 's/^plugin-[a-z]+-v(.*)$/\1/')
-
-          # Map short name to Xcode target and registry metadata
-          case "$PLUGIN_NAME" in
-            oracle)
-              TARGET="OracleDriver"
-              BUNDLE_ID="com.TablePro.OracleDriver"
-              DISPLAY_NAME="Oracle Driver"
-              SUMMARY="Oracle Database 12c+ driver via OracleNIO"
-              DB_TYPE_IDS='["Oracle"]'
-              ICON="server.rack"
-              BUNDLE_NAME="OracleDriver"
-              HOMEPAGE="https://tablepro.app/databases/oracle"
-              ;;
-            clickhouse)
-              TARGET="ClickHouseDriver"
-              BUNDLE_ID="com.TablePro.ClickHouseDriver"
-              DISPLAY_NAME="ClickHouse Driver"
-              SUMMARY="ClickHouse OLAP database driver via HTTP interface"
-              DB_TYPE_IDS='["ClickHouse"]'
-              ICON="chart.bar.xaxis"
-              BUNDLE_NAME="ClickHouseDriver"
-              HOMEPAGE="https://tablepro.app/databases/clickhouse"
-              ;;
-            sqlite)
-              TARGET="SQLiteDriver"
-              BUNDLE_ID="com.TablePro.SQLiteDriver"
-              DISPLAY_NAME="SQLite Driver"
-              SUMMARY="SQLite embedded database driver"
-              DB_TYPE_IDS='["SQLite"]'
-              ICON="internaldrive"
-              BUNDLE_NAME="SQLiteDriver"
-              HOMEPAGE="https://tablepro.app"
-              ;;
-            duckdb)
-              TARGET="DuckDBDriver"
-              BUNDLE_ID="com.TablePro.DuckDBDriver"
-              DISPLAY_NAME="DuckDB Driver"
-              SUMMARY="DuckDB analytical database driver"
-              DB_TYPE_IDS='["DuckDB"]'
-              ICON="bird"
-              BUNDLE_NAME="DuckDBDriver"
-              HOMEPAGE="https://tablepro.app"
-              ;;
-            *) echo "Unknown plugin: $PLUGIN_NAME"; exit 1 ;;
-          esac
-
-          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "plugin_name=$PLUGIN_NAME" >> "$GITHUB_OUTPUT"
-          echo "bundle_id=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
-          echo "display_name=$DISPLAY_NAME" >> "$GITHUB_OUTPUT"
-          echo "summary=$SUMMARY" >> "$GITHUB_OUTPUT"
-          echo "db_type_ids=$DB_TYPE_IDS" >> "$GITHUB_OUTPUT"
-          echo "icon=$ICON" >> "$GITHUB_OUTPUT"
-          echo "bundle_name=$BUNDLE_NAME" >> "$GITHUB_OUTPUT"
-          echo "homepage=$HOMEPAGE" >> "$GITHUB_OUTPUT"
-          echo "Building $TARGET v$VERSION"
-
       - name: Install Git LFS
         run: brew list git-lfs &>/dev/null || brew install git-lfs; git lfs install
 
@@ -100,142 +34,175 @@ jobs:
       - name: Pull LFS files
         run: git lfs pull
 
-      - name: Build plugin (ARM64)
-        run: ./scripts/build-plugin.sh "${{ steps.plugin-info.outputs.target }}" arm64
-
-      - name: Build plugin (x86_64)
-        run: ./scripts/build-plugin.sh "${{ steps.plugin-info.outputs.target }}" x86_64
-
-      - name: Capture SHA-256 hashes
-        # Hashes are captured before notarize intentionally: notarytool does not
-        # modify the ZIP on disk, and stapling applies to app bundles, not ZIPs.
-        id: sha256
-        run: |
-          BUNDLE_NAME="${{ steps.plugin-info.outputs.bundle_name }}"
-          ARM64_SHA=$(cat "build/Plugins/${BUNDLE_NAME}-arm64.zip.sha256")
-          X86_SHA=$(cat "build/Plugins/${BUNDLE_NAME}-x86_64.zip.sha256")
-          echo "arm64=$ARM64_SHA" >> "$GITHUB_OUTPUT"
-          echo "x86_64=$X86_SHA" >> "$GITHUB_OUTPUT"
-
-      - name: Notarize
-        if: vars.NOTARIZE_PLUGINS == 'true'
-        run: |
-          for zip in build/Plugins/*.zip; do
-            xcrun notarytool submit "$zip" \
-              --apple-id "$APPLE_ID" \
-              --team-id "D7HJ5TFYCU" \
-              --keychain-profile "notarytool-profile" \
-              --wait
-          done
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "${{ steps.plugin-info.outputs.display_name }} v${{ steps.plugin-info.outputs.version }}"
-          body: |
-            ## ${{ steps.plugin-info.outputs.display_name }} v${{ steps.plugin-info.outputs.version }}
-
-            Plugin release for TablePro.
-
-            ### Installation
-            TablePro will prompt you to install this plugin automatically when you select the database type. You can also install manually via **Settings > Plugins > Browse**.
-
-            ### SHA-256
-            - ARM64: `${{ steps.sha256.outputs.arm64 }}`
-            - x86_64: `${{ steps.sha256.outputs.x86_64 }}`
-          files: build/Plugins/*.zip
-          draft: false
-          prerelease: false
-
-      - name: Update plugin registry
+      - name: Build and release plugins
         env:
           REGISTRY_DEPLOY_KEY: ${{ secrets.REGISTRY_DEPLOY_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ inputs.tag || github.ref_name }}"
+          # Build tag list: from input (comma-separated) or from push event (single tag)
+          if [ -n "${{ inputs.tags }}" ]; then
+            IFS=',' read -ra TAGS <<< "${{ inputs.tags }}"
+          else
+            TAGS=("${{ github.ref_name }}")
+          fi
 
-          ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${{ steps.plugin-info.outputs.bundle_name }}-arm64.zip"
-          X86_64_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${{ steps.plugin-info.outputs.bundle_name }}-x86_64.zip"
-
-          # Get current app version as minAppVersion
+          # Get current app version for minAppVersion
           MIN_APP_VERSION=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' \
             TablePro.xcodeproj/project.pbxproj | head -1 | tr -d ' ')
 
-          # Clone the registry repo
-          WORK=$(mktemp -d)
-          eval "$(ssh-agent -s)"
-          echo "$REGISTRY_DEPLOY_KEY" | ssh-add -
-          git clone git@github.com:datlechin/tablepro-plugins.git "$WORK/registry"
-          cd "$WORK/registry"
-
-          # Update plugins.json via Python
-          python3 - \
-            "${{ steps.plugin-info.outputs.bundle_id }}" \
-            "${{ steps.plugin-info.outputs.display_name }}" \
-            "${{ steps.plugin-info.outputs.version }}" \
-            "${{ steps.plugin-info.outputs.summary }}" \
-            '${{ steps.plugin-info.outputs.db_type_ids }}' \
-            "$ARM64_URL" \
-            "${{ steps.sha256.outputs.arm64 }}" \
-            "$X86_64_URL" \
-            "${{ steps.sha256.outputs.x86_64 }}" \
-            "$MIN_APP_VERSION" \
-            "${{ steps.plugin-info.outputs.icon }}" \
-            "${{ steps.plugin-info.outputs.homepage }}" \
-            <<'PYTHON_SCRIPT'
-          import json, sys
-
-          bundle_id = sys.argv[1]
-          name = sys.argv[2]
-          version = sys.argv[3]
-          summary = sys.argv[4]
-          db_type_ids = json.loads(sys.argv[5])
-          arm64_url = sys.argv[6]
-          arm64_sha = sys.argv[7]
-          x86_64_url = sys.argv[8]
-          x86_64_sha = sys.argv[9]
-          min_app_version = sys.argv[10]
-          icon = sys.argv[11]
-          homepage = sys.argv[12]
-
-          with open("plugins.json", "r") as f:
-              manifest = json.load(f)
-
-          entry = {
-              "id": bundle_id,
-              "name": name,
-              "version": version,
-              "summary": summary,
-              "author": {"name": "TablePro", "url": "https://tablepro.app"},
-              "homepage": homepage,
-              "category": "database-driver",
-              "databaseTypeIds": db_type_ids,
-              "downloadURL": arm64_url,
-              "sha256": arm64_sha,
-              "binaries": [
-                  {"architecture": "arm64", "downloadURL": arm64_url, "sha256": arm64_sha},
-                  {"architecture": "x86_64", "downloadURL": x86_64_url, "sha256": x86_64_sha}
-              ],
-              "minAppVersion": min_app_version,
-              "minPluginKitVersion": 1,
-              "iconName": icon,
-              "isVerified": True
+          resolve_plugin_info() {
+            local plugin_name=$1
+            case "$plugin_name" in
+              oracle)
+                TARGET="OracleDriver"; BUNDLE_ID="com.TablePro.OracleDriver"
+                DISPLAY_NAME="Oracle Driver"; SUMMARY="Oracle Database 12c+ driver via OracleNIO"
+                DB_TYPE_IDS='["Oracle"]'; ICON="server.rack"; BUNDLE_NAME="OracleDriver"
+                HOMEPAGE="https://tablepro.app/databases/oracle" ;;
+              clickhouse)
+                TARGET="ClickHouseDriver"; BUNDLE_ID="com.TablePro.ClickHouseDriver"
+                DISPLAY_NAME="ClickHouse Driver"; SUMMARY="ClickHouse OLAP database driver via HTTP interface"
+                DB_TYPE_IDS='["ClickHouse"]'; ICON="chart.bar.xaxis"; BUNDLE_NAME="ClickHouseDriver"
+                HOMEPAGE="https://tablepro.app/databases/clickhouse" ;;
+              sqlite)
+                TARGET="SQLiteDriver"; BUNDLE_ID="com.TablePro.SQLiteDriver"
+                DISPLAY_NAME="SQLite Driver"; SUMMARY="SQLite embedded database driver"
+                DB_TYPE_IDS='["SQLite"]'; ICON="internaldrive"; BUNDLE_NAME="SQLiteDriver"
+                HOMEPAGE="https://tablepro.app" ;;
+              duckdb)
+                TARGET="DuckDBDriver"; BUNDLE_ID="com.TablePro.DuckDBDriver"
+                DISPLAY_NAME="DuckDB Driver"; SUMMARY="DuckDB analytical database driver"
+                DB_TYPE_IDS='["DuckDB"]'; ICON="bird"; BUNDLE_NAME="DuckDBDriver"
+                HOMEPAGE="https://tablepro.app" ;;
+              *) echo "Unknown plugin: $plugin_name"; return 1 ;;
+            esac
           }
 
-          manifest["plugins"] = [p for p in manifest["plugins"] if p["id"] != bundle_id]
-          manifest["plugins"].append(entry)
+          for TAG in "${TAGS[@]}"; do
+            TAG=$(echo "$TAG" | xargs)  # trim whitespace
+            echo ""
+            echo "========================================"
+            echo "Processing: $TAG"
+            echo "========================================"
 
-          with open("plugins.json", "w") as f:
-              json.dump(manifest, f, indent=2)
-              f.write("\n")
+            PLUGIN_NAME=$(echo "$TAG" | sed -E 's/^plugin-([a-z]+)-v.*$/\1/')
+            VERSION=$(echo "$TAG" | sed -E 's/^plugin-[a-z]+-v(.*)$/\1/')
+
+            resolve_plugin_info "$PLUGIN_NAME" || continue
+
+            echo "Building $TARGET v$VERSION"
+
+            # Build both architectures
+            ./scripts/build-plugin.sh "$TARGET" arm64
+            ./scripts/build-plugin.sh "$TARGET" x86_64
+
+            # Capture SHA-256
+            ARM64_SHA=$(cat "build/Plugins/${BUNDLE_NAME}-arm64.zip.sha256")
+            X86_SHA=$(cat "build/Plugins/${BUNDLE_NAME}-x86_64.zip.sha256")
+
+            # Notarize if enabled
+            if [ "${NOTARIZE_PLUGINS:-}" = "true" ]; then
+              for zip in build/Plugins/${BUNDLE_NAME}-*.zip; do
+                xcrun notarytool submit "$zip" \
+                  --apple-id "$APPLE_ID" \
+                  --team-id "D7HJ5TFYCU" \
+                  --keychain-profile "notarytool-profile" \
+                  --wait
+              done
+            fi
+
+            # Create GitHub Release
+            RELEASE_BODY="## $DISPLAY_NAME v$VERSION
+
+          Plugin release for TablePro.
+
+          ### Installation
+          TablePro will prompt you to install this plugin automatically when you select the database type. You can also install manually via **Settings > Plugins > Browse**.
+
+          ### SHA-256
+          - ARM64: \`$ARM64_SHA\`
+          - x86_64: \`$X86_SHA\`"
+
+            # Delete existing release if any, then create
+            gh release delete "$TAG" --yes 2>/dev/null || true
+            gh release create "$TAG" \
+              --title "$DISPLAY_NAME v$VERSION" \
+              --notes "$RELEASE_BODY" \
+              build/Plugins/${BUNDLE_NAME}-arm64.zip \
+              build/Plugins/${BUNDLE_NAME}-x86_64.zip
+
+            # Update plugin registry
+            if [ -n "${REGISTRY_DEPLOY_KEY:-}" ]; then
+              ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${BUNDLE_NAME}-arm64.zip"
+              X86_64_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${BUNDLE_NAME}-x86_64.zip"
+
+              WORK=$(mktemp -d)
+              eval "$(ssh-agent -s)"
+              echo "$REGISTRY_DEPLOY_KEY" | ssh-add -
+
+              git clone git@github.com:datlechin/tablepro-plugins.git "$WORK/registry"
+              cd "$WORK/registry"
+              git pull --rebase origin main
+
+              python3 - \
+                "$BUNDLE_ID" "$DISPLAY_NAME" "$VERSION" "$SUMMARY" \
+                "$DB_TYPE_IDS" "$ARM64_URL" "$ARM64_SHA" \
+                "$X86_64_URL" "$X86_SHA" "$MIN_APP_VERSION" \
+                "$ICON" "$HOMEPAGE" \
+                <<'PYTHON_SCRIPT'
+              import json, sys
+
+              bundle_id, name, version, summary = sys.argv[1:5]
+              db_type_ids = json.loads(sys.argv[5])
+              arm64_url, arm64_sha = sys.argv[6], sys.argv[7]
+              x86_64_url, x86_64_sha = sys.argv[8], sys.argv[9]
+              min_app_version, icon, homepage = sys.argv[10], sys.argv[11], sys.argv[12]
+
+              with open("plugins.json", "r") as f:
+                  manifest = json.load(f)
+
+              entry = {
+                  "id": bundle_id, "name": name, "version": version,
+                  "summary": summary,
+                  "author": {"name": "TablePro", "url": "https://tablepro.app"},
+                  "homepage": homepage, "category": "database-driver",
+                  "databaseTypeIds": db_type_ids,
+                  "downloadURL": arm64_url, "sha256": arm64_sha,
+                  "binaries": [
+                      {"architecture": "arm64", "downloadURL": arm64_url, "sha256": arm64_sha},
+                      {"architecture": "x86_64", "downloadURL": x86_64_url, "sha256": x86_64_sha}
+                  ],
+                  "minAppVersion": min_app_version,
+                  "minPluginKitVersion": 1,
+                  "iconName": icon, "isVerified": True
+              }
+
+              manifest["plugins"] = [p for p in manifest["plugins"] if p["id"] != bundle_id]
+              manifest["plugins"].append(entry)
+
+              with open("plugins.json", "w") as f:
+                  json.dump(manifest, f, indent=2)
+                  f.write("\n")
           PYTHON_SCRIPT
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add plugins.json
-          git commit -m "Update ${{ steps.plugin-info.outputs.display_name }} to v${{ steps.plugin-info.outputs.version }}"
-          git push
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add plugins.json
+              git commit -m "Update $DISPLAY_NAME to v$VERSION"
+              git push
 
-          # Cleanup
-          ssh-add -D
-          eval "$(ssh-agent -k)"
-          rm -rf "$WORK"
+              ssh-add -D
+              eval "$(ssh-agent -k)"
+              cd -
+              rm -rf "$WORK"
+            fi
+
+            # Clean plugin build artifacts for next iteration
+            rm -f build/Plugins/${BUNDLE_NAME}-*.zip build/Plugins/${BUNDLE_NAME}-*.sha256
+
+            echo "✅ $DISPLAY_NAME v$VERSION released"
+          done
+
+          echo ""
+          echo "========================================"
+          echo "All plugins processed!"
+          echo "========================================"
