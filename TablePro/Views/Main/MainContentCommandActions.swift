@@ -139,14 +139,12 @@ final class MainContentCommandActions {
 
     private func setupObservers() {
         setupNonMenuNotificationObservers()
-        setupFilterBroadcastObservers()
         setupDataBroadcastObservers()
         setupTabBroadcastObservers()
         setupDatabaseBroadcastObservers()
         setupUIBroadcastObservers()
         setupWindowObservers()
         setupFileOpenObservers()
-        setupReconnectObservers()
     }
 
     /// Observers for notifications still posted by non-menu views (DataGrid, SidebarView,
@@ -546,38 +544,10 @@ final class MainContentCommandActions {
 
     // MARK: - Group B Broadcast Subscribers
 
-    // MARK: Filter Broadcasts
-
-    private func setupFilterBroadcastObservers() {
-        observeKeyWindowOnly(.applyAllFilters) { [weak self] _ in self?.handleApplyAllFilters() }
-        observeKeyWindowOnly(.duplicateFilter) { [weak self] _ in self?.handleDuplicateFilter() }
-        observeKeyWindowOnly(.removeFilter) { [weak self] _ in self?.handleRemoveFilter() }
-    }
-
-    private func handleApplyAllFilters() {
-        if filterStateManager.hasSelectedFilters {
-            filterStateManager.applySelectedFilters()
-            coordinator?.applyFilters(filterStateManager.appliedFilters)
-        }
-    }
-
-    private func handleDuplicateFilter() {
-        if filterStateManager.isVisible, let focusedFilter = filterStateManager.focusedFilter {
-            filterStateManager.duplicateFilter(focusedFilter)
-        }
-    }
-
-    private func handleRemoveFilter() {
-        if filterStateManager.isVisible, let focusedFilter = filterStateManager.focusedFilter {
-            filterStateManager.removeFilter(focusedFilter)
-        }
-    }
-
     // MARK: Data Broadcasts
 
     private func setupDataBroadcastObservers() {
         observeKeyWindowOnly(.refreshData) { [weak self] _ in self?.handleRefreshData() }
-        observeKeyWindowOnly(.refreshAll) { [weak self] _ in self?.handleRefreshAll() }
 
         observeKeyWindowOnly(.showTableStructure) { [weak self] notification in
             if let tableName = notification.object as? String {
@@ -589,17 +559,6 @@ final class MainContentCommandActions {
     private func handleRefreshData() {
         let hasPendingTableOps = !pendingTruncates.wrappedValue.isEmpty || !pendingDeletes.wrappedValue.isEmpty
         coordinator?.handleRefresh(
-            hasPendingTableOps: hasPendingTableOps,
-            onDiscard: { [weak self] in
-                self?.pendingTruncates.wrappedValue.removeAll()
-                self?.pendingDeletes.wrappedValue.removeAll()
-            }
-        )
-    }
-
-    private func handleRefreshAll() {
-        let hasPendingTableOps = !pendingTruncates.wrappedValue.isEmpty || !pendingDeletes.wrappedValue.isEmpty
-        coordinator?.handleRefreshAll(
             hasPendingTableOps: hasPendingTableOps,
             onDiscard: { [weak self] in
                 self?.pendingTruncates.wrappedValue.removeAll()
@@ -798,17 +757,6 @@ final class MainContentCommandActions {
         }
     }
 
-    // MARK: Reconnect Broadcasts
-
-    private func setupReconnectObservers() {
-        observeKeyWindowOnly(.reconnectDatabase) { [weak self] _ in self?.handleReconnect() }
-    }
-
-    private func handleReconnect() {
-        Task { @MainActor in
-            await DatabaseManager.shared.reconnectSession(self.connection.id)
-        }
-    }
 }
 
 // MARK: - Focused Value Key

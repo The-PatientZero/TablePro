@@ -402,7 +402,6 @@ final class PluginManager {
         }
 
         Self.logger.info("Plugin '\(pluginId)' \(enabled ? "enabled" : "disabled")")
-        NotificationCenter.default.post(name: .pluginStateDidChange, object: nil, userInfo: ["pluginId": pluginId])
     }
 
     // MARK: - Install / Uninstall

@@ -95,7 +95,7 @@ extension MainContentCoordinator {
     /// Generate appropriate message for discard action type
     private func discardMessage(for action: DiscardAction) -> String {
         switch action {
-        case .refresh, .refreshAll:
+        case .refresh:
             return String(localized: "Refreshing will discard all unsaved changes.")
         }
     }

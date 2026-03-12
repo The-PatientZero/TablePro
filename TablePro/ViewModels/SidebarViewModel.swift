@@ -152,10 +152,9 @@ final class SidebarViewModel {
         guard !hasSetupNotifications else { return }
         hasSetupNotifications = true
 
-        Publishers.Merge3(
+        Publishers.Merge(
             NotificationCenter.default.publisher(for: .databaseDidConnect),
-            NotificationCenter.default.publisher(for: .refreshData),
-            NotificationCenter.default.publisher(for: .refreshAll)
+            NotificationCenter.default.publisher(for: .refreshData)
         )
         .receive(on: DispatchQueue.main)
         .sink { [weak self] _ in

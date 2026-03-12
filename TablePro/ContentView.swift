@@ -69,25 +69,6 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .newConnection)) { _ in
                 openWindow(id: "connection-form", value: nil as UUID?)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .deselectConnection)) { _ in
-                let sessionId = payload?.connectionId ?? DatabaseManager.shared.currentSessionId
-                if let sessionId {
-                    Task { @MainActor in
-                        let window = NSApp.keyWindow
-                        let confirmed = await AlertHelper.confirmDestructive(
-                            title: String(localized: "Disconnect"),
-                            message: String(localized: "Are you sure you want to disconnect from this database?"),
-                            confirmButton: String(localized: "Disconnect"),
-                            cancelButton: String(localized: "Cancel"),
-                            window: window
-                        )
-
-                        if confirmed {
-                            await DatabaseManager.shared.disconnectSession(sessionId)
-                        }
-                    }
-                }
-            }
             // Right sidebar toggle is handled by MainContentView (has the binding)
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
             .onChange(of: DatabaseManager.shared.currentSessionId, initial: true) { _, newSessionId in

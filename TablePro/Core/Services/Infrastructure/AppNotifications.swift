@@ -12,8 +12,6 @@ import Foundation
 extension Notification.Name {
     // MARK: - Query Editor
 
-    static let formatQueryRequested = Notification.Name("formatQueryRequested")
-    static let sendAIPrompt = Notification.Name("sendAIPrompt")
     static let aiFixError = Notification.Name("aiFixError")
     static let aiExplainSelection = Notification.Name("aiExplainSelection")
     static let aiOptimizeSelection = Notification.Name("aiOptimizeSelection")
@@ -28,14 +26,9 @@ extension Notification.Name {
 
     static let connectionUpdated = Notification.Name("connectionUpdated")
     static let databaseDidConnect = Notification.Name("databaseDidConnect")
-    static let connectionHealthStateChanged = Notification.Name("connectionHealthStateChanged")
 
     // MARK: - SSH
 
     static let sshTunnelDied = Notification.Name("sshTunnelDied")
     static let lastWindowDidClose = Notification.Name("lastWindowDidClose")
-
-    // MARK: - Plugins
-
-    static let pluginStateDidChange = Notification.Name("pluginStateDidChange")
 }

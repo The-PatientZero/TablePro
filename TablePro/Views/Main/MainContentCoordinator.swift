@@ -14,7 +14,7 @@ import SwiftUI
 
 /// Discard action types for unified alert handling
 enum DiscardAction {
-    case refresh, refreshAll
+    case refresh
 }
 
 /// Cache entry for async-sorted query tab rows (stores index permutation, not row copies)

@@ -69,14 +69,6 @@ struct AIChatPanelView: View {
         .task(id: tables) {
             await fetchSchemaContext()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .sendAIPrompt)) { notification in
-            guard let userInfo = notification.userInfo,
-                  let prompt = userInfo["prompt"] as? String,
-                  let featureRaw = userInfo["feature"] as? String,
-                  let feature = AIFeature(rawValue: featureRaw) else { return }
-            updateContext()
-            viewModel.sendWithContext(prompt: prompt, feature: feature)
-        }
         .onReceive(NotificationCenter.default.publisher(for: .aiFixError)) { notification in
             guard let userInfo = notification.userInfo,
                   let query = userInfo["query"] as? String,

@@ -449,13 +449,10 @@ struct TableProApp: App {
 extension Notification.Name {
     // Connection lifecycle
     static let newConnection = Notification.Name("newConnection")
-    static let deselectConnection = Notification.Name("deselectConnection")
     static let openConnectionSwitcher = Notification.Name("openConnectionSwitcher")
-    static let reconnectDatabase = Notification.Name("reconnectDatabase")
 
     // Multi-listener broadcasts (Sidebar + Coordinator + StructureView)
     static let refreshData = Notification.Name("refreshData")
-    static let refreshAll = Notification.Name("refreshAll")
 
     // Data operations (still posted by DataGrid / context menus / StructureView subscribers)
     static let deleteSelectedRows = Notification.Name("deleteSelectedRows")
@@ -486,11 +483,6 @@ extension Notification.Name {
     static let showTableStructure = Notification.Name("showTableStructure")
     static let editViewDefinition = Notification.Name("editViewDefinition")
 
-    // Filter notifications
-    static let applyAllFilters = Notification.Name("applyAllFilters")
-    static let duplicateFilter = Notification.Name("duplicateFilter")
-    static let removeFilter = Notification.Name("removeFilter")
-
     // File opening notifications
     static let openSQLFiles = Notification.Name("openSQLFiles")
 
@@ -502,9 +494,6 @@ extension Notification.Name {
     // Database URL handling notifications
     static let switchSchemaFromURL = Notification.Name("switchSchemaFromURL")
     static let applyURLFilter = Notification.Name("applyURLFilter")
-
-    // License notifications
-    static let licenseStatusDidChange = Notification.Name("licenseStatusDidChange")
 }
 
 // MARK: - Check for Updates

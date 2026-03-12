@@ -143,7 +143,6 @@ final class LicenseManager {
             license = newLicense
             evaluateStatus()
 
-            NotificationCenter.default.post(name: .licenseStatusDidChange, object: nil)
             Self.logger.info("License activated for \(payloadData.email)")
         } catch let error as LicenseError {
             lastError = error
@@ -187,7 +186,6 @@ final class LicenseManager {
         revalidationTask?.cancel()
         revalidationTask = nil
 
-        NotificationCenter.default.post(name: .licenseStatusDidChange, object: nil)
         Self.logger.info("License deactivated")
     }
 
@@ -232,8 +230,6 @@ final class LicenseManager {
             }
             // Otherwise keep using cached license (still within grace period)
         }
-
-        NotificationCenter.default.post(name: .licenseStatusDidChange, object: nil)
     }
 
     // MARK: - Status Evaluation

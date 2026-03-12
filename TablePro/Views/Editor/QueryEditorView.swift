@@ -50,9 +50,6 @@ struct QueryEditorView: View {
             .clipped()
         }
         .background(Color(nsColor: .textBackgroundColor))
-        .onReceive(NotificationCenter.default.publisher(for: .formatQueryRequested)) { _ in
-            formatQuery()
-        }
         .onReceive(NotificationCenter.default.publisher(for: .editorSettingsDidChange)) { _ in
             isVimEnabled = AppSettingsManager.shared.editor.vimModeEnabled
         }
