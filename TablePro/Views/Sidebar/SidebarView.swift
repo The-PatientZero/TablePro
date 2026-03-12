@@ -21,7 +21,6 @@ struct SidebarView: View {
     @Binding var pendingDeletes: Set<String>
 
     var activeTableName: String?
-    var onShowAllTables: (() -> Void)?
     var onDoubleClick: ((TableInfo) -> Void)?
     var connectionId: UUID
     private weak var coordinator: MainContentCoordinator?
@@ -44,7 +43,6 @@ struct SidebarView: View {
         tables: Binding<[TableInfo]>,
         sidebarState: SharedSidebarState,
         activeTableName: String? = nil,
-        onShowAllTables: (() -> Void)? = nil,
         onDoubleClick: ((TableInfo) -> Void)? = nil,
         pendingTruncates: Binding<Set<String>>,
         pendingDeletes: Binding<Set<String>>,
@@ -76,7 +74,6 @@ struct SidebarView: View {
         vm.debouncedSearchText = sidebarState.searchText
         _viewModel = State(wrappedValue: vm)
         self.activeTableName = activeTableName
-        self.onShowAllTables = onShowAllTables
         self.connectionId = connectionId
         self.coordinator = coordinator
     }
@@ -98,7 +95,6 @@ struct SidebarView: View {
             }
         }
         .onAppear {
-            viewModel.setupNotifications()
             viewModel.onAppear()
             coordinator?.sidebarViewModel = viewModel
         }
@@ -207,7 +203,8 @@ struct SidebarView: View {
                                 selectedTables: selectedTablesBinding,
                                 isReadOnly: AppState.shared.safeModeLevel.blocksAllWrites,
                                 onBatchToggleTruncate: { viewModel.batchToggleTruncate() },
-                                onBatchToggleDelete: { viewModel.batchToggleDelete() }
+                                onBatchToggleDelete: { viewModel.batchToggleDelete() },
+                                coordinator: coordinator
                             )
                         }
                     }
@@ -224,7 +221,7 @@ struct SidebarView: View {
                                 redis: String(localized: "Show All Databases"),
                                 default: String(localized: "Show All Tables")
                             )) {
-                                onShowAllTables?()
+                                coordinator?.showAllTablesMetadata()
                             }
                         }
                 }
@@ -238,7 +235,8 @@ struct SidebarView: View {
                 selectedTables: selectedTablesBinding,
                 isReadOnly: AppState.shared.safeModeLevel.blocksAllWrites,
                 onBatchToggleTruncate: { viewModel.batchToggleTruncate() },
-                onBatchToggleDelete: { viewModel.batchToggleDelete() }
+                onBatchToggleDelete: { viewModel.batchToggleDelete() },
+                coordinator: coordinator
             )
         }
         .onExitCommand {

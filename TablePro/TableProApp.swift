@@ -61,7 +61,7 @@ struct PasteboardCommands: Commands {
                 case .copyRows:
                     actions?.copySelectedRows()
                 case .copyTableNames:
-                    NotificationCenter.default.post(name: .copyTableNames, object: nil)
+                    actions?.copyTableNames()
                 }
             }
             .optionalKeyboardShortcut(shortcut(for: .copy))
@@ -292,7 +292,7 @@ struct AppMenuCommands: Commands {
 
             // Table operations (work when tables selected in sidebar)
             Button("Truncate Table") {
-                NotificationCenter.default.post(name: .truncateTables, object: nil)
+                actions?.truncateTables()
             }
             .optionalKeyboardShortcut(shortcut(for: .truncateTable))
             .disabled(!appState.hasTableSelection || appState.isReadOnly)
@@ -462,26 +462,17 @@ extension Notification.Name {
     static let pasteRows = Notification.Name("pasteRows")
     static let undoChange = Notification.Name("undoChange")
     static let redoChange = Notification.Name("redoChange")
-    static let clearSelection = Notification.Name("clearSelection")
 
     // Tab operations
-    static let showAllTables = Notification.Name("showAllTables")
     static let newQueryTab = Notification.Name("newQueryTab")
 
     // Sidebar operations (still posted by SidebarView / ConnectionStatusView)
-    static let copyTableNames = Notification.Name("copyTableNames")
-    static let truncateTables = Notification.Name("truncateTables")
-    static let exportTables = Notification.Name("exportTables")
-    static let importTables = Notification.Name("importTables")
     static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
 
-    // Structure view / sidebar operations (still posted by SidebarView, QueryEditorView)
-    static let createView = Notification.Name("createView")
+    // Structure view operations (still posted by QueryEditorView)
     static let explainQuery = Notification.Name("explainQuery")
     static let saveStructureChanges = Notification.Name("saveStructureChanges")
     static let previewStructureSQL = Notification.Name("previewStructureSQL")
-    static let showTableStructure = Notification.Name("showTableStructure")
-    static let editViewDefinition = Notification.Name("editViewDefinition")
 
     // File opening notifications
     static let openSQLFiles = Notification.Name("openSQLFiles")

@@ -12,7 +12,6 @@ import Foundation
 import Observation
 import os
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// Provides command actions for MainContentView, accessible via @FocusedValue
 @MainActor
@@ -142,7 +141,6 @@ final class MainContentCommandActions {
         setupDataBroadcastObservers()
         setupTabBroadcastObservers()
         setupDatabaseBroadcastObservers()
-        setupUIBroadcastObservers()
         setupWindowObservers()
         setupFileOpenObservers()
     }
@@ -178,9 +176,6 @@ final class MainContentCommandActions {
             self.editingCell.wrappedValue = cell
         }
 
-        observeKeyWindowOnly(.createView) { [weak self] _ in self?.createView() }
-        observeKeyWindowOnly(.exportTables) { [weak self] _ in self?.exportTables() }
-        observeKeyWindowOnly(.importTables) { [weak self] _ in self?.importTables() }
         observeKeyWindowOnly(.explainQuery) { [weak self] notification in
             if let variantRaw = notification.userInfo?["variant"] as? String,
                let variant = ClickHouseExplainVariant(rawValue: variantRaw) {
@@ -377,34 +372,17 @@ final class MainContentCommandActions {
         performClose()
     }
 
+    func copyTableNames() {
+        coordinator?.sidebarViewModel?.copySelectedTableNames()
+    }
+
+    func truncateTables() {
+        guard !(selectedTables.wrappedValue.isEmpty) else { return }
+        coordinator?.sidebarViewModel?.batchToggleTruncate()
+    }
+
     func createView() {
-        guard !connection.safeModeLevel.blocksAllWrites else { return }
-
-        let template: String
-        switch connection.type {
-        case .postgresql, .redshift, .duckdb:
-            template = "CREATE OR REPLACE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
-        case .mysql, .mariadb, .clickhouse:
-            template = "CREATE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
-        case .sqlite:
-            template = "CREATE VIEW IF NOT EXISTS view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
-        case .mssql:
-            template = "CREATE OR ALTER VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
-        case .oracle:
-            template = "CREATE OR REPLACE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
-        case .mongodb:
-            template = "db.createView(\"view_name\", \"source_collection\", [\n  {\"$match\": {}},\n  {\"$project\": {\"_id\": 1}}\n])"
-        case .redis:
-            template = "-- Redis does not support views"
-        }
-
-        let payload = EditorTabPayload(
-            connectionId: connection.id,
-            tabType: .query,
-            databaseName: connection.database,
-            initialQuery: template
-        )
-        WindowOpener.shared.openNativeTab(payload)
+        coordinator?.createView()
     }
 
     // MARK: - Tab Navigation (Group A — Called Directly)
@@ -456,42 +434,11 @@ final class MainContentCommandActions {
     }
 
     func exportTables() {
-        coordinator?.activeSheet = .exportDialog
+        coordinator?.openExportDialog()
     }
 
     func importTables() {
-        guard !connection.safeModeLevel.blocksAllWrites else { return }
-        guard connection.type != .mongodb && connection.type != .redis else {
-            let typeName = connection.type == .mongodb ? "MongoDB" : "Redis"
-            AlertHelper.showErrorSheet(
-                title: String(localized: "Import Not Supported"),
-                message: String(localized: "SQL import is not supported for \(typeName) connections."),
-                window: nil
-            )
-            return
-        }
-        // Open file picker first, then show dialog with selected file
-        let panel = NSOpenPanel()
-        var contentTypes: [UTType] = []
-        if let sqlType = UTType(filenameExtension: "sql") {
-            contentTypes.append(sqlType)
-        }
-        if let gzType = UTType(filenameExtension: "gz") {
-            contentTypes.append(gzType)
-        }
-        if !contentTypes.isEmpty {
-            panel.allowedContentTypes = contentTypes
-        }
-        panel.allowsMultipleSelection = false
-        panel.message = "Select SQL file to import"
-
-        panel.begin { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
-
-            // Store the selected file URL and show dialog
-            self?.coordinator?.importFileURL = url
-            self?.coordinator?.activeSheet = .importDialog
-        }
+        coordinator?.openImportDialog()
     }
 
     func previewSQL() {
@@ -548,12 +495,6 @@ final class MainContentCommandActions {
 
     private func setupDataBroadcastObservers() {
         observeKeyWindowOnly(.refreshData) { [weak self] _ in self?.handleRefreshData() }
-
-        observeKeyWindowOnly(.showTableStructure) { [weak self] notification in
-            if let tableName = notification.object as? String {
-                self?.coordinator?.openTableTab(tableName, showStructure: true)
-            }
-        }
     }
 
     private func handleRefreshData() {
@@ -582,16 +523,6 @@ final class MainContentCommandActions {
 
         observeKeyWindowOnly(.insertQueryFromAI) { [weak self] notification in
             self?.handleInsertQueryFromAI(notification)
-        }
-
-        observeKeyWindowOnly(.showAllTables) { [weak self] _ in
-            self?.coordinator?.showAllTablesMetadata()
-        }
-
-        observeKeyWindowOnly(.editViewDefinition) { [weak self] notification in
-            if let viewName = notification.object as? String {
-                self?.handleEditViewDefinition(viewName)
-            }
         }
     }
 
@@ -642,47 +573,6 @@ final class MainContentCommandActions {
         }
     }
 
-    private func handleEditViewDefinition(_ viewName: String) {
-        Task { @MainActor in
-            do {
-                guard let driver = DatabaseManager.shared.driver(for: self.connection.id) else { return }
-                let definition = try await driver.fetchViewDefinition(view: viewName)
-
-                let payload = EditorTabPayload(
-                    connectionId: connection.id,
-                    tabType: .query,
-                    initialQuery: definition
-                )
-                WindowOpener.shared.openNativeTab(payload)
-            } catch {
-                let fallbackSQL: String
-                switch connection.type {
-                case .postgresql, .redshift, .duckdb:
-                    fallbackSQL = "CREATE OR REPLACE VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
-                case .mysql, .mariadb, .clickhouse:
-                    fallbackSQL = "ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
-                case .sqlite:
-                    fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"
-                case .mssql:
-                    fallbackSQL = "CREATE OR ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
-                case .oracle:
-                    fallbackSQL = "CREATE OR REPLACE VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
-                case .mongodb:
-                    fallbackSQL = "db.runCommand({\"collMod\": \"\(viewName)\", \"viewOn\": \"source_collection\", \"pipeline\": [{\"$match\": {}}]})"
-                case .redis:
-                    fallbackSQL = "-- Redis does not support views"
-                }
-
-                let payload = EditorTabPayload(
-                    connectionId: connection.id,
-                    tabType: .query,
-                    initialQuery: fallbackSQL
-                )
-                WindowOpener.shared.openNativeTab(payload)
-            }
-        }
-    }
-
     // MARK: Database Broadcasts
 
     private func setupDatabaseBroadcastObservers() {
@@ -696,20 +586,6 @@ final class MainContentCommandActions {
                 coordinator?.toolbarState.databaseVersion = driver.serverVersion
             }
             coordinator?.reloadSidebar()
-        }
-    }
-
-    // MARK: UI Broadcasts
-
-    private func setupUIBroadcastObservers() {
-        observeKeyWindowOnly(.clearSelection) { [weak self] _ in self?.handleClearSelection() }
-    }
-
-    private func handleClearSelection() {
-        selectedRowIndices.wrappedValue.removeAll()
-        selectedTables.wrappedValue.removeAll()
-        if filterStateManager.isVisible {
-            filterStateManager.close()
         }
     }
 
@@ -758,7 +634,6 @@ final class MainContentCommandActions {
             }
         }
     }
-
 }
 
 // MARK: - Focused Value Key

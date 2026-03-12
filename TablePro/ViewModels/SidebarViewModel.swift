@@ -3,10 +3,9 @@
 //  TablePro
 //
 //  ViewModel for SidebarView.
-//  Handles table loading, search filtering, batch operations, and notification handling.
+//  Handles table loading, search filtering, and batch operations.
 //
 
-import Combine
 import Observation
 import SwiftUI
 
@@ -81,8 +80,6 @@ final class SidebarViewModel {
 
     private let connectionId: UUID
     private let tableFetcher: TableFetcher
-    private var cancellables = Set<AnyCancellable>()
-    private var hasSetupNotifications = false
     private var loadTask: Task<Void, Never>?
 
     // MARK: - Convenience Accessors
@@ -144,35 +141,6 @@ final class SidebarViewModel {
                 loadTables()
             }
         }
-    }
-
-    // MARK: - Notifications
-
-    func setupNotifications() {
-        guard !hasSetupNotifications else { return }
-        hasSetupNotifications = true
-
-        NotificationCenter.default.publisher(for: .copyTableNames)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.copySelectedTableNames()
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .truncateTables)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self, !self.selectedTables.isEmpty else { return }
-                self.batchToggleTruncate()
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .clearSelection)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.selectedTables.removeAll()
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Table Loading

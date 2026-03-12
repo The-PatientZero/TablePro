@@ -201,9 +201,6 @@ struct ContentView: View {
                         tables: sessionTablesBinding,
                         sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
                         activeTableName: windowTitle,
-                        onShowAllTables: {
-                            showAllTablesMetadata()
-                        },
                         onDoubleClick: { table in
                             let isView = table.type == .view
                             if let preview = WindowLifecycleMonitor.shared.previewWindow(for: currentSession.connection.id),
@@ -393,10 +390,6 @@ struct ContentView: View {
         storage.deleteConnection(connection)
     }
 
-    private func showAllTablesMetadata() {
-        // Post notification for MainContentView to handle
-        NotificationCenter.default.post(name: .showAllTables, object: nil)
-    }
 }
 
 #Preview {
