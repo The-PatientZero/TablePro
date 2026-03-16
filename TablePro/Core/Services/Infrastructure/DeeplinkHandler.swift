@@ -88,9 +88,9 @@ enum DeeplinkHandler {
               let host = value("host"), !host.isEmpty,
               let typeStr = value("type"),
               let dbType = DatabaseType(validating: typeStr)
-                ?? DatabaseType.allKnownTypes.first(where: {
-                    $0.rawValue.lowercased() == typeStr.lowercased()
-                })
+                ?? PluginMetadataRegistry.shared.allRegisteredTypeIds()
+                    .first(where: { $0.lowercased() == typeStr.lowercased() })
+                    .map({ DatabaseType(rawValue: $0) })
         else {
             logger.warning("Import deep link missing required params")
             return nil

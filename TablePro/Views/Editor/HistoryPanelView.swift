@@ -223,7 +223,7 @@ private extension HistoryPanelView {
                 HighlightedSQLTextView(
                     sql: entry.query.hasSuffix(";") ? entry.query : entry.query + ";",
                     databaseType: entry.query.trimmingCharacters(in: .whitespaces)
-                        .hasPrefix("db.") ? .mongodb : .mysql // Redis commands use SQL patterns for highlighting
+                        .hasPrefix("db.") ? .mongodb : .mysql
                 )
                 .background(Color(nsColor: ThemeEngine.shared.colors.editor.background))
 

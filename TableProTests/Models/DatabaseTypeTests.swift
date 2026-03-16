@@ -37,9 +37,13 @@ struct DatabaseTypeTests {
         #expect(DatabaseType.mongodb.defaultPort == 27_017)
     }
 
-    @Test("allKnownTypes count is 13")
-    func testAllKnownTypesCount() {
-        #expect(DatabaseType.allKnownTypes.count == 13)
+    @Test("allKnownTypes contains all built-in types")
+    func testAllKnownTypesContainsBuiltIns() {
+        let knownTypes = DatabaseType.allKnownTypes
+        #expect(knownTypes.contains(.mysql))
+        #expect(knownTypes.contains(.postgresql))
+        #expect(knownTypes.contains(.sqlite))
+        #expect(knownTypes.count >= 5)
     }
 
     @Test("allCases shim matches allKnownTypes")

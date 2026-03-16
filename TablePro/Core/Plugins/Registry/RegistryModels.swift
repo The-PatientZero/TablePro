@@ -45,6 +45,7 @@ struct RegistryPlugin: Codable, Sendable, Identifiable {
     let minPluginKitVersion: Int?
     let iconName: String?
     let isVerified: Bool
+    let metadata: RegistryPluginMetadata?
 }
 
 extension RegistryPlugin {
@@ -82,4 +83,99 @@ enum RegistryCategory: String, Codable, Sendable, CaseIterable, Identifiable {
         case .other: String(localized: "Other")
         }
     }
+}
+
+// MARK: - Plugin Metadata (self-describing registry plugins)
+
+struct RegistryPluginMetadata: Codable, Sendable {
+    let displayName: String?
+    let iconName: String?
+    let defaultPort: Int?
+    let brandColorHex: String?
+    let connectionMode: String?
+    let editorLanguage: String?
+    let queryLanguageName: String?
+    let primaryUrlScheme: String?
+    let parameterStyle: String?
+
+    let requiresAuthentication: Bool?
+    let supportsForeignKeys: Bool?
+    let supportsSchemaEditing: Bool?
+    let supportsDatabaseSwitching: Bool?
+    let supportsSchemaSwitching: Bool?
+    let supportsSSH: Bool?
+    let supportsSSL: Bool?
+    let supportsImport: Bool?
+    let supportsExport: Bool?
+    let supportsHealthMonitor: Bool?
+    let supportsCascadeDrop: Bool?
+    let supportsForeignKeyDisable: Bool?
+    let supportsReadOnlyMode: Bool?
+    let supportsQueryProgress: Bool?
+    let requiresReconnectForDatabaseSwitch: Bool?
+
+    let urlSchemes: [String]?
+    let fileExtensions: [String]?
+    let systemDatabaseNames: [String]?
+    let systemSchemaNames: [String]?
+    let defaultSchemaName: String?
+    let defaultGroupName: String?
+    let tableEntityName: String?
+    let defaultPrimaryKeyColumn: String?
+    let immutableColumns: [String]?
+
+    let navigationModel: String?
+    let pathFieldRole: String?
+    let databaseGroupingStrategy: String?
+    let structureColumnFields: [String]?
+    let postConnectActions: [RegistryPostConnectAction]?
+    let additionalConnectionFields: [RegistryConnectionField]?
+    let explainVariants: [RegistryExplainVariant]?
+    let sqlDialect: RegistrySqlDialect?
+    let statementCompletions: [RegistryCompletionEntry]?
+    let columnTypesByCategory: [String: [String]]?
+}
+
+struct RegistryConnectionField: Codable, Sendable {
+    let id: String
+    let label: String
+    let placeholder: String?
+    let defaultValue: String?
+    let fieldType: String?
+    let section: String?
+    let options: [RegistryDropdownOption]?
+}
+
+struct RegistryDropdownOption: Codable, Sendable {
+    let value: String
+    let label: String
+}
+
+struct RegistryPostConnectAction: Codable, Sendable {
+    let type: String
+    let fieldId: String?
+}
+
+struct RegistryExplainVariant: Codable, Sendable {
+    let name: String
+    let prefix: String
+}
+
+struct RegistrySqlDialect: Codable, Sendable {
+    let identifierQuote: String?
+    let keywords: [String]?
+    let functions: [String]?
+    let dataTypes: [String]?
+    let tableOptions: [String]?
+    let regexSyntax: String?
+    let booleanLiteralStyle: String?
+    let likeEscapeStyle: String?
+    let paginationStyle: String?
+    let offsetFetchOrderBy: String?
+    let requiresBackslashEscaping: Bool?
+}
+
+struct RegistryCompletionEntry: Codable, Sendable {
+    let label: String
+    let insertText: String
 }

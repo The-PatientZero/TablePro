@@ -251,15 +251,24 @@ final class PluginManager {
                 Self.logger.error("Plugin '\(pluginId)' driver rejected: \(error.localizedDescription)")
             }
             if !driverPlugins.keys.contains(type(of: driver).databaseTypeId) {
-                let typeId = type(of: driver).databaseTypeId
+                let driverType = type(of: driver)
+                let typeId = driverType.databaseTypeId
                 driverPlugins[typeId] = driver
-                for additionalId in type(of: driver).additionalDatabaseTypeIds {
+                for additionalId in driverType.additionalDatabaseTypeIds {
                     driverPlugins[additionalId] = driver
                 }
 
-                // Built-in defaults are pre-populated in PluginMetadataRegistry.init().
-                // Runtime-loaded plugins may be compiled against an older TableProPluginKit,
-                // so we don't read new protocol properties from them to avoid witness table crashes.
+                // Self-register plugin metadata from the DriverPlugin protocol.
+                // parameterStyle defaults to .questionMark; built-in defaults already have correct values.
+                let snapshot = PluginMetadataRegistry.shared.buildMetadataSnapshot(
+                    from: driverType,
+                    isDownloadable: driverType.isDownloadable
+                )
+                PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: typeId)
+                for additionalId in driverType.additionalDatabaseTypeIds {
+                    PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: additionalId)
+                    PluginMetadataRegistry.shared.registerTypeAlias(additionalId, primaryTypeId: typeId)
+                }
 
                 Self.logger.debug("Registered driver plugin '\(pluginId)' for database type '\(typeId)'")
                 registeredAny = true

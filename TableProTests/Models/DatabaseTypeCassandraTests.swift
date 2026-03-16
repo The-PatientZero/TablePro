@@ -5,82 +5,82 @@ import Testing
 struct DatabaseTypeCassandraTests {
     @Test("Cassandra raw value is Cassandra")
     func cassandraRawValue() {
-        #expect(DatabaseType.cassandra.rawValue == "Cassandra")
+        #expect(.cassandra.rawValue == "Cassandra")
     }
 
     @Test("ScyllaDB raw value is ScyllaDB")
     func scylladbRawValue() {
-        #expect(DatabaseType.scylladb.rawValue == "ScyllaDB")
+        #expect(.scylladb.rawValue == "ScyllaDB")
     }
 
     @Test("Cassandra pluginTypeId is Cassandra")
     func cassandraPluginTypeId() {
-        #expect(DatabaseType.cassandra.pluginTypeId == "Cassandra")
+        #expect(.cassandra.pluginTypeId == "Cassandra")
     }
 
     @Test("ScyllaDB pluginTypeId is Cassandra")
     func scylladbPluginTypeId() {
-        #expect(DatabaseType.scylladb.pluginTypeId == "Cassandra")
+        #expect(.scylladb.pluginTypeId == "Cassandra")
     }
 
     @Test("Cassandra default port is 9042")
     func cassandraDefaultPort() {
-        #expect(DatabaseType.cassandra.defaultPort == 9_042)
+        #expect(.cassandra.defaultPort == 9_042)
     }
 
     @Test("ScyllaDB default port is 9042")
     func scylladbDefaultPort() {
-        #expect(DatabaseType.scylladb.defaultPort == 9_042)
+        #expect(.scylladb.defaultPort == 9_042)
     }
 
     @Test("Cassandra does not require authentication")
     func cassandraRequiresAuthentication() {
-        #expect(DatabaseType.cassandra.requiresAuthentication == false)
+        #expect(.cassandra.requiresAuthentication == false)
     }
 
     @Test("ScyllaDB does not require authentication")
     func scylladbRequiresAuthentication() {
-        #expect(DatabaseType.scylladb.requiresAuthentication == false)
+        #expect(.scylladb.requiresAuthentication == false)
     }
 
     @Test("Cassandra does not support foreign keys")
     func cassandraSupportsForeignKeys() {
-        #expect(DatabaseType.cassandra.supportsForeignKeys == false)
+        #expect(.cassandra.supportsForeignKeys == false)
     }
 
     @Test("ScyllaDB does not support foreign keys")
     func scylladbSupportsForeignKeys() {
-        #expect(DatabaseType.scylladb.supportsForeignKeys == false)
+        #expect(.scylladb.supportsForeignKeys == false)
     }
 
     @Test("Cassandra supports schema editing")
     func cassandraSupportsSchemaEditing() {
-        #expect(DatabaseType.cassandra.supportsSchemaEditing == true)
+        #expect(.cassandra.supportsSchemaEditing == true)
     }
 
     @Test("ScyllaDB supports schema editing")
     func scylladbSupportsSchemaEditing() {
-        #expect(DatabaseType.scylladb.supportsSchemaEditing == true)
+        #expect(.scylladb.supportsSchemaEditing == true)
     }
 
     @Test("Cassandra icon name is cassandra-icon")
     func cassandraIconName() {
-        #expect(DatabaseType.cassandra.iconName == "cassandra-icon")
+        #expect(.cassandra.iconName == "cassandra-icon")
     }
 
     @Test("ScyllaDB icon name is scylladb-icon")
     func scylladbIconName() {
-        #expect(DatabaseType.scylladb.iconName == "scylladb-icon")
+        #expect(.scylladb.iconName == "scylladb-icon")
     }
 
     @Test("Cassandra is a downloadable plugin")
     func cassandraIsDownloadablePlugin() {
-        #expect(DatabaseType.cassandra.isDownloadablePlugin == true)
+        #expect(.cassandra.isDownloadablePlugin == true)
     }
 
     @Test("ScyllaDB is a downloadable plugin")
     func scylladbIsDownloadablePlugin() {
-        #expect(DatabaseType.scylladb.isDownloadablePlugin == true)
+        #expect(.scylladb.isDownloadablePlugin == true)
     }
 
     @Test("Cassandra included in allCases")

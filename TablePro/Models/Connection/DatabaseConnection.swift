@@ -219,11 +219,14 @@ struct DatabaseType: Hashable, Identifiable, Sendable {
 }
 
 extension DatabaseType {
+    // Built-in types (bundled plugins)
     static let mysql = DatabaseType(rawValue: "MySQL")
     static let mariadb = DatabaseType(rawValue: "MariaDB")
     static let postgresql = DatabaseType(rawValue: "PostgreSQL")
     static let sqlite = DatabaseType(rawValue: "SQLite")
     static let redshift = DatabaseType(rawValue: "Redshift")
+
+    // Registry-distributed types (known plugins, downloadable separately)
     static let mongodb = DatabaseType(rawValue: "MongoDB")
     static let redis = DatabaseType(rawValue: "Redis")
     static let mssql = DatabaseType(rawValue: "SQL Server")
@@ -248,29 +251,27 @@ extension DatabaseType: Codable {
 }
 
 extension DatabaseType {
-    /// All built-in database types.
-    static let allKnownTypes: [DatabaseType] = [
-        .mysql, .mariadb, .postgresql, .sqlite, .redshift,
-        .mongodb, .redis, .mssql, .oracle, .clickhouse, .duckdb,
-        .cassandra, .scylladb, .etcd,
-    ]
+    /// All registered database types, derived dynamically from the plugin metadata registry.
+    static var allKnownTypes: [DatabaseType] {
+        PluginMetadataRegistry.shared.allRegisteredTypeIds().map { DatabaseType(rawValue: $0) }
+    }
 
     /// Compatibility shim for CaseIterable call sites.
     static var allCases: [DatabaseType] { allKnownTypes }
 }
 
 extension DatabaseType {
-    /// Returns nil if rawValue doesn't match any known type.
+    /// Returns nil if rawValue doesn't match any registered type.
     init?(validating rawValue: String) {
-        guard Self.allKnownTypes.contains(where: { $0.rawValue == rawValue }) else { return nil }
+        guard PluginMetadataRegistry.shared.hasType(rawValue) else { return nil }
         self.rawValue = rawValue
     }
 }
 
 extension DatabaseType {
-    /// Plugin type ID used for PluginManager lookup.
+    /// Plugin type ID used for PluginManager lookup, resolved via the registry.
     var pluginTypeId: String {
-        Self.pluginTypeIdMap[self] ?? rawValue
+        PluginMetadataRegistry.shared.pluginTypeId(for: rawValue)
     }
 
     var isDownloadablePlugin: Bool {
@@ -296,20 +297,6 @@ extension DatabaseType {
     var supportsSchemaEditing: Bool {
         PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.supportsSchemaEditing ?? true
     }
-
-    private static let pluginTypeIdMap: [DatabaseType: String] = [
-        .mysql: "MySQL", .mariadb: "MySQL",
-        .postgresql: "PostgreSQL", .redshift: "PostgreSQL",
-        .mssql: "SQL Server",
-        .sqlite: "SQLite",
-        .mongodb: "MongoDB",
-        .redis: "Redis",
-        .oracle: "Oracle",
-        .clickhouse: "ClickHouse",
-        .duckdb: "DuckDB",
-        .cassandra: "Cassandra", .scylladb: "Cassandra",
-        .etcd: "etcd",
-    ]
 }
 
 // MARK: - Connection Color

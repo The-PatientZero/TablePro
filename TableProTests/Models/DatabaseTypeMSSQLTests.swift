@@ -2,7 +2,7 @@
 //  DatabaseTypeMSSQLTests.swift
 //  TableProTests
 //
-//  Tests for DatabaseType.mssql properties and methods.
+//  Tests for .mssql properties and methods.
 //
 
 import Foundation
@@ -15,32 +15,32 @@ struct DatabaseTypeMSSQLTests {
 
     @Test("defaultPort is 1433")
     func defaultPort() {
-        #expect(DatabaseType.mssql.defaultPort == 1_433)
+        #expect(.mssql.defaultPort == 1_433)
     }
 
     @Test("rawValue is SQL Server")
     func rawValue() {
-        #expect(DatabaseType.mssql.rawValue == "SQL Server")
+        #expect(.mssql.rawValue == "SQL Server")
     }
 
     @Test("requiresAuthentication is true")
     func requiresAuthentication() {
-        #expect(DatabaseType.mssql.requiresAuthentication == true)
+        #expect(.mssql.requiresAuthentication == true)
     }
 
     @Test("supportsForeignKeys is true")
     func supportsForeignKeys() {
-        #expect(DatabaseType.mssql.supportsForeignKeys == true)
+        #expect(.mssql.supportsForeignKeys == true)
     }
 
     @Test("supportsSchemaEditing is true")
     func supportsSchemaEditing() {
-        #expect(DatabaseType.mssql.supportsSchemaEditing == true)
+        #expect(.mssql.supportsSchemaEditing == true)
     }
 
     @Test("iconName is mssql-icon")
     func iconName() {
-        #expect(DatabaseType.mssql.iconName == "mssql-icon")
+        #expect(.mssql.iconName == "mssql-icon")
     }
 
     // MARK: - allKnownTypes Tests

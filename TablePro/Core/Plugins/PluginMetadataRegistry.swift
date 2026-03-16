@@ -125,6 +125,7 @@ final class PluginMetadataRegistry: @unchecked Sendable {
     private let lock = NSLock()
     private var snapshots: [String: PluginMetadataSnapshot] = [:]
     private var schemeIndex: [String: String] = [:]
+    private var reverseTypeIndex: [String: String] = [:]
 
     private init() {
         registerBuiltInDefaults()
@@ -505,6 +506,11 @@ final class PluginMetadataRegistry: @unchecked Sendable {
                 schemeIndex[scheme.lowercased()] = entry.typeId
             }
         }
+
+        // Built-in type aliases: multi-type plugins where an alias maps to a primary plugin type ID
+        reverseTypeIndex["MariaDB"] = "MySQL"
+        reverseTypeIndex["Redshift"] = "PostgreSQL"
+        reverseTypeIndex["ScyllaDB"] = "Cassandra"
     }
 
     func register(snapshot: PluginMetadataSnapshot, forTypeId typeId: String) {
@@ -541,6 +547,107 @@ final class PluginMetadataRegistry: @unchecked Sendable {
     func databaseType(forUrlScheme scheme: String) -> DatabaseType? {
         guard let typeId = typeId(forUrlScheme: scheme) else { return nil }
         return DatabaseType(rawValue: typeId)
+    }
+
+    // MARK: - Dynamic Type Registration
+
+    /// Registers an alias type ID that maps to a primary type ID.
+    /// Used for multi-type plugins (e.g., MariaDB → MySQL, Redshift → PostgreSQL).
+    func registerTypeAlias(_ aliasTypeId: String, primaryTypeId: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        reverseTypeIndex[aliasTypeId] = primaryTypeId
+    }
+
+    /// Returns all registered type IDs (sorted for deterministic UI ordering).
+    func allRegisteredTypeIds() -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return Array(snapshots.keys).sorted()
+    }
+
+    /// Resolves a database type raw value to its plugin type ID for driver lookup.
+    /// For multi-type plugins (MySQL serves MariaDB), maps the alias to the primary.
+    /// Does NOT remap for snapshot lookups — use snapshot(forTypeId:) directly.
+    func pluginTypeId(for rawValue: String) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return reverseTypeIndex[rawValue] ?? rawValue
+    }
+
+    /// Checks if a type ID is registered (has a snapshot).
+    func hasType(_ typeId: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return snapshots[typeId] != nil
+    }
+
+    // MARK: - Snapshot Builder
+
+    /// Builds a PluginMetadataSnapshot from a DriverPlugin's protocol properties.
+    /// Used by PluginManager to self-register plugins at load time.
+    func buildMetadataSnapshot(
+        from driverType: any DriverPlugin.Type,
+        isDownloadable: Bool = false,
+        parameterStyle: ParameterStyle = .questionMark
+    ) -> PluginMetadataSnapshot {
+        let schemes = driverType.urlSchemes
+        let primaryScheme = schemes.first ?? driverType.databaseTypeId.lowercased()
+
+        return PluginMetadataSnapshot(
+            displayName: driverType.databaseDisplayName,
+            iconName: driverType.iconName,
+            defaultPort: driverType.defaultPort,
+            requiresAuthentication: driverType.requiresAuthentication,
+            supportsForeignKeys: driverType.supportsForeignKeys,
+            supportsSchemaEditing: driverType.supportsSchemaEditing,
+            isDownloadable: isDownloadable,
+            primaryUrlScheme: primaryScheme,
+            parameterStyle: parameterStyle,
+            navigationModel: driverType.navigationModel,
+            explainVariants: driverType.explainVariants,
+            pathFieldRole: driverType.pathFieldRole,
+            supportsHealthMonitor: driverType.supportsHealthMonitor,
+            urlSchemes: schemes,
+            postConnectActions: driverType.postConnectActions,
+            brandColorHex: driverType.brandColorHex,
+            queryLanguageName: driverType.queryLanguageName,
+            editorLanguage: driverType.editorLanguage,
+            connectionMode: driverType.connectionMode,
+            supportsDatabaseSwitching: driverType.supportsDatabaseSwitching,
+            capabilities: PluginMetadataSnapshot.CapabilityFlags(
+                supportsSchemaSwitching: driverType.supportsSchemaSwitching,
+                supportsImport: driverType.supportsImport,
+                supportsExport: driverType.supportsExport,
+                supportsSSH: driverType.supportsSSH,
+                supportsSSL: driverType.supportsSSL,
+                supportsCascadeDrop: driverType.supportsCascadeDrop,
+                supportsForeignKeyDisable: driverType.supportsForeignKeyDisable,
+                supportsReadOnlyMode: driverType.supportsReadOnlyMode,
+                supportsQueryProgress: driverType.supportsQueryProgress,
+                requiresReconnectForDatabaseSwitch: driverType.requiresReconnectForDatabaseSwitch
+            ),
+            schema: PluginMetadataSnapshot.SchemaInfo(
+                defaultSchemaName: driverType.defaultSchemaName,
+                defaultGroupName: driverType.defaultGroupName,
+                tableEntityName: driverType.tableEntityName,
+                defaultPrimaryKeyColumn: driverType.defaultPrimaryKeyColumn,
+                immutableColumns: driverType.immutableColumns,
+                systemDatabaseNames: driverType.systemDatabaseNames,
+                systemSchemaNames: driverType.systemSchemaNames,
+                fileExtensions: driverType.fileExtensions,
+                databaseGroupingStrategy: driverType.databaseGroupingStrategy,
+                structureColumnFields: driverType.structureColumnFields
+            ),
+            editor: PluginMetadataSnapshot.EditorConfig(
+                sqlDialect: driverType.sqlDialect,
+                statementCompletions: driverType.statementCompletions,
+                columnTypesByCategory: driverType.columnTypesByCategory
+            ),
+            connection: PluginMetadataSnapshot.ConnectionConfig(
+                additionalConnectionFields: driverType.additionalConnectionFields
+            )
+        )
     }
 
     func allFileExtensions() -> [String: String] {
