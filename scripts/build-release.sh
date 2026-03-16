@@ -347,7 +347,6 @@ build_for_arch() {
         CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
         CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
-        PROVISIONING_PROFILE_SPECIFIER="TablePro Developer ID" \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
