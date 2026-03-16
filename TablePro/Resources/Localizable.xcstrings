@@ -5466,6 +5466,9 @@
         }
       }
     },
+    "Database Index" : {
+
+    },
     "Database Index: %lld" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -19042,7 +19045,6 @@
       }
     },
     "Use ~/.pgpass" : {
-      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
