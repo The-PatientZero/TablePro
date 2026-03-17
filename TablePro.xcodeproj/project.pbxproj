@@ -35,6 +35,7 @@
 		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
 		5ACE00012F4F00000000000A /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000009 /* Sparkle */; };
 		5ACE00012F4F00000000000D /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000C /* MarkdownUI */; };
+
 		5AEA8B422F6808CA0040461A /* EtcdStatementGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AEA8B402F6808CA0040461A /* EtcdStatementGenerator.swift */; };
 		5AEA8B432F6808CA0040461A /* EtcdPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AEA8B3D2F6808CA0040461A /* EtcdPlugin.swift */; };
 		5AEA8B442F6808CA0040461A /* EtcdCommandParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AEA8B3B2F6808CA0040461A /* EtcdCommandParser.swift */; };
@@ -116,12 +117,26 @@
 			remoteGlobalIDString = 5A86C000000000000;
 			remoteInfo = SQLExport;
 		};
+		5AEA8B312F6808270040461A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5AEA8B292F6808270040461A;
+			remoteInfo = EtcdDriverPlugin;
+		};
 		5ABCC5AB2F43856700EAF3FC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 5A1091C62EF17EDC0055EA7C;
 			remoteInfo = TablePro;
+		};
+		5AEA8B312F6808270040461A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5AEA8B292F6808270040461A;
+			remoteInfo = EtcdDriverPlugin;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -1612,10 +1627,20 @@
 			target = 5A86C000000000000 /* SQLExport */;
 			targetProxy = 5A86C000B00000000 /* PBXContainerItemProxy */;
 		};
+		5AEA8B322F6808270040461A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5AEA8B292F6808270040461A /* EtcdDriverPlugin */;
+			targetProxy = 5AEA8B312F6808270040461A /* PBXContainerItemProxy */;
+		};
 		5ABCC5AC2F43856700EAF3FC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 5A1091C62EF17EDC0055EA7C /* TablePro */;
 			targetProxy = 5ABCC5AB2F43856700EAF3FC /* PBXContainerItemProxy */;
+		};
+		5AEA8B322F6808270040461A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5AEA8B292F6808270040461A /* EtcdDriverPlugin */;
+			targetProxy = 5AEA8B312F6808270040461A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1658,7 +1683,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -1724,7 +1749,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -1758,7 +1783,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 35;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -1831,7 +1856,7 @@
 				CURRENT_PROJECT_VERSION = 35;
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -2891,7 +2916,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Plugins/EtcdDriverPlugin/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -2916,7 +2941,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Plugins/EtcdDriverPlugin/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
