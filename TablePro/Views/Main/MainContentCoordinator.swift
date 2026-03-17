@@ -313,7 +313,7 @@ final class MainContentCoordinator {
     }
 
     func reloadSidebar() {
-        Task {
+        Task { @MainActor in
             await schemaProvider.invalidateTables()
             sidebarViewModel?.forceLoadTables()
         }

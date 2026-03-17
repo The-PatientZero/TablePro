@@ -179,7 +179,6 @@ struct LiveTableFetcherTests {
         let provider = SQLSchemaProvider()
         await provider.loadSchema(using: mockDriver)
 
-        await provider.invalidateTables()
         let freshTables = [
             TestFixtures.makeTableInfo(name: "alpha"),
             TestFixtures.makeTableInfo(name: "beta")

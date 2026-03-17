@@ -29,8 +29,7 @@ struct LiveTableFetcher: TableFetcher {
     func fetchTables(force: Bool) async throws -> [TableInfo] {
         if let provider = schemaProvider {
             if force {
-                let fresh = try await provider.fetchFreshTables()
-                if !fresh.isEmpty { return fresh }
+                if let fresh = try await provider.fetchFreshTables() { return fresh }
             } else {
                 let cached = await provider.getTables()
                 if !cached.isEmpty { return cached }

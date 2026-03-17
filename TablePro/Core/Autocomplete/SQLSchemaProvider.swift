@@ -109,8 +109,8 @@ actor SQLSchemaProvider {
         tables = newTables
     }
 
-    func fetchFreshTables() async throws -> [TableInfo] {
-        guard let driver = cachedDriver else { return [] }
+    func fetchFreshTables() async throws -> [TableInfo]? {
+        guard let driver = cachedDriver else { return nil }
         let fresh = try await driver.fetchTables()
         tables = fresh
         return fresh
