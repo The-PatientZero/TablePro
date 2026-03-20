@@ -51,6 +51,8 @@ struct ProFeatureGateModifier: ViewModifier {
                         openLicenseSettings()
                     }
                     .buttonStyle(.borderedProminent)
+                    Link(String(localized: "Renew License"), destination: URL(string: "https://tablepro.app")!)
+                        .font(.subheadline)
                 case .unlicensed:
                     Text("\(feature.displayName) requires a Pro license")
                         .font(.headline)
@@ -61,6 +63,8 @@ struct ProFeatureGateModifier: ViewModifier {
                         openLicenseSettings()
                     }
                     .buttonStyle(.borderedProminent)
+                    Link(String(localized: "Purchase License"), destination: URL(string: "https://tablepro.app")!)
+                        .font(.subheadline)
                 }
             }
             .padding()

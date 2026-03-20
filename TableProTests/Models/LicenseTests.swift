@@ -44,14 +44,17 @@ struct LicenseTests {
             machineId: "machine1",
             signedPayload: SignedLicensePayload(
                 data: LicensePayloadData(
+                    billingCycle: nil,
                     licenseKey: "test-key",
                     email: "test@test.com",
                     status: "active",
                     expiresAt: nil,
-                    issuedAt: "2024-01-01T00:00:00Z"
+                    issuedAt: "2024-01-01T00:00:00Z",
+                    tier: "starter"
                 ),
                 signature: "sig"
-            )
+            ),
+            tier: "starter"
         )
         #expect(license.isExpired == false)
     }
@@ -68,14 +71,17 @@ struct LicenseTests {
             machineId: "machine1",
             signedPayload: SignedLicensePayload(
                 data: LicensePayloadData(
+                    billingCycle: nil,
                     licenseKey: "test-key",
                     email: "test@test.com",
                     status: "active",
                     expiresAt: "2025-01-01T00:00:00Z",
-                    issuedAt: "2024-01-01T00:00:00Z"
+                    issuedAt: "2024-01-01T00:00:00Z",
+                    tier: "starter"
                 ),
                 signature: "sig"
-            )
+            ),
+            tier: "starter"
         )
         #expect(license.isExpired == false)
     }
@@ -92,14 +98,17 @@ struct LicenseTests {
             machineId: "machine1",
             signedPayload: SignedLicensePayload(
                 data: LicensePayloadData(
+                    billingCycle: nil,
                     licenseKey: "test-key",
                     email: "test@test.com",
                     status: "expired",
                     expiresAt: "2024-01-01T00:00:00Z",
-                    issuedAt: "2023-01-01T00:00:00Z"
+                    issuedAt: "2023-01-01T00:00:00Z",
+                    tier: "starter"
                 ),
                 signature: "sig"
-            )
+            ),
+            tier: "starter"
         )
         #expect(license.isExpired == true)
     }
@@ -117,14 +126,17 @@ struct LicenseTests {
             machineId: "machine1",
             signedPayload: SignedLicensePayload(
                 data: LicensePayloadData(
+                    billingCycle: nil,
                     licenseKey: "test-key",
                     email: "test@test.com",
                     status: "active",
                     expiresAt: nil,
-                    issuedAt: "2024-01-01T00:00:00Z"
+                    issuedAt: "2024-01-01T00:00:00Z",
+                    tier: "starter"
                 ),
                 signature: "sig"
-            )
+            ),
+            tier: "starter"
         )
         #expect(license.daysSinceLastValidation == 0)
     }
@@ -144,14 +156,17 @@ struct LicenseTests {
             machineId: "machine1",
             signedPayload: SignedLicensePayload(
                 data: LicensePayloadData(
+                    billingCycle: nil,
                     licenseKey: "test-key",
                     email: "test@test.com",
                     status: "active",
                     expiresAt: nil,
-                    issuedAt: "2024-01-01T00:00:00Z"
+                    issuedAt: "2024-01-01T00:00:00Z",
+                    tier: "starter"
                 ),
                 signature: "sig"
-            )
+            ),
+            tier: "starter"
         )
         #expect(license.daysSinceLastValidation == 5)
     }
@@ -161,11 +176,13 @@ struct LicenseTests {
     @Test("License.from maps active status correctly")
     func licenseFromMapsActiveStatus() {
         let payloadData = LicensePayloadData(
+            billingCycle: nil,
             licenseKey: "test-key",
             email: "test@test.com",
             status: "active",
             expiresAt: nil,
-            issuedAt: "2024-01-01T00:00:00Z"
+            issuedAt: "2024-01-01T00:00:00Z",
+            tier: "starter"
         )
         let signedPayload = SignedLicensePayload(data: payloadData, signature: "sig")
         let license = License.from(
@@ -179,11 +196,13 @@ struct LicenseTests {
     @Test("License.from maps expired status correctly")
     func licenseFromMapsExpiredStatus() {
         let payloadData = LicensePayloadData(
+            billingCycle: "monthly",
             licenseKey: "test-key",
             email: "test@test.com",
             status: "expired",
             expiresAt: "2024-01-01T00:00:00Z",
-            issuedAt: "2023-01-01T00:00:00Z"
+            issuedAt: "2023-01-01T00:00:00Z",
+            tier: "starter"
         )
         let signedPayload = SignedLicensePayload(data: payloadData, signature: "sig")
         let license = License.from(
@@ -197,11 +216,13 @@ struct LicenseTests {
     @Test("License.from maps suspended status correctly")
     func licenseFromMapsSuspendedStatus() {
         let payloadData = LicensePayloadData(
+            billingCycle: nil,
             licenseKey: "test-key",
             email: "test@test.com",
             status: "suspended",
             expiresAt: nil,
-            issuedAt: "2024-01-01T00:00:00Z"
+            issuedAt: "2024-01-01T00:00:00Z",
+            tier: "starter"
         )
         let signedPayload = SignedLicensePayload(data: payloadData, signature: "sig")
         let license = License.from(
@@ -215,11 +236,13 @@ struct LicenseTests {
     @Test("License.from maps unknown status to validationFailed")
     func licenseFromMapsUnknownStatusToValidationFailed() {
         let payloadData = LicensePayloadData(
+            billingCycle: nil,
             licenseKey: "test-key",
             email: "test@test.com",
             status: "unknown",
             expiresAt: nil,
-            issuedAt: "2024-01-01T00:00:00Z"
+            issuedAt: "2024-01-01T00:00:00Z",
+            tier: "starter"
         )
         let signedPayload = SignedLicensePayload(data: payloadData, signature: "sig")
         let license = License.from(
@@ -228,5 +251,65 @@ struct LicenseTests {
             machineId: "machine1"
         )
         #expect(license.status == .validationFailed)
+    }
+
+    // MARK: - LicensePayloadData Encoding Tests
+
+    @Test("LicensePayloadData encodes all 7 fields in alphabetical order matching server format")
+    func payloadDataEncodesAllFieldsAlphabetically() throws {
+        let payloadData = LicensePayloadData(
+            billingCycle: "monthly",
+            licenseKey: "ABC-123",
+            email: "user@example.com",
+            status: "active",
+            expiresAt: "2025-12-31T23:59:59Z",
+            issuedAt: "2025-01-01T00:00:00Z",
+            tier: "pro"
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(payloadData)
+        let json = String(data: data, encoding: .utf8)
+
+        guard let json else {
+            Issue.record("Failed to encode payload data to UTF-8 string")
+            return
+        }
+
+        guard let keys = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            Issue.record("Failed to deserialize JSON as dictionary")
+            return
+        }
+
+        let expectedKeys = ["billing_cycle", "email", "expires_at", "issued_at", "license_key", "status", "tier"]
+        #expect(keys.keys.sorted() == expectedKeys)
+
+        let billingCycleRange = json.range(of: "billing_cycle")
+        let tierRange = json.range(of: "tier")
+        guard let billingCycleRange, let tierRange else {
+            Issue.record("Expected keys not found in JSON string")
+            return
+        }
+        #expect(billingCycleRange.lowerBound < tierRange.lowerBound)
+    }
+
+    @Test("LicensePayloadData encodes nil billingCycle as null")
+    func payloadDataEncodesNilBillingCycleAsNull() throws {
+        let payloadData = LicensePayloadData(
+            billingCycle: nil,
+            licenseKey: "ABC-123",
+            email: "user@example.com",
+            status: "active",
+            expiresAt: nil,
+            issuedAt: "2025-01-01T00:00:00Z",
+            tier: "starter"
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(payloadData)
+        let json = String(data: data, encoding: .utf8)
+
+        #expect(json?.contains("\"billing_cycle\":null") == true)
+        #expect(json?.contains("\"expires_at\":null") == true)
     }
 }

@@ -37,6 +37,23 @@ struct LicenseSettingsView: View {
                 Text(maskedKey(license.key))
                     .textSelection(.enabled)
             }
+
+            LabeledContent("Status:") {
+                Text(license.status.displayName)
+                    .foregroundStyle(license.status.isValid ? .green : .red)
+            }
+
+            if let expiresAt = license.expiresAt {
+                LabeledContent("Expires:", value: expiresAt.formatted(date: .abbreviated, time: .omitted))
+            } else {
+                LabeledContent("Expires:", value: String(localized: "Lifetime"))
+            }
+
+            LabeledContent("Tier:", value: license.tier.capitalized)
+
+            if let billingCycle = license.billingCycle {
+                LabeledContent("Billing:", value: billingCycle.capitalized)
+            }
         }
 
         Section("Maintenance") {
@@ -82,6 +99,12 @@ struct LicenseSettingsView: View {
                     }
                     .disabled(licenseKeyInput.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+            }
+
+            HStack {
+                Spacer()
+                Link("Purchase License", destination: URL(string: "https://tablepro.app")!)
+                    .font(.subheadline)
             }
         }
     }

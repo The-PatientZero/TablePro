@@ -38,25 +38,34 @@ enum LicenseStatus: String, Codable {
 
 /// The `data` portion of the signed license payload from the server
 struct LicensePayloadData: Codable, Equatable {
+    let billingCycle: String?
     let licenseKey: String
     let email: String
     let status: String
     let expiresAt: String?
     let issuedAt: String
+    let tier: String
 
     private enum CodingKeys: String, CodingKey {
+        case billingCycle = "billing_cycle"
         case licenseKey = "license_key"
         case email
         case status
         case expiresAt = "expires_at"
         case issuedAt = "issued_at"
+        case tier
     }
 
     /// Custom encode to explicitly write null for nil optionals.
     /// The auto-synthesized Codable uses encodeIfPresent which omits nil keys,
-    /// but PHP's json_encode includes "expires_at":null — the signed JSON must match exactly.
+    /// but PHP's json_encode includes null values — the signed JSON must match exactly.
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        if let billingCycle {
+            try container.encode(billingCycle, forKey: .billingCycle)
+        } else {
+            try container.encodeNil(forKey: .billingCycle)
+        }
         try container.encode(licenseKey, forKey: .licenseKey)
         try container.encode(email, forKey: .email)
         try container.encode(status, forKey: .status)
@@ -66,6 +75,7 @@ struct LicensePayloadData: Codable, Equatable {
             try container.encodeNil(forKey: .expiresAt)
         }
         try container.encode(issuedAt, forKey: .issuedAt)
+        try container.encode(tier, forKey: .tier)
     }
 }
 
@@ -132,6 +142,8 @@ struct License: Codable, Equatable {
     var lastValidatedAt: Date
     var machineId: String
     var signedPayload: SignedLicensePayload
+    var tier: String
+    var billingCycle: String?
 
     /// Whether the license has expired based on expiration date
     var isExpired: Bool {
@@ -171,7 +183,9 @@ struct License: Codable, Equatable {
             expiresAt: expiresAt,
             lastValidatedAt: Date(),
             machineId: machineId,
-            signedPayload: signedPayload
+            signedPayload: signedPayload,
+            tier: payload.tier,
+            billingCycle: payload.billingCycle
         )
     }
 }
