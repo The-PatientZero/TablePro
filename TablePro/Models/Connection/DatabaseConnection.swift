@@ -362,6 +362,17 @@ enum ConnectionColor: String, CaseIterable, Identifiable, Codable {
 
 // MARK: - Database Connection
 
+/// Type-safe keys for the `additionalFields` dictionary
+private enum AdditionalFieldKey: String {
+    case mongoAuthSource
+    case mongoReadPreference
+    case mongoWriteConcern
+    case mssqlSchema
+    case oracleServiceName
+    case usePgpass
+    case preConnectScript
+}
+
 /// Model representing a database connection
 struct DatabaseConnection: Identifiable, Hashable {
     let id: UUID
@@ -384,38 +395,38 @@ struct DatabaseConnection: Identifiable, Hashable {
     var startupCommands: String?
 
     var mongoAuthSource: String? {
-        get { additionalFields["mongoAuthSource"]?.nilIfEmpty }
-        set { additionalFields["mongoAuthSource"] = newValue ?? "" }
+        get { additionalFields[AdditionalFieldKey.mongoAuthSource.rawValue]?.nilIfEmpty }
+        set { additionalFields[AdditionalFieldKey.mongoAuthSource.rawValue] = newValue ?? "" }
     }
 
     var mongoReadPreference: String? {
-        get { additionalFields["mongoReadPreference"]?.nilIfEmpty }
-        set { additionalFields["mongoReadPreference"] = newValue ?? "" }
+        get { additionalFields[AdditionalFieldKey.mongoReadPreference.rawValue]?.nilIfEmpty }
+        set { additionalFields[AdditionalFieldKey.mongoReadPreference.rawValue] = newValue ?? "" }
     }
 
     var mongoWriteConcern: String? {
-        get { additionalFields["mongoWriteConcern"]?.nilIfEmpty }
-        set { additionalFields["mongoWriteConcern"] = newValue ?? "" }
+        get { additionalFields[AdditionalFieldKey.mongoWriteConcern.rawValue]?.nilIfEmpty }
+        set { additionalFields[AdditionalFieldKey.mongoWriteConcern.rawValue] = newValue ?? "" }
     }
 
     var mssqlSchema: String? {
-        get { additionalFields["mssqlSchema"]?.nilIfEmpty }
-        set { additionalFields["mssqlSchema"] = newValue ?? "" }
+        get { additionalFields[AdditionalFieldKey.mssqlSchema.rawValue]?.nilIfEmpty }
+        set { additionalFields[AdditionalFieldKey.mssqlSchema.rawValue] = newValue ?? "" }
     }
 
     var oracleServiceName: String? {
-        get { additionalFields["oracleServiceName"]?.nilIfEmpty }
-        set { additionalFields["oracleServiceName"] = newValue ?? "" }
+        get { additionalFields[AdditionalFieldKey.oracleServiceName.rawValue]?.nilIfEmpty }
+        set { additionalFields[AdditionalFieldKey.oracleServiceName.rawValue] = newValue ?? "" }
     }
 
     var usePgpass: Bool {
-        get { additionalFields["usePgpass"] == "true" }
-        set { additionalFields["usePgpass"] = newValue ? "true" : "" }
+        get { additionalFields[AdditionalFieldKey.usePgpass.rawValue] == "true" }
+        set { additionalFields[AdditionalFieldKey.usePgpass.rawValue] = newValue ? "true" : "" }
     }
 
     var preConnectScript: String? {
-        get { additionalFields["preConnectScript"]?.nilIfEmpty }
-        set { additionalFields["preConnectScript"] = newValue ?? "" }
+        get { additionalFields[AdditionalFieldKey.preConnectScript.rawValue]?.nilIfEmpty }
+        set { additionalFields[AdditionalFieldKey.preConnectScript.rawValue] = newValue ?? "" }
     }
 
     init(
@@ -464,11 +475,11 @@ struct DatabaseConnection: Identifiable, Hashable {
             self.additionalFields = additionalFields
         } else {
             var fields: [String: String] = [:]
-            if let v = mongoAuthSource { fields["mongoAuthSource"] = v }
-            if let v = mongoReadPreference { fields["mongoReadPreference"] = v }
-            if let v = mongoWriteConcern { fields["mongoWriteConcern"] = v }
-            if let v = mssqlSchema { fields["mssqlSchema"] = v }
-            if let v = oracleServiceName { fields["oracleServiceName"] = v }
+            if let v = mongoAuthSource { fields[AdditionalFieldKey.mongoAuthSource.rawValue] = v }
+            if let v = mongoReadPreference { fields[AdditionalFieldKey.mongoReadPreference.rawValue] = v }
+            if let v = mongoWriteConcern { fields[AdditionalFieldKey.mongoWriteConcern.rawValue] = v }
+            if let v = mssqlSchema { fields[AdditionalFieldKey.mssqlSchema.rawValue] = v }
+            if let v = oracleServiceName { fields[AdditionalFieldKey.oracleServiceName.rawValue] = v }
             self.additionalFields = fields
         }
     }

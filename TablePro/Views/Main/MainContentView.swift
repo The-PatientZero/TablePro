@@ -60,7 +60,7 @@ struct MainContentView: View {
 
     // MARK: - Environment
 
-    @Environment(AppState.self) private var appState
+    private var appState: AppState { AppState.shared }
 
     // MARK: - Initialization
 
@@ -466,12 +466,23 @@ struct MainContentView: View {
             // Rebuild base queries for table tabs to strip stale filter/sort WHERE clauses.
             // Filter state is not persisted, so the stored query may contain orphaned conditions
             // that reference columns from a different schema — causing errors on restore.
+            let restorePageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+            let restoreEditorLang = PluginManager.shared.editorLanguage(for: connection.type)
+            let restorePaginationStyle = PluginManager.shared.paginationStyle(for: connection.type)
+            let restoreOrderBy = PluginManager.shared.offsetFetchOrderBy(for: connection.type)
+            let restorePluginDriver = PluginManager.shared.queryBuildingDriver(for: connection.type)
+            let restoreQuote = quoteIdentifierFromDialect(PluginManager.shared.sqlDialect(for: connection.type))
             var restoredTabs = result.tabs
             for i in restoredTabs.indices where restoredTabs[i].tabType == .table {
                 if let tableName = restoredTabs[i].tableName {
                     restoredTabs[i].query = QueryTab.buildBaseTableQuery(
                         tableName: tableName,
-                        databaseType: connection.type
+                        pageSize: restorePageSize,
+                        editorLanguage: restoreEditorLang,
+                        paginationStyle: restorePaginationStyle,
+                        offsetFetchOrderBy: restoreOrderBy,
+                        pluginDriver: restorePluginDriver,
+                        quoteIdentifier: restoreQuote
                     )
                 }
             }

@@ -191,13 +191,15 @@ internal struct ThemeListView: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let imported = try engine.importTheme(from: url)
-            engine.activateTheme(imported)
-            selectedThemeId = imported.id
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
+        Task {
+            do {
+                let imported = try await engine.importTheme(from: url)
+                engine.activateTheme(imported)
+                selectedThemeId = imported.id
+            } catch {
+                errorMessage = error.localizedDescription
+                showError = true
+            }
         }
     }
 }

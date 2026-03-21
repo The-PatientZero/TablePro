@@ -280,10 +280,17 @@ struct QueryTab: Identifiable, Equatable {
 
     // Results — stored in a reference-type buffer to avoid CoW duplication
     // of large data when the struct is mutated (MEM-1 fix).
-    // Note: When QueryTab is copied (struct CoW), copies share the same RowBuffer
-    // instance. This is intentional — RowBuffer is a reference type specifically to
-    // avoid duplicating large result arrays on every struct mutation.
+    //
+    // Shared reference semantics: When QueryTab is copied (struct CoW), copies share
+    // the same RowBuffer instance. This is intentional — RowBuffer is a reference type
+    // specifically to avoid duplicating large result arrays on every struct mutation.
+    // Mutations to rowBuffer (e.g., evict/restore) affect all copies that share this
+    // reference. Use `rowBuffer.copy()` when you need an independent snapshot.
     var rowBuffer: RowBuffer
+
+    /// Whether this tab's row data has been evicted to save memory.
+    /// Convenience accessor for `rowBuffer.isEvicted`.
+    var isEvicted: Bool { rowBuffer.isEvicted }
 
     // Backward-compatible computed accessors for result data
     var resultColumns: [String] {
@@ -436,34 +443,43 @@ struct QueryTab: Identifiable, Equatable {
 
     /// Build a clean base query for a table tab (no filters/sort).
     /// Used when restoring table tabs from persistence to avoid stale WHERE clauses.
-    @MainActor static func buildBaseTableQuery(
+    ///
+    /// - Parameters:
+    ///   - tableName: The table to query.
+    ///   - pageSize: Number of rows per page.
+    ///   - editorLanguage: The editor language for this database type.
+    ///   - paginationStyle: SQL pagination style (LIMIT vs OFFSET/FETCH).
+    ///   - offsetFetchOrderBy: ORDER BY clause for OFFSET/FETCH pagination.
+    ///   - pluginDriver: Optional plugin driver for NoSQL query building.
+    ///   - quoteIdentifier: Identifier quoting function.
+    static func buildBaseTableQuery(
         tableName: String,
-        databaseType: DatabaseType,
-        quoteIdentifier: ((String) -> String)? = nil
+        pageSize: Int,
+        editorLanguage: EditorLanguage = .sql,
+        paginationStyle: SQLDialectDescriptor.PaginationStyle = .limit,
+        offsetFetchOrderBy: String = "ORDER BY (SELECT NULL)",
+        pluginDriver: (any PluginDatabaseDriver)? = nil,
+        quoteIdentifier: @escaping (String) -> String
     ) -> String {
-        let quote = quoteIdentifier ?? quoteIdentifierFromDialect(PluginManager.shared.sqlDialect(for: databaseType))
-        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
-
         // Use plugin's query builder when available (NoSQL drivers like etcd, Redis)
-        if let pluginDriver = PluginManager.shared.queryBuildingDriver(for: databaseType),
+        if let pluginDriver,
            let pluginQuery = pluginDriver.buildBrowseQuery(
                table: tableName, sortColumns: [], columns: [], limit: pageSize, offset: 0
            ) {
             return pluginQuery
         }
 
-        switch PluginManager.shared.editorLanguage(for: databaseType) {
+        switch editorLanguage {
         case .javascript:
             let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
             return "db[\"\(escaped)\"].find({}).limit(\(pageSize))"
         case .bash:
             return "SCAN 0 MATCH * COUNT \(pageSize)"
         default:
-            let quotedName = quote(tableName)
-            switch PluginManager.shared.paginationStyle(for: databaseType) {
+            let quotedName = quoteIdentifier(tableName)
+            switch paginationStyle {
             case .offsetFetch:
-                let orderBy = PluginManager.shared.offsetFetchOrderBy(for: databaseType)
-                return "SELECT * FROM \(quotedName) \(orderBy) OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
+                return "SELECT * FROM \(quotedName) \(offsetFetchOrderBy) OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
             case .limit:
                 return "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
             }
@@ -585,7 +601,13 @@ final class QueryTabManager {
 
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
         let query = QueryTab.buildBaseTableQuery(
-            tableName: tableName, databaseType: databaseType, quoteIdentifier: quoteIdentifier
+            tableName: tableName,
+            pageSize: pageSize,
+            editorLanguage: PluginManager.shared.editorLanguage(for: databaseType),
+            paginationStyle: PluginManager.shared.paginationStyle(for: databaseType),
+            offsetFetchOrderBy: PluginManager.shared.offsetFetchOrderBy(for: databaseType),
+            pluginDriver: PluginManager.shared.queryBuildingDriver(for: databaseType),
+            quoteIdentifier: quoteIdentifier ?? quoteIdentifierFromDialect(PluginManager.shared.sqlDialect(for: databaseType))
         )
         var newTab = QueryTab(
             title: tableName,
@@ -607,7 +629,13 @@ final class QueryTabManager {
     ) {
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
         let query = QueryTab.buildBaseTableQuery(
-            tableName: tableName, databaseType: databaseType, quoteIdentifier: quoteIdentifier
+            tableName: tableName,
+            pageSize: pageSize,
+            editorLanguage: PluginManager.shared.editorLanguage(for: databaseType),
+            paginationStyle: PluginManager.shared.paginationStyle(for: databaseType),
+            offsetFetchOrderBy: PluginManager.shared.offsetFetchOrderBy(for: databaseType),
+            pluginDriver: PluginManager.shared.queryBuildingDriver(for: databaseType),
+            quoteIdentifier: quoteIdentifier ?? quoteIdentifierFromDialect(PluginManager.shared.sqlDialect(for: databaseType))
         )
         var newTab = QueryTab(
             title: tableName,
@@ -638,12 +666,16 @@ final class QueryTabManager {
             return false
         }
 
+        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
         let query = QueryTab.buildBaseTableQuery(
             tableName: tableName,
-            databaseType: databaseType,
-            quoteIdentifier: quoteIdentifier
+            pageSize: pageSize,
+            editorLanguage: PluginManager.shared.editorLanguage(for: databaseType),
+            paginationStyle: PluginManager.shared.paginationStyle(for: databaseType),
+            offsetFetchOrderBy: PluginManager.shared.offsetFetchOrderBy(for: databaseType),
+            pluginDriver: PluginManager.shared.queryBuildingDriver(for: databaseType),
+            quoteIdentifier: quoteIdentifier ?? quoteIdentifierFromDialect(PluginManager.shared.sqlDialect(for: databaseType))
         )
-        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
 
         // Build locally and write back once to avoid 14 CoW copies (UI-11).
         var tab = tabs[selectedIndex]

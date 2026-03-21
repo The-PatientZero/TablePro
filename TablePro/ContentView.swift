@@ -31,8 +31,6 @@ struct ContentView: View {
     @State private var windowTitle: String
     @Environment(\.openWindow)
     private var openWindow
-    @Environment(AppState.self) private var appState
-
     private let storage = ConnectionStorage.shared
 
     init(payload: EditorTabPayload?) {

@@ -447,9 +447,11 @@ struct TableProApp: App {
 
         // Main Window - opens when connecting to database
         // Each native window-tab gets its own ContentView with independent state.
+        // AppState is accessed via AppState.shared (singleton) rather than SwiftUI
+        // Environment — it is never replaced or mocked in tests, so passing it
+        // through the environment adds indirection without benefit.
         WindowGroup(id: "main", for: EditorTabPayload.self) { $payload in
             ContentView(payload: payload)
-                .environment(AppState.shared)
                 .background(OpenWindowHandler())
         }
         .windowStyle(.automatic)
@@ -482,6 +484,9 @@ extension Notification.Name {
     static let refreshData = Notification.Name("refreshData")
 
     // Data operations (still posted by DataGrid / context menus)
+    // TODO: Migrate these to @FocusedValue(\.commandActions) calls.
+    // Currently posted by TableRowViewWithMenu and KeyHandlingTableView,
+    // observed by MainContentCommandActions. Remove once callers use FocusedValue directly.
     static let deleteSelectedRows = Notification.Name("deleteSelectedRows")
     static let addNewRow = Notification.Name("addNewRow")
     static let duplicateRow = Notification.Name("duplicateRow")

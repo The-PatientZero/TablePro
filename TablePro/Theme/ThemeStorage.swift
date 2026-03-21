@@ -158,8 +158,8 @@ internal struct ThemeStorage {
 
     // MARK: - Import / Export
 
-    static func importTheme(from sourceURL: URL) throws -> ThemeDefinition {
-        let data = try Data(contentsOf: sourceURL)
+    static func importTheme(from sourceURL: URL) async throws -> ThemeDefinition {
+        let data = try await Task.detached { try Data(contentsOf: sourceURL) }.value
         var theme = try JSONDecoder().decode(ThemeDefinition.self, from: data)
 
         // Avoid clobbering an existing theme on import
@@ -257,6 +257,12 @@ internal struct ThemeStorage {
         }
     }
 
+    // Synchronous file I/O: theme JSON files are small (<10KB) and loaded at
+    // app launch or when reloading the theme list. Making this async would
+    // require cascading changes through loadAllThemes(), loadTheme(id:), and
+    // ThemeEngine.init(). The file sizes are bounded so the latency is
+    // negligible. reloadAvailableThemes() already dispatches to a background
+    // thread to keep the main thread clear.
     private static func loadTheme(from url: URL) -> ThemeDefinition? {
         do {
             let data = try Data(contentsOf: url)

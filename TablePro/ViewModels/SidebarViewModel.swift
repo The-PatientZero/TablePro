@@ -7,6 +7,7 @@
 //
 
 import Observation
+import os
 import SwiftUI
 
 // MARK: - TableFetcher Protocol
@@ -18,6 +19,8 @@ protocol TableFetcher: Sendable {
 
 /// Production implementation that uses DatabaseManager, with optional schema provider cache
 struct LiveTableFetcher: TableFetcher {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "LiveTableFetcher")
+
     let connectionId: UUID
     let schemaProvider: SQLSchemaProvider?
 
@@ -36,11 +39,11 @@ struct LiveTableFetcher: TableFetcher {
             }
         }
         guard let driver = await DatabaseManager.shared.driver(for: connectionId) else {
-            NSLog("[LiveTableFetcher] driver is nil for connectionId: %@", connectionId.uuidString)
+            Self.logger.debug("driver is nil for connectionId: \(self.connectionId.uuidString)")
             return []
         }
         let fetched = try await driver.fetchTables()
-        NSLog("[LiveTableFetcher] fetched %d tables", fetched.count)
+        Self.logger.debug("fetched \(fetched.count) tables")
         if let provider = schemaProvider {
             await provider.updateTables(fetched)
         }
@@ -52,6 +55,8 @@ struct LiveTableFetcher: TableFetcher {
 
 @MainActor @Observable
 final class SidebarViewModel {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "SidebarViewModel")
+
     // MARK: - Published State
 
     var isLoading = false
@@ -76,6 +81,11 @@ final class SidebarViewModel {
     var isRestoringSelection = false
 
     // MARK: - Binding Storage
+    // Note: These bindings are stored because the parent coordinator owns the
+    // canonical data (tables, selections, pending operations) and this ViewModel
+    // acts as a proxy. Storing Binding on a long-lived class risks dangling
+    // references if the parent view is deallocated first. This is safe here
+    // because the ViewModel's lifetime is scoped to the parent view's lifetime.
 
     private var tablesBinding: Binding<[TableInfo]>
     private var selectedTablesBinding: Binding<Set<TableInfo>>
@@ -144,15 +154,15 @@ final class SidebarViewModel {
 
     func onAppear() {
         guard tables.isEmpty else {
-            NSLog("[SidebarVM] onAppear: tables not empty (%d), skipping", tables.count)
+            Self.logger.debug("onAppear: tables not empty (\(self.tables.count)), skipping")
             return
         }
         Task { @MainActor in
             if DatabaseManager.shared.driver(for: connectionId) != nil {
-                NSLog("[SidebarVM] onAppear: driver found, loading tables")
+                Self.logger.debug("onAppear: driver found, loading tables")
                 loadTables()
             } else {
-                NSLog("[SidebarVM] onAppear: driver is nil for %@", connectionId.uuidString)
+                Self.logger.debug("onAppear: driver is nil for \(self.connectionId.uuidString)")
             }
         }
     }

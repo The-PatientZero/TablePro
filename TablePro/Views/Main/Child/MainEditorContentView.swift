@@ -78,7 +78,7 @@ struct MainEditorContentView: View {
 
     // MARK: - Environment
 
-    @Environment(AppState.self) private var appState
+    private var appState: AppState { AppState.shared }
 
     /// Returns the cached AnyChangeManager, creating it on first access.
     private var currentChangeManager: AnyChangeManager {

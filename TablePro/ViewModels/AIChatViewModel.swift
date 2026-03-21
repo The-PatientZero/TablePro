@@ -343,12 +343,10 @@ final class AIChatViewModel {
 
         isStreaming = true
 
-        streamingTask = Task { [weak self] in
-            guard let self else { return }
-
+        streamingTask = Task {
             do {
                 // Exclude the empty assistant placeholder from sent messages
-                let chatMessages = Array(self.messages.dropLast())
+                let chatMessages = Array(messages.dropLast())
                 let stream = provider.streamChat(
                     messages: chatMessages,
                     model: model,
@@ -357,35 +355,35 @@ final class AIChatViewModel {
 
                 for try await event in stream {
                     guard !Task.isCancelled,
-                          let idx = self.messages.firstIndex(where: { $0.id == assistantID })
+                          let idx = messages.firstIndex(where: { $0.id == assistantID })
                     else { break }
                     switch event {
                     case .text(let token):
-                        self.messages[idx].content += token
+                        messages[idx].content += token
                     case .usage(let usage):
-                        self.messages[idx].usage = usage
+                        messages[idx].usage = usage
                     }
                 }
 
-                self.isStreaming = false
-                self.streamingTask = nil
-                self.streamingAssistantID = nil
-                self.persistCurrentConversation()
+                isStreaming = false
+                streamingTask = nil
+                streamingAssistantID = nil
+                persistCurrentConversation()
             } catch {
                 if !Task.isCancelled {
                     Self.logger.error("Streaming failed: \(error.localizedDescription)")
-                    self.lastMessageFailed = true
-                    self.errorMessage = error.localizedDescription
+                    lastMessageFailed = true
+                    errorMessage = error.localizedDescription
 
                     // Remove empty assistant message on error
-                    if let idx = self.messages.firstIndex(where: { $0.id == assistantID }),
-                       self.messages[idx].content.isEmpty {
-                        self.messages.remove(at: idx)
+                    if let idx = messages.firstIndex(where: { $0.id == assistantID }),
+                       messages[idx].content.isEmpty {
+                        messages.remove(at: idx)
                     }
                 }
-                self.isStreaming = false
-                self.streamingTask = nil
-                self.streamingAssistantID = nil
+                isStreaming = false
+                streamingTask = nil
+                streamingAssistantID = nil
             }
         }
     }

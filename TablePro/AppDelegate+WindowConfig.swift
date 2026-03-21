@@ -58,11 +58,11 @@ extension AppDelegate {
         return menu
     }
 
-    @objc func showWelcomeFromDock() {
+    @MainActor @objc func showWelcomeFromDock() {
         openWelcomeWindow()
     }
 
-    @objc func connectFromDock(_ sender: NSMenuItem) {
+    @MainActor @objc func connectFromDock(_ sender: NSMenuItem) {
         guard let connectionId = sender.representedObject as? UUID else { return }
         let connections = ConnectionStorage.shared.loadConnections()
         guard let connection = connections.first(where: { $0.id == connectionId }) else { return }
@@ -201,7 +201,7 @@ extension AppDelegate {
 
     // MARK: - Window Notifications
 
-    @objc func windowDidBecomeKey(_ notification: Notification) {
+    @MainActor @objc func windowDidBecomeKey(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
         let windowId = ObjectIdentifier(window)
 
@@ -241,7 +241,7 @@ extension AppDelegate {
         }
     }
 
-    @objc func windowWillClose(_ notification: Notification) {
+    @MainActor @objc func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
 
         configuredWindows.remove(ObjectIdentifier(window))
@@ -261,7 +261,7 @@ extension AppDelegate {
         }
     }
 
-    @objc func windowDidChangeOcclusionState(_ notification: Notification) {
+    @MainActor @objc func windowDidChangeOcclusionState(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
               isHandlingFileOpen else { return }
 

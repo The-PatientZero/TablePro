@@ -324,6 +324,7 @@ final class DatabaseManager {
 
     /// Test-only: remove an injected session
     internal func removeSession(for connectionId: UUID) {
+        SharedSidebarState.removeConnection(connectionId)
         removeSessionEntry(for: connectionId)
     }
     #endif

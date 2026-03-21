@@ -14,8 +14,6 @@ import TableProPluginKit
 struct QueryEditorView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
 
-    @Environment(AppState.self) private var appState
-
     @Binding var queryText: String
     @Binding var cursorPositions: [CursorPosition]
     var onExecute: () -> Void
@@ -33,7 +31,7 @@ struct QueryEditorView: View {
     @State private var vimMode: VimMode = .normal
 
     var body: some View {
-        let hasQuery = appState.hasQueryText
+        let hasQuery = AppState.shared.hasQueryText
 
         VStack(alignment: .leading, spacing: 0) {
             // Editor header with toolbar (above editor, higher z-index)

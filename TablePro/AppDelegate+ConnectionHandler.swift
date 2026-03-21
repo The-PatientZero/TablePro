@@ -270,7 +270,7 @@ extension AppDelegate {
 
     // MARK: - SQL File Queue (drained by .databaseDidConnect)
 
-    @objc func handleDatabaseDidConnect() {
+    @MainActor @objc func handleDatabaseDidConnect() {
         guard !queuedFileURLs.isEmpty else { return }
         let urls = queuedFileURLs
         queuedFileURLs.removeAll()

@@ -177,8 +177,8 @@ internal final class ThemeEngine {
         return copy
     }
 
-    func importTheme(from url: URL) throws -> ThemeDefinition {
-        let theme = try ThemeStorage.importTheme(from: url)
+    func importTheme(from url: URL) async throws -> ThemeDefinition {
+        let theme = try await ThemeStorage.importTheme(from: url)
         reloadAvailableThemes()
         return theme
     }
@@ -196,7 +196,12 @@ internal final class ThemeEngine {
     }
 
     func reloadAvailableThemes() {
-        availableThemes = ThemeStorage.loadAllThemes()
+        Task.detached {
+            let themes = ThemeStorage.loadAllThemes()
+            await MainActor.run {
+                self.availableThemes = themes
+            }
+        }
     }
 
     // MARK: - Font Cache Reload (accessibility)
@@ -322,6 +327,13 @@ extension DatabaseType {
 
 // MARK: - View Extensions (preserved from old Theme.swift)
 
+// These extensions access ThemeEngine.shared directly rather than reading from
+// SwiftUI Environment. This is intentional: ThemeEngine is a singleton that
+// provides a single consistent theme across the entire app. The app does not
+// support per-window themes, so Environment-based injection would add
+// complexity without benefit.
+// TODO: If per-window theming is ever needed, convert these to read from
+// an @Environment(\.themeEngine) value instead of the shared singleton.
 extension View {
     func cardStyle() -> some View {
         self
