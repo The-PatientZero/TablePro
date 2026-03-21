@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Show/hide row numbers column in data grid (Settings > Data Grid)
 - Persist column widths and order per table across tab switches, view toggles, and app restarts
 
+### Fixed
+
+- Show correct version for installed registry plugins (#410)
+- Dangling pointer in release builds due to incorrect withUnsafeBufferPointer usage
+- AI provider connection test error handling (#407)
+- Use-after-free crash in Redis plugin redisFree
+
 ## [0.22.0] - 2026-03-21
 
 ### Added
