@@ -447,35 +447,7 @@ struct MainContentView: View {
                selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                // Fast path: connection already ready
-                if let session = DatabaseManager.shared.activeSessions[connection.id],
-                   session.isConnected
-                {
-                    if !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != session.activeDatabase
-                    {
-                        Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
-                    } else {
-                        if !selectedTab.filterState.appliedFilters.isEmpty,
-                           let tableName = selectedTab.tableName,
-                           let tabIndex = tabManager.selectedTabIndex
-                        {
-                            // columns is [] on initial load — buildFilteredQuery uses SELECT *
-                            let filteredQuery = coordinator.queryBuilder.buildFilteredQuery(
-                                tableName: tableName,
-                                filters: selectedTab.filterState.appliedFilters,
-                                columns: [],
-                                limit: selectedTab.pagination.pageSize,
-                                offset: selectedTab.pagination.currentOffset
-                            )
-                            tabManager.tabs[tabIndex].query = filteredQuery
-                        }
-                        coordinator.executeTableTabQueryDirectly()
-                    }
-                } else {
-                    // Reactive path: fires via onChange(of: sessionVersion) when connection is ready
-                    coordinator.needsLazyLoad = true
-                }
+                executeTabQueryWhenReady(selectedTab)
             }
             return
         }
@@ -537,22 +509,41 @@ struct MainContentView: View {
             if selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                // Fast path: connection already ready
-                if let session = DatabaseManager.shared.activeSessions[connection.id],
-                   session.isConnected
-                {
-                    if !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != session.activeDatabase
-                    {
-                        Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
-                    } else {
-                        coordinator.executeTableTabQueryDirectly()
-                    }
-                } else {
-                    // Reactive path: fires via onChange(of: sessionVersion) when connection is ready
-                    coordinator.needsLazyLoad = true
-                }
+                executeTabQueryWhenReady(selectedTab)
             }
+        }
+    }
+
+    /// Executes a table tab's query when the connection is ready, or defers via needsLazyLoad.
+    /// Handles database switching if the tab targets a different database than the active session.
+    private func executeTabQueryWhenReady(_ tab: QueryTab) {
+        if let session = DatabaseManager.shared.activeSessions[connection.id],
+           session.isConnected
+        {
+            if !tab.databaseName.isEmpty,
+               tab.databaseName != session.activeDatabase
+            {
+                Task { await coordinator.switchDatabase(to: tab.databaseName) }
+            } else {
+                if !tab.filterState.appliedFilters.isEmpty,
+                   let tableName = tab.tableName,
+                   let tabIndex = tabManager.selectedTabIndex
+                {
+                    // columns is [] on initial load — buildFilteredQuery uses SELECT *
+                    let filteredQuery = coordinator.queryBuilder.buildFilteredQuery(
+                        tableName: tableName,
+                        filters: tab.filterState.appliedFilters,
+                        columns: [],
+                        limit: tab.pagination.pageSize,
+                        offset: tab.pagination.currentOffset
+                    )
+                    tabManager.tabs[tabIndex].query = filteredQuery
+                }
+                coordinator.executeTableTabQueryDirectly()
+            }
+        } else {
+            // Reactive path: fires via onChange(of: sessionVersion) when connection is ready
+            coordinator.needsLazyLoad = true
         }
     }
 

@@ -263,10 +263,8 @@ final class KeychainHelper {
                 continue
             }
 
-            // When opting IN (synchronizable=true), delete the old local-only item safely.
-            // When opting OUT (synchronizable=false), keep the synchronizable item — deleting it
-            // would propagate via iCloud Keychain and remove it from other Macs still opted in.
             if synchronizable {
+                // When opting IN: delete the old local-only item safely.
                 let deleteQuery: [String: Any] = [
                     kSecClass as String: kSecClassGenericPassword,
                     kSecAttrService as String: service,
@@ -277,7 +275,24 @@ final class KeychainHelper {
                 let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
                 if deleteStatus != errSecSuccess, deleteStatus != errSecItemNotFound {
                     Self.logger.warning(
-                        "Migrated item '\(account, privacy: .public)' but failed to delete old entry: \(deleteStatus)"
+                        "Migrated item '\(account, privacy: .public)' but failed to delete old local entry: \(deleteStatus)"
+                    )
+                }
+            } else {
+                // When opting OUT: delete the stale synchronizable copy so it doesn't
+                // linger in iCloud Keychain. This will remove the credential from other
+                // devices that have iCloud Keychain enabled.
+                let deleteSyncQuery: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: service,
+                    kSecAttrAccount as String: account,
+                    kSecUseDataProtectionKeychain as String: true,
+                    kSecAttrSynchronizable as String: true
+                ]
+                let deleteStatus = SecItemDelete(deleteSyncQuery as CFDictionary)
+                if deleteStatus != errSecSuccess, deleteStatus != errSecItemNotFound {
+                    Self.logger.warning(
+                        "Migrated item '\(account, privacy: .public)' but failed to delete old synchronizable entry: \(deleteStatus)"
                     )
                 }
             }

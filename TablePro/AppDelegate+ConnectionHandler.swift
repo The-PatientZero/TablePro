@@ -51,7 +51,11 @@ extension AppDelegate {
             connection = buildTransientConnection(from: parsed)
         }
 
+        let isTransient = matchedConnection == nil
+
         if !parsed.password.isEmpty {
+            // Save password to Keychain so the driver can resolve it at connect time.
+            // For transient connections, this is cleaned up after connect completes or fails.
             ConnectionStorage.shared.savePassword(parsed.password, for: connection.id)
         }
 
@@ -70,6 +74,14 @@ extension AppDelegate {
         openNewConnectionWindow(for: connection)
 
         Task { @MainActor in
+            defer {
+                // Clean up Keychain entry for transient connections after connect.
+                // The driver already holds the password in memory once connected,
+                // so the Keychain entry is no longer needed.
+                if isTransient {
+                    ConnectionStorage.shared.deletePassword(for: connection.id)
+                }
+            }
             do {
                 try await DatabaseManager.shared.connectToSession(connection)
                 for window in NSApp.windows where self.isWelcomeWindow(window) {

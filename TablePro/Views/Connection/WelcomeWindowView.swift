@@ -36,6 +36,9 @@ struct WelcomeWindowView: View {
     @State private var showNewGroupSheet = false
     @State private var showActivationSheet = false
     @State private var pluginInstallConnection: DatabaseConnection?
+    @State private var showRenameAlert = false
+    @State private var renameGroupTarget: ConnectionGroup?
+    @State private var renameText = ""
 
     @Environment(\.openWindow) private var openWindow
 
@@ -131,6 +134,24 @@ struct WelcomeWindowView: View {
         }
         .pluginInstallPrompt(connection: $pluginInstallConnection) { connection in
             connectAfterInstall(connection)
+        }
+        .alert("Rename Group", isPresented: $showRenameAlert) {
+            TextField("Group name", text: $renameText)
+            Button(String(localized: "Rename")) {
+                let newName = renameText.trimmingCharacters(in: .whitespaces)
+                guard !newName.isEmpty, let group = renameGroupTarget else { return }
+                let isDuplicate = groups.contains {
+                    $0.id != group.id && $0.name.lowercased() == newName.lowercased()
+                }
+                guard !isDuplicate else { return }
+                var updated = group
+                updated.name = newName
+                groupStorage.updateGroup(updated)
+                groups = groupStorage.loadGroups()
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {}
+        } message: {
+            Text("Enter a new name for the group.")
         }
     }
 
@@ -371,7 +392,6 @@ struct WelcomeWindowView: View {
             onConnect: { connectToDatabase(connection) },
             onEdit: {
                 openWindow(id: "connection-form", value: connection.id as UUID?)
-                focusConnectionFormWindow()
             },
             onDuplicate: {
                 duplicateConnection(connection)
@@ -592,7 +612,6 @@ struct WelcomeWindowView: View {
 
         // Open edit form for the duplicate so user can rename
         openWindow(id: "connection-form", value: duplicate.id as UUID?)
-        focusConnectionFormWindow()
     }
 
     private func loadGroups() {
@@ -609,28 +628,9 @@ struct WelcomeWindowView: View {
     }
 
     private func renameGroup(_ group: ConnectionGroup) {
-        let alert = NSAlert()
-        alert.messageText = String(localized: "Rename Group")
-        alert.informativeText = String(localized: "Enter a new name for the group.")
-        alert.addButton(withTitle: String(localized: "Rename"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
-        textField.stringValue = group.name
-        alert.accessoryView = textField
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            let newName = textField.stringValue.trimmingCharacters(in: .whitespaces)
-            guard !newName.isEmpty else { return }
-            let isDuplicate = groups.contains {
-                $0.id != group.id && $0.name.lowercased() == newName.lowercased()
-            }
-            guard !isDuplicate else { return }
-            var updated = group
-            updated.name = newName
-            groupStorage.updateGroup(updated)
-            groups = groupStorage.loadGroups()
-        }
+        renameGroupTarget = group
+        renameText = group.name
+        showRenameAlert = true
     }
 
     private func moveToNextConnection() {
@@ -704,30 +704,6 @@ struct WelcomeWindowView: View {
         storage.saveConnections(connections)
     }
 
-    /// Focus the connection form window as soon as it's available
-    private func focusConnectionFormWindow() {
-        // Poll rapidly until window is found (much faster than fixed delay)
-        func attemptFocus(remainingAttempts: Int = 10) {
-            for window in NSApp.windows {
-                if window.identifier?.rawValue.contains("connection-form") == true
-                    || window.title == "Connection"
-                {
-                    window.makeKeyAndOrderFront(nil)
-                    return
-                }
-            }
-            // Window not found yet, try again in 20ms
-            if remainingAttempts > 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-                    attemptFocus(remainingAttempts: remainingAttempts - 1)
-                }
-            }
-        }
-        // Start immediately on next run loop
-        DispatchQueue.main.async {
-            attemptFocus()
-        }
-    }
 }
 
 // MARK: - ConnectionRow
@@ -786,7 +762,7 @@ private struct ConnectionRow: View {
         .padding(.vertical, ThemeEngine.shared.activeTheme.spacing.xxs)
         .contentShape(Rectangle())
         .overlay(
-            DoubleClickView { onConnect?() }
+            DoubleClickDetector { onConnect?() }
         )
         .contextMenu {
             if let onConnect = onConnect {
@@ -917,33 +893,6 @@ private extension ConnectionEnvironment {
     }
 }
 
-// MARK: - DoubleClickView
-
-private struct DoubleClickView: NSViewRepresentable {
-    let onDoubleClick: () -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = PassThroughDoubleClickView()
-        view.onDoubleClick = onDoubleClick
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        (nsView as? PassThroughDoubleClickView)?.onDoubleClick = onDoubleClick
-    }
-}
-
-private class PassThroughDoubleClickView: NSView {
-    var onDoubleClick: (() -> Void)?
-
-    override func mouseDown(with event: NSEvent) {
-        if event.clickCount == 2 {
-            onDoubleClick?()
-        }
-        // Always forward to next responder for List selection
-        super.mouseDown(with: event)
-    }
-}
 
 // MARK: - Preview
 

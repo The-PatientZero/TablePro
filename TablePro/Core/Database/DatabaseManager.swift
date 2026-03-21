@@ -139,17 +139,11 @@ final class DatabaseManager {
         }
 
         do {
-            try await driver.connect()
-
-            // Apply query timeout from settings
-            let timeoutSeconds = AppSettingsManager.shared.general.queryTimeoutSeconds
-            if timeoutSeconds > 0 {
-                try await driver.applyQueryTimeout(timeoutSeconds)
-            }
-
-            // Run startup commands before schema init
-            await executeStartupCommands(
-                connection.startupCommands, on: driver, connectionName: connection.name
+            // Perform heavy driver setup off the main actor
+            try await performDriverSetup(
+                driver: driver,
+                startupCommands: connection.startupCommands,
+                connectionName: connection.name
             )
 
             // Initialize schema for drivers that support schema switching
@@ -605,16 +599,12 @@ final class DatabaseManager {
         // Use effective connection (tunneled) if available, otherwise original
         let connectionForDriver = session.effectiveConnection ?? session.connection
         let driver = try DatabaseDriverFactory.createDriver(for: connectionForDriver)
-        try await driver.connect()
 
-        // Apply timeout
-        let timeoutSeconds = AppSettingsManager.shared.general.queryTimeoutSeconds
-        if timeoutSeconds > 0 {
-            try await driver.applyQueryTimeout(timeoutSeconds)
-        }
-
-        await executeStartupCommands(
-            session.connection.startupCommands, on: driver, connectionName: session.connection.name
+        // Perform heavy driver setup off the main actor
+        try await performDriverSetup(
+            driver: driver,
+            startupCommands: session.connection.startupCommands,
+            connectionName: session.connection.name
         )
 
         if let savedSchema = session.currentSchema,
@@ -667,16 +657,12 @@ final class DatabaseManager {
 
             // Create new driver and connect
             let driver = try DatabaseDriverFactory.createDriver(for: effectiveConnection)
-            try await driver.connect()
 
-            // Apply timeout
-            let timeoutSeconds = AppSettingsManager.shared.general.queryTimeoutSeconds
-            if timeoutSeconds > 0 {
-                try await driver.applyQueryTimeout(timeoutSeconds)
-            }
-
-            await executeStartupCommands(
-                session.connection.startupCommands, on: driver, connectionName: session.connection.name
+            // Perform heavy driver setup off the main actor
+            try await performDriverSetup(
+                driver: driver,
+                startupCommands: session.connection.startupCommands,
+                connectionName: session.connection.name
             )
 
             if let savedSchema = activeSessions[sessionId]?.currentSchema,
@@ -767,6 +753,22 @@ final class DatabaseManager {
     // MARK: - Startup Commands
 
     nonisolated private static let startupLogger = Logger(subsystem: "com.TablePro", category: "DatabaseManager")
+
+    /// Connects the driver, applies query timeout, and runs startup commands off the main actor.
+    nonisolated private func performDriverSetup(
+        driver: DatabaseDriver,
+        startupCommands: String?,
+        connectionName: String
+    ) async throws {
+        try await driver.connect()
+
+        let timeoutSeconds = await AppSettingsManager.shared.general.queryTimeoutSeconds
+        if timeoutSeconds > 0 {
+            try await driver.applyQueryTimeout(timeoutSeconds)
+        }
+
+        await executeStartupCommands(startupCommands, on: driver, connectionName: connectionName)
+    }
 
     nonisolated private func executeStartupCommands(
         _ commands: String?, on driver: DatabaseDriver, connectionName: String

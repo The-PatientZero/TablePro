@@ -32,7 +32,6 @@ struct SQLEditorView: View {
     @State private var coordinator = SQLEditorCoordinator()
     @State private var editorReady = false
     @State private var editorConfiguration = makeConfiguration()
-    @State private var favoritesObserver: NSObjectProtocol?
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -83,7 +82,7 @@ struct SQLEditorView: View {
                 if let schemaProvider, let completionAdapter {
                     completionAdapter.updateSchemaProvider(schemaProvider, databaseType: databaseType)
                 }
-                setupFavoritesObserver()
+                refreshFavoriteKeywords()
             }
             .onChange(of: colorScheme) {
                 editorConfiguration = Self.makeConfiguration()
@@ -104,7 +103,7 @@ struct SQLEditorView: View {
                 coordinator.onAIExplain = onAIExplain
                 coordinator.onAIOptimize = onAIOptimize
                 coordinator.onSaveAsFavorite = onSaveAsFavorite
-                setupFavoritesObserver()
+                refreshFavoriteKeywords()
             }
         } else {
             Color(nsColor: .textBackgroundColor)
@@ -118,14 +117,18 @@ struct SQLEditorView: View {
                     coordinator.onAIExplain = onAIExplain
                     coordinator.onAIOptimize = onAIOptimize
                     coordinator.onSaveAsFavorite = onSaveAsFavorite
-                    setupFavoritesObserver()
+                    refreshFavoriteKeywords()
                     editorReady = true
                 }
             }
         }
         .onDisappear {
-            teardownFavoritesObserver()
             coordinator.destroy()
+        }
+        .task {
+            for await _ in NotificationCenter.default.notifications(named: .sqlFavoritesDidUpdate) {
+                refreshFavoriteKeywords()
+            }
         }
         .onChange(of: coordinator.vimMode) { _, newMode in
             vimMode = newMode
@@ -134,35 +137,11 @@ struct SQLEditorView: View {
 
     // MARK: - Favorites
 
-    private func setupFavoritesObserver() {
-        teardownFavoritesObserver()
-        refreshFavoriteKeywords()
-        let adapter = completionAdapter
-        let connId = connectionId
-        favoritesObserver = NotificationCenter.default.addObserver(
-            forName: .sqlFavoritesDidUpdate,
-            object: nil,
-            queue: .main
-        ) { _ in
-            Task { @MainActor in
-                let keywords = await SQLFavoriteManager.shared.fetchKeywordMap(connectionId: connId)
-                adapter?.updateFavoriteKeywords(keywords)
-            }
-        }
-    }
-
     private func refreshFavoriteKeywords() {
         let connId = connectionId
         Task { @MainActor in
             let keywords = await SQLFavoriteManager.shared.fetchKeywordMap(connectionId: connId)
             completionAdapter?.updateFavoriteKeywords(keywords)
-        }
-    }
-
-    private func teardownFavoritesObserver() {
-        if let observer = favoritesObserver {
-            NotificationCenter.default.removeObserver(observer)
-            favoritesObserver = nil
         }
     }
 

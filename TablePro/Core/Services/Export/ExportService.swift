@@ -72,20 +72,7 @@ final class ExportService {
 
     // MARK: - Cancellation
 
-    private let isCancelledLock = NSLock()
-    private var _isCancelled: Bool = false
-    var isCancelled: Bool {
-        get {
-            isCancelledLock.lock()
-            defer { isCancelledLock.unlock() }
-            return _isCancelled
-        }
-        set {
-            isCancelledLock.lock()
-            _isCancelled = newValue
-            isCancelledLock.unlock()
-        }
-    }
+    private(set) var isCancelled = false
 
     func cancelExport() {
         isCancelled = true

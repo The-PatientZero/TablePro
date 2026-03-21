@@ -135,6 +135,13 @@ struct PluginMetadataSnapshot: Sendable {
     }
 }
 
+/// Thread-safety contract:
+/// - All mutable state (`snapshots`, `schemeIndex`, `reverseTypeIndex`) is protected by `lock`.
+/// - `registerBuiltInDefaults()` accesses state without the lock but is only called from `init()`,
+///   before the singleton is published to other threads.
+/// - `buildMetadataSnapshot(from:isDownloadable:)` is a pure function — no shared state access.
+/// - Not converted to a Swift `actor` because most call sites are synchronous; making every
+///   lookup `async` would be too invasive.
 final class PluginMetadataRegistry: @unchecked Sendable {
     static let shared = PluginMetadataRegistry()
 

@@ -16,15 +16,34 @@ final class SyncMetadataStorage {
 
     private let defaults = UserDefaults.standard
 
+    /// File URL for the sync token, stored in Application Support to avoid
+    /// accidental iCloud sync that can happen with UserDefaults.
+    private let syncTokenFileURL: URL = {
+        guard let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else {
+            // Fallback to temp directory; should never happen on macOS
+            return FileManager.default.temporaryDirectory.appendingPathComponent("sync-token.data")
+        }
+        let directory = appSupport.appendingPathComponent("TablePro", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appendingPathComponent("sync-token.data")
+    }()
+
     private enum Keys {
-        static let syncToken = "com.TablePro.sync.serverChangeToken"
         static let dirtyPrefix = "com.TablePro.sync.dirty."
         static let tombstonePrefix = "com.TablePro.sync.tombstones."
         static let lastSyncDate = "com.TablePro.sync.lastSyncDate"
         static let lastAccountId = "com.TablePro.sync.lastAccountId"
     }
 
-    private init() {}
+    /// Legacy UserDefaults key, used only for one-time migration.
+    private static let legacySyncTokenKey = "com.TablePro.sync.serverChangeToken"
+
+    private init() {
+        migrateSyncTokenFromUserDefaultsIfNeeded()
+    }
 
     // MARK: - Server Change Token
 
@@ -34,18 +53,18 @@ final class SyncMetadataStorage {
                 withRootObject: token,
                 requiringSecureCoding: true
             )
-            defaults.set(data, forKey: Keys.syncToken)
+            try data.write(to: syncTokenFileURL, options: .atomic)
         } catch {
-            Self.logger.error("Failed to archive sync token: \(error.localizedDescription)")
+            Self.logger.error("Failed to save sync token to file: \(error.localizedDescription)")
         }
     }
 
     func clearSyncToken() {
-        defaults.removeObject(forKey: Keys.syncToken)
+        try? FileManager.default.removeItem(at: syncTokenFileURL)
     }
 
     func loadSyncToken() -> CKServerChangeToken? {
-        guard let data = defaults.data(forKey: Keys.syncToken) else { return nil }
+        guard let data = try? Data(contentsOf: syncTokenFileURL) else { return nil }
 
         do {
             return try NSKeyedUnarchiver.unarchivedObject(
@@ -55,6 +74,21 @@ final class SyncMetadataStorage {
         } catch {
             Self.logger.error("Failed to unarchive sync token: \(error.localizedDescription)")
             return nil
+        }
+    }
+
+    // MARK: - Migration
+
+    /// One-time migration of sync token from UserDefaults to Application Support file.
+    private func migrateSyncTokenFromUserDefaultsIfNeeded() {
+        guard let data = defaults.data(forKey: Self.legacySyncTokenKey) else { return }
+
+        do {
+            try data.write(to: syncTokenFileURL, options: .atomic)
+            defaults.removeObject(forKey: Self.legacySyncTokenKey)
+            Self.logger.info("Migrated sync token from UserDefaults to Application Support")
+        } catch {
+            Self.logger.error("Failed to migrate sync token to file: \(error.localizedDescription)")
         }
     }
 
@@ -167,7 +201,7 @@ final class SyncMetadataStorage {
     // MARK: - Clear All
 
     func clearAll() {
-        defaults.removeObject(forKey: Keys.syncToken)
+        clearSyncToken()
         defaults.removeObject(forKey: Keys.lastSyncDate)
         defaults.removeObject(forKey: Keys.lastAccountId)
 

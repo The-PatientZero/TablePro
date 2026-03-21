@@ -79,35 +79,95 @@ actor CloudKitSyncEngine {
     }
 
     private func pushBatch(records: [CKRecord], deletions: [CKRecord.ID]) async throws {
+        var recordsToSave = records
+
+        for attempt in 0..<Self.maxRetries {
+            let conflictedRecords = try await performPushOperation(
+                records: recordsToSave,
+                deletions: attempt == 0 ? deletions : []
+            )
+
+            if conflictedRecords.isEmpty { return }
+
+            Self.logger.info(
+                "Resolving \(conflictedRecords.count) conflict(s) (attempt \(attempt + 1)/\(Self.maxRetries))"
+            )
+
+            // Re-apply local changes onto the server's version of each conflicted record
+            recordsToSave = resolveConflicts(
+                localRecords: recordsToSave,
+                serverRecords: conflictedRecords
+            )
+        }
+
+        throw SyncError.unknown("Push failed after \(Self.maxRetries) conflict resolution attempts")
+    }
+
+    private func performPushOperation(
+        records: [CKRecord],
+        deletions: [CKRecord.ID]
+    ) async throws -> [CKRecord] {
         try await withRetry {
             let operation = CKModifyRecordsOperation(
                 recordsToSave: records,
                 recordIDsToDelete: deletions
             )
-            // Use .changedKeys so we don't need to track server change tags
-            // This overwrites only the fields we set, which is safe for our use case
-            operation.savePolicy = .changedKeys
+            // Use .ifServerRecordUnchanged to detect concurrent modifications.
+            // Conflicts are resolved by re-applying local changes onto the server record.
+            operation.savePolicy = .ifServerRecordUnchanged
             operation.isAtomic = false
 
             return try await withCheckedThrowingContinuation { continuation in
+                var conflicted: [CKRecord] = []
+
                 operation.perRecordSaveBlock = { recordID, result in
                     if case .failure(let error) = result {
-                        Self.logger.error(
-                            "Failed to save record \(recordID.recordName): \(error.localizedDescription)"
-                        )
+                        if let ckError = error as? CKError,
+                           ckError.code == .serverRecordChanged,
+                           let serverRecord = ckError.serverRecord {
+                            conflicted.append(serverRecord)
+                        } else {
+                            Self.logger.error(
+                                "Failed to save record \(recordID.recordName): \(error.localizedDescription)"
+                            )
+                        }
                     }
                 }
 
                 operation.modifyRecordsResultBlock = { result in
                     switch result {
                     case .success:
-                        continuation.resume()
+                        continuation.resume(returning: conflicted)
                     case .failure(let error):
-                        continuation.resume(throwing: error)
+                        // If the overall operation failed but we have conflicts, return them
+                        if !conflicted.isEmpty {
+                            continuation.resume(returning: conflicted)
+                        } else {
+                            continuation.resume(throwing: error)
+                        }
                     }
                 }
                 self.database.add(operation)
             }
+        }
+    }
+
+    /// Re-applies local field values onto the server's latest version of each conflicted record.
+    private func resolveConflicts(
+        localRecords: [CKRecord],
+        serverRecords: [CKRecord]
+    ) -> [CKRecord] {
+        let localByID = Dictionary(localRecords.map { ($0.recordID, $0) }, uniquingKeysWith: { _, new in new })
+
+        return serverRecords.compactMap { serverRecord in
+            guard let localRecord = localByID[serverRecord.recordID] else { return nil }
+
+            // Copy all locally-set fields onto the server record
+            for key in localRecord.allKeys() {
+                serverRecord[key] = localRecord[key]
+            }
+
+            return serverRecord
         }
     }
 

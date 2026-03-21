@@ -20,7 +20,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            GeneralSettingsView(settings: $settingsManager.general, updaterBridge: updaterBridge)
+            GeneralSettingsView(settings: $settingsManager.general, updaterBridge: updaterBridge, tabSettings: $settingsManager.tabs)
                 .tabItem {
                     Label("General", systemImage: "gearshape")
                 }
@@ -81,7 +81,7 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.license.rawValue)
         }
-        .frame(width: 720, height: 500)
+        .frame(minWidth: 680, minHeight: 450)
     }
 }
 
