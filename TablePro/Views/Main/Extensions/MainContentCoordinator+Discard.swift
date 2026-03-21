@@ -15,7 +15,7 @@ extension MainContentCoordinator {
     /// Respects safe mode levels that require confirmation for write operations.
     func executeSidebarChanges(statements: [ParameterizedStatement]) async throws {
         let sqlPreview = statements.map(\.sql).joined(separator: "\n")
-        let window = await MainActor.run { NSApp.keyWindow }
+        let window = await MainActor.run { self.window }
         let permission = await SafeModeGuard.checkPermission(
             level: safeModeLevel,
             isWriteOperation: true,

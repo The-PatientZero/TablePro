@@ -79,7 +79,7 @@ extension MainContentCoordinator {
             }
             let connId = connection.id
             Task { @MainActor in
-                let window = NSApp.keyWindow
+                let window = self.window
                 let permission = await SafeModeGuard.checkPermission(
                     level: level,
                     isWriteOperation: true,

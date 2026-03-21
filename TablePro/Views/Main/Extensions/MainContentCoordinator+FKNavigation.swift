@@ -92,7 +92,7 @@ extension MainContentCoordinator {
         }
 
         if needsQuery {
-            NSApp.keyWindow?.title = referencedTable
+            self.window?.title = referencedTable
 
             // New tab — build filtered query directly, run once
             guard let tabIndex = tabManager.selectedTabIndex else { return }

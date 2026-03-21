@@ -498,6 +498,7 @@ extension Notification.Name {
     static let mainWindowWillClose = Notification.Name("mainWindowWillClose")
     static let openMainWindow = Notification.Name("openMainWindow")
     static let openWelcomeWindow = Notification.Name("openWelcomeWindow")
+    static let openConnectionFormWindow = Notification.Name("openConnectionFormWindow")
 
     // Database URL handling notifications
     static let switchSchemaFromURL = Notification.Name("switchSchemaFromURL")
@@ -520,7 +521,9 @@ struct CheckForUpdatesView: View {
 
 // MARK: - Open Window Handler
 
-/// Helper view that listens for window open notifications
+/// Helper view that listens for window open notifications.
+/// Each scene instance gets its own `openWindow` from the environment — any one
+/// of them can open a new window, so we just use whatever copy is available.
 private struct OpenWindowHandler: View {
     @Environment(\.openWindow)
     private var openWindow
@@ -529,8 +532,8 @@ private struct OpenWindowHandler: View {
         Color.clear
             .frame(width: 0, height: 0)
             .onAppear {
-                // Store openWindow action for imperative access (e.g., from MainContentCommandActions)
-                WindowOpener.shared.openWindow = openWindow
+                // Signal that the SwiftUI window system is ready
+                WindowOpener.shared.isReady = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .openWelcomeWindow)) { _ in
                 openWindow(id: "welcome")
@@ -542,6 +545,10 @@ private struct OpenWindowHandler: View {
                     // Legacy: connection ID only — open default query tab
                     openWindow(id: "main", value: EditorTabPayload(connectionId: connectionId))
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openConnectionFormWindow)) { notification in
+                let connectionId = notification.object as? UUID
+                openWindow(id: "connection-form", value: connectionId)
             }
     }
 }

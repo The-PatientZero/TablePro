@@ -186,7 +186,7 @@ struct MainEditorContentView: View {
                     databaseType: coordinator.connection.type,
                     connectionId: coordinator.connection.id,
                     onCloseTab: {
-                        NSApp.keyWindow?.close()
+                        coordinator.window?.close()
                     },
                     onExecuteQuery: { coordinator.runQuery() },
                     onExplain: { variant in

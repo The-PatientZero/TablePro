@@ -49,7 +49,7 @@ struct EditableForeignKeyDefinition: Hashable, Codable, Identifiable {
     /// Create from existing ForeignKeyInfo
     static func from(_ fkInfo: ForeignKeyInfo) -> EditableForeignKeyDefinition {
         EditableForeignKeyDefinition(
-            id: fkInfo.id,
+            id: UUID(),
             name: fkInfo.name,
             columns: [fkInfo.column],
             referencedTable: fkInfo.referencedTable,

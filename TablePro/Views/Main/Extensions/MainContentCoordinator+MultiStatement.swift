@@ -176,7 +176,7 @@ extension MainContentCoordinator {
                     AlertHelper.showErrorSheet(
                         title: String(localized: "Query Execution Failed"),
                         message: contextMsg,
-                        window: NSApp.keyWindow
+                        window: self.window
                     )
                 }
             }

@@ -15,23 +15,20 @@ internal final class WindowOpener {
 
     internal static let shared = WindowOpener()
 
-    /// Set by ContentView when it appears. Safe to store — OpenWindowAction is app-scoped, not view-scoped.
-    internal var openWindow: OpenWindowAction?
+    /// True once any SwiftUI scene has appeared and stored `openWindow`.
+    /// Used as a readiness check by AppDelegate cold-start queue.
+    internal var isReady: Bool = false
 
     /// The connectionId for the next window about to be opened.
     /// Set by `openNativeTab` before calling `openWindow`, consumed by
     /// `AppDelegate.windowDidBecomeKey` to set the correct `tabbingIdentifier`.
     internal var pendingConnectionId: UUID?
 
-    /// Opens a new native window tab with the given payload.
-    /// Stores the connectionId so AppDelegate can set the correct tabbingIdentifier.
+    /// Opens a new native window tab by posting a notification.
+    /// The `OpenWindowHandler` in TableProApp receives it and calls `openWindow`.
     internal func openNativeTab(_ payload: EditorTabPayload) {
         pendingConnectionId = payload.connectionId
-        guard let openWindow else {
-            Self.logger.warning("openNativeTab called before openWindow was set — payload dropped")
-            return
-        }
-        openWindow(id: "main", value: payload)
+        NotificationCenter.default.post(name: .openMainWindow, object: payload)
     }
 
     /// Returns and clears the pending connectionId (consume-once pattern).

@@ -301,10 +301,9 @@ final class MainContentCommandActions {
     func closeTab() {
         if hasUnsavedChanges {
             Task { @MainActor in
-                let keyWindow = NSApp.keyWindow
                 let result = await AlertHelper.confirmSaveChanges(
                     message: String(localized: "Your changes will be lost if you don't save them."),
-                    window: keyWindow
+                    window: self.window
                 )
 
                 switch result {
@@ -322,13 +321,13 @@ final class MainContentCommandActions {
     }
 
     private func performClose() {
-        guard let keyWindow = NSApp.keyWindow else { return }
-        let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
+        guard let currentWindow = self.window else { return }
+        let tabbedWindows = currentWindow.tabbedWindows ?? [currentWindow]
 
         if tabbedWindows.count > 1 {
-            keyWindow.close()
+            currentWindow.close()
         } else if coordinator?.tabManager.tabs.isEmpty == true {
-            keyWindow.close()
+            currentWindow.close()
         } else {
             for tab in coordinator?.tabManager.tabs ?? [] {
                 tab.rowBuffer.evict()
@@ -397,8 +396,8 @@ final class MainContentCommandActions {
 
     func selectTab(number: Int) {
         // Switch to the nth native window tab
-        guard let keyWindow = NSApp.keyWindow,
-              let tabbedWindows = keyWindow.tabbedWindows,
+        guard let currentWindow = self.window,
+              let tabbedWindows = currentWindow.tabbedWindows,
               number > 0, number <= tabbedWindows.count else { return }
         tabbedWindows[number - 1].makeKeyAndOrderFront(nil)
     }

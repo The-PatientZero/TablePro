@@ -59,10 +59,10 @@ extension MainContentCoordinator {
         }
 
         // Check if another native window tab already has this table open — switch to it
-        if let keyWindow = NSApp.keyWindow {
-            let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
-            for window in tabbedWindows where window.title == tableName {
-                window.makeKeyAndOrderFront(nil)
+        if let currentWindow = self.window {
+            let tabbedWindows = currentWindow.tabbedWindows ?? [currentWindow]
+            for tabbedWindow in tabbedWindows where tabbedWindow.title == tableName {
+                tabbedWindow.makeKeyAndOrderFront(nil)
                 return
             }
         }
@@ -294,9 +294,9 @@ extension MainContentCoordinator {
     /// tab group. Clearing `tabManager.tabs` only affects the in-app state of the
     /// *current* window — other NSWindows remain open with stale content.
     private func closeSiblingNativeWindows() {
-        guard let keyWindow = NSApp.keyWindow else { return }
-        let siblings = keyWindow.tabbedWindows ?? []
-        for sibling in siblings where sibling !== keyWindow {
+        guard let currentWindow = self.window else { return }
+        let siblings = currentWindow.tabbedWindows ?? []
+        for sibling in siblings where sibling !== currentWindow {
             sibling.close()
         }
     }

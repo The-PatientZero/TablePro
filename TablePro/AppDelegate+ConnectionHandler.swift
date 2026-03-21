@@ -23,7 +23,7 @@ extension AppDelegate {
     // MARK: - Database URL Handler
 
     func handleDatabaseURL(_ url: URL) {
-        guard WindowOpener.shared.openWindow != nil else {
+        guard WindowOpener.shared.isReady else {
             queuedURLEntries.append(.databaseURL(url))
             scheduleQueuedURLProcessing()
             return
@@ -86,7 +86,7 @@ extension AppDelegate {
     // MARK: - SQLite File Handler
 
     func handleSQLiteFile(_ url: URL) {
-        guard WindowOpener.shared.openWindow != nil else {
+        guard WindowOpener.shared.isReady else {
             queuedURLEntries.append(.sqliteFile(url))
             scheduleQueuedURLProcessing()
             return
@@ -131,7 +131,7 @@ extension AppDelegate {
     // MARK: - DuckDB File Handler
 
     func handleDuckDBFile(_ url: URL) {
-        guard WindowOpener.shared.openWindow != nil else {
+        guard WindowOpener.shared.isReady else {
             queuedURLEntries.append(.duckdbFile(url))
             scheduleQueuedURLProcessing()
             return
@@ -176,7 +176,7 @@ extension AppDelegate {
     // MARK: - Generic Database File Handler
 
     func handleGenericDatabaseFile(_ url: URL, type dbType: DatabaseType) {
-        guard WindowOpener.shared.openWindow != nil else {
+        guard WindowOpener.shared.isReady else {
             queuedURLEntries.append(.genericDatabaseFile(url, dbType))
             scheduleQueuedURLProcessing()
             return
@@ -229,7 +229,7 @@ extension AppDelegate {
 
             var ready = false
             for _ in 0..<25 {
-                if WindowOpener.shared.openWindow != nil { ready = true; break }
+                if WindowOpener.shared.isReady { ready = true; break }
                 try? await Task.sleep(for: .milliseconds(200))
             }
             guard let self else { return }

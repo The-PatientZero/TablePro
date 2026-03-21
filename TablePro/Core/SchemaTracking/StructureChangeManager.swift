@@ -78,7 +78,7 @@ final class StructureChangeManager {
         self.currentForeignKeys = groupedFKs.keys.sorted().compactMap { name -> EditableForeignKeyDefinition? in
             guard let fkInfos = groupedFKs[name], let first = fkInfos.first else { return nil }
             return EditableForeignKeyDefinition(
-                id: first.id,
+                id: UUID(),
                 name: first.name,
                 columns: fkInfos.map { $0.column },
                 referencedTable: first.referencedTable,

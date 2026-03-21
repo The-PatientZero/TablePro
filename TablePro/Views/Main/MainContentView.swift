@@ -188,6 +188,7 @@ struct MainContentView: View {
             .onChange(of: inspectorTrigger) {
                 scheduleInspectorUpdate()
             }
+            .background { WindowAccessor(window: $viewWindow) }
             .onAppear {
                 coordinator.markActivated()
 
@@ -201,34 +202,15 @@ struct MainContentView: View {
                 rightPanelState.aiViewModel.schemaProvider = coordinator.schemaProvider
                 coordinator.aiViewModel = rightPanelState.aiViewModel
                 coordinator.rightPanelState = rightPanelState
-
-                // Register NSWindow reference and set per-connection tab grouping
-                DispatchQueue.main.async {
-                    // Find our window by title rather than keyWindow to avoid races
-                    // when multiple windows open simultaneously
-                    let targetTitle = windowTitle
-                    let window = NSApp.keyWindow
-                        ?? NSApp.windows.first { $0.isVisible && $0.title == targetTitle }
-                    guard let window else { return }
-                    let isPreview = tabManager.selectedTab?.isPreview ?? payload?.isPreview ?? false
-                    if isPreview {
-                        window.subtitle = "\(connection.name) — Preview"
-                    } else {
-                        window.subtitle = connection.name
-                    }
-                    window.tabbingIdentifier = "com.TablePro.main.\(connection.id.uuidString)"
-                    window.tabbingMode = .preferred
-                    coordinator.windowId = windowId
-
-                    WindowLifecycleMonitor.shared.register(
-                        window: window,
-                        connectionId: connection.id,
-                        windowId: windowId,
-                        isPreview: isPreview
-                    )
-                    viewWindow = window
-                    isKeyWindow = window.isKeyWindow
-                }
+            }
+            .onChange(of: viewWindow) { _, newWindow in
+                guard let window = newWindow else { return }
+                let isPreview = tabManager.selectedTab?.isPreview ?? payload?.isPreview ?? false
+                coordinator.configureWindow(window, isPreview: isPreview)
+                coordinator.registerWindowLifecycle(window, windowId: windowId, isPreview: isPreview)
+                isKeyWindow = window.isKeyWindow
+                // Update command actions with the captured window
+                commandActions?.window = window
             }
             .onDisappear {
                 // Mark teardown intent synchronously so deinit doesn't warn
@@ -599,16 +581,8 @@ struct MainContentView: View {
             rightPanelState: rightPanelState,
             editingCell: $editingCell
         )
-        actions.window = NSApp.keyWindow
+        actions.window = viewWindow
         commandActions = actions
-
-        // Safety fallback: if window wasn't key yet at onAppear time,
-        // retry on next run loop when the window is guaranteed to be visible
-        if actions.window == nil {
-            DispatchQueue.main.async { [weak actions] in
-                actions?.window = NSApp.keyWindow
-            }
-        }
     }
 
     // MARK: - Database Switcher

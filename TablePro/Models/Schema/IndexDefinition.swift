@@ -49,7 +49,7 @@ struct EditableIndexDefinition: Hashable, Codable, Identifiable {
     /// Create from existing IndexInfo
     static func from(_ indexInfo: IndexInfo) -> EditableIndexDefinition {
         EditableIndexDefinition(
-            id: indexInfo.id,
+            id: UUID(),
             name: indexInfo.name,
             columns: indexInfo.columns,
             type: IndexType(rawValue: indexInfo.type.uppercased()) ?? .btree,

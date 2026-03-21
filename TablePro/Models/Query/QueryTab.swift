@@ -279,7 +279,10 @@ struct QueryTab: Identifiable, Equatable {
     var tabType: TabType
 
     // Results — stored in a reference-type buffer to avoid CoW duplication
-    // of large data when the struct is mutated (MEM-1 fix)
+    // of large data when the struct is mutated (MEM-1 fix).
+    // Note: When QueryTab is copied (struct CoW), copies share the same RowBuffer
+    // instance. This is intentional — RowBuffer is a reference type specifically to
+    // avoid duplicating large result arrays on every struct mutation.
     var rowBuffer: RowBuffer
 
     // Backward-compatible computed accessors for result data
@@ -492,22 +495,35 @@ struct QueryTab: Identifiable, Equatable {
         )
     }
 
+    // Identity-based equality: two QueryTabs are equal if they represent the same tab.
+    // Content changes (query text, results, filters, etc.) are tracked via resultVersion,
+    // metadataVersion, and SwiftUI's observation system — not via Equatable.
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
         lhs.id == rhs.id
-            && lhs.title == rhs.title
-            && lhs.isExecuting == rhs.isExecuting
-            && lhs.errorMessage == rhs.errorMessage
-            && lhs.executionTime == rhs.executionTime
-            && lhs.resultVersion == rhs.resultVersion
-            && lhs.pagination == rhs.pagination
-            && lhs.sortState == rhs.sortState
-            && lhs.showStructure == rhs.showStructure
-            && lhs.isEditable == rhs.isEditable
-            && lhs.isView == rhs.isView
-            && lhs.tabType == rhs.tabType
-            && lhs.rowsAffected == rhs.rowsAffected
-            && lhs.isPreview == rhs.isPreview
-            && lhs.hasUserInteraction == rhs.hasUserInteraction
+    }
+
+    /// Hash of content fields that matter for change detection.
+    /// Use this when you need to know if a tab's visible state has changed
+    /// (e.g., for caching or diff purposes), rather than relying on Equatable.
+    var contentHash: Int {
+        var hasher = Hasher()
+        hasher.combine(id)
+        hasher.combine(title)
+        hasher.combine(query)
+        hasher.combine(tableName)
+        hasher.combine(isExecuting)
+        hasher.combine(errorMessage)
+        hasher.combine(executionTime)
+        hasher.combine(resultVersion)
+        hasher.combine(metadataVersion)
+        hasher.combine(showStructure)
+        hasher.combine(isEditable)
+        hasher.combine(isView)
+        hasher.combine(tabType)
+        hasher.combine(rowsAffected)
+        hasher.combine(isPreview)
+        hasher.combine(hasUserInteraction)
+        return hasher.finalize()
     }
 }
 

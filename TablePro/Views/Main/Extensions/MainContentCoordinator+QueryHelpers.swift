@@ -353,7 +353,7 @@ extension MainContentCoordinator {
             let wantsAIFix = await AlertHelper.showQueryErrorWithAIOption(
                 title: String(localized: "Query Execution Failed"),
                 message: errorMessage,
-                window: NSApp.keyWindow
+                window: self.window
             )
             if wantsAIFix {
                 showAIChatPanel()

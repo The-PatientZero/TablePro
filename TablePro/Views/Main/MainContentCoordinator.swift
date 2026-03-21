@@ -69,6 +69,10 @@ final class MainContentCoordinator {
     /// Stable identifier for this coordinator's window (set by MainContentView on appear)
     var windowId: UUID?
 
+    /// Direct reference to this coordinator's NSWindow, captured via WindowAccessor.
+    /// Replaces fragile self.window lookups throughout the coordinator.
+    weak var window: NSWindow?
+
     /// Direct reference to sidebar viewmodel — eliminates global notification broadcasts
     weak var sidebarViewModel: SidebarViewModel?
 
@@ -289,6 +293,29 @@ final class MainContentCoordinator {
                 }
             }
         }
+    }
+
+    /// Configure the NSWindow properties (subtitle, tabbing) for this coordinator's connection.
+    func configureWindow(_ window: NSWindow, isPreview: Bool) {
+        if isPreview {
+            window.subtitle = "\(connection.name) — Preview"
+        } else {
+            window.subtitle = connection.name
+        }
+        window.tabbingIdentifier = "com.TablePro.main.\(connection.id.uuidString)"
+        window.tabbingMode = .preferred
+    }
+
+    /// Register the window with WindowLifecycleMonitor and store the reference.
+    func registerWindowLifecycle(_ window: NSWindow, windowId: UUID, isPreview: Bool) {
+        self.windowId = windowId
+        self.window = window
+        WindowLifecycleMonitor.shared.register(
+            window: window,
+            connectionId: connection.id,
+            windowId: windowId,
+            isPreview: isPreview
+        )
     }
 
     func showAIChatPanel() {
@@ -528,13 +555,13 @@ final class MainContentCoordinator {
         if level == .silent {
             if statements.count == 1 {
                 Task { @MainActor in
-                    let window = NSApp.keyWindow
+                    let window = self.window
                     guard await confirmDangerousQueryIfNeeded(statements[0], window: window) else { return }
                     executeQueryInternal(statements[0])
                 }
             } else {
                 Task { @MainActor in
-                    let window = NSApp.keyWindow
+                    let window = self.window
                     let dangerousStatements = statements.filter { isDangerousQuery($0) }
                     if !dangerousStatements.isEmpty {
                         guard await confirmDangerousQueries(dangerousStatements, window: window) else { return }
@@ -547,7 +574,7 @@ final class MainContentCoordinator {
             isShowingSafeModePrompt = true
             Task { @MainActor in
                 defer { isShowingSafeModePrompt = false }
-                let window = NSApp.keyWindow
+                let window = self.window
                 let combinedSQL = statements.joined(separator: "\n")
                 let hasWrite = statements.contains { isWriteQuery($0) }
                 let permission = await SafeModeGuard.checkPermission(
@@ -598,7 +625,7 @@ final class MainContentCoordinator {
             isShowingSafeModePrompt = true
             Task { @MainActor in
                 defer { isShowingSafeModePrompt = false }
-                let window = NSApp.keyWindow
+                let window = self.window
                 let permission = await SafeModeGuard.checkPermission(
                     level: level,
                     isWriteOperation: false,
@@ -705,7 +732,7 @@ final class MainContentCoordinator {
         if !explainVariants.isEmpty {
             if needsConfirmation {
                 Task { @MainActor in
-                    let window = NSApp.keyWindow
+                    let window = self.window
                     let permission = await SafeModeGuard.checkPermission(
                         level: level,
                         isWriteOperation: false,
@@ -734,7 +761,7 @@ final class MainContentCoordinator {
 
         if needsConfirmation {
             Task { @MainActor in
-                let window = NSApp.keyWindow
+                let window = self.window
                 let permission = await SafeModeGuard.checkPermission(
                     level: level,
                     isWriteOperation: false,

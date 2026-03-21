@@ -52,7 +52,7 @@ struct EditableColumnDefinition: Hashable, Codable, Identifiable {
     /// Create from existing ColumnInfo
     static func from(_ columnInfo: ColumnInfo) -> EditableColumnDefinition {
         EditableColumnDefinition(
-            id: columnInfo.id,
+            id: UUID(),
             name: columnInfo.name,
             dataType: columnInfo.dataType,
             isNullable: columnInfo.isNullable,

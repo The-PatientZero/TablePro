@@ -193,9 +193,7 @@ extension AppDelegate {
         ConnectionStorage.shared.addConnection(connection)
         NotificationCenter.default.post(name: .connectionUpdated, object: nil)
 
-        if let openWindow = WindowOpener.shared.openWindow {
-            openWindow(id: "connection-form", value: connection.id)
-        }
+        NotificationCenter.default.post(name: .openConnectionFormWindow, object: connection.id)
     }
 
     // MARK: - Plugin Install
