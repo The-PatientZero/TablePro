@@ -118,8 +118,4 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         SSHTunnelManager.shared.terminateAllProcessesSync()
     }
-
-    nonisolated deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
 }

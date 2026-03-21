@@ -137,7 +137,7 @@ struct FilterRowView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(4)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)
@@ -174,7 +174,7 @@ struct FilterRowView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(4)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)
@@ -202,7 +202,7 @@ struct FilterRowView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(Color(nsColor: .textBackgroundColor))
-            .cornerRadius(4)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)
@@ -217,7 +217,7 @@ struct FilterRowView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
                 .background(Color(nsColor: .textBackgroundColor))
-                .cornerRadius(4)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)
@@ -241,7 +241,7 @@ struct FilterRowView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
                 .background(Color(nsColor: .textBackgroundColor))
-                .cornerRadius(4)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)

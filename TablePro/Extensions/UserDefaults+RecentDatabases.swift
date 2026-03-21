@@ -25,7 +25,7 @@ extension UserDefaults {
     /// - Parameters:
     ///   - database: Database name to track
     ///   - connectionId: The connection UUID
-    func trackDatabaseAccess(_ database: String, for connectionId: UUID) {
+    @MainActor func trackDatabaseAccess(_ database: String, for connectionId: UUID) {
         var dict = (dictionary(forKey: Self.recentDatabasesKey) as? [String: [String]]) ?? [:]
         var recent = dict[connectionId.uuidString] ?? []
 

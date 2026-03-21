@@ -46,6 +46,7 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    // Side effect: sets UserDefaults AppleLanguages. Consider moving to AppSettingsManager.
     func apply() {
         if self == .system {
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")

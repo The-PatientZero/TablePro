@@ -39,7 +39,7 @@ struct SQLPreviewSheet: View {
             }
             .frame(maxHeight: 180)
             .background(Color(nsColor: .textBackgroundColor))
-            .cornerRadius(6)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)

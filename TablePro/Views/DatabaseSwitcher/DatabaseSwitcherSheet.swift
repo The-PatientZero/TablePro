@@ -170,7 +170,7 @@ struct DatabaseSwitcherSheet: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(6)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
 
             // Refresh
             Button(action: {

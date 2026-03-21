@@ -214,7 +214,7 @@ struct ImportDialog: View {
 
             SQLCodePreview(text: $filePreview)
                 .frame(height: availableFormats.count > 1 ? 220 : 280)
-                .cornerRadius(6)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
                         .stroke(Color(nsColor: .separatorColor), lineWidth: 1)

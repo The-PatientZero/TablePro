@@ -223,12 +223,12 @@ struct ConnectionSwitcherPopover: View {
             // Connection info
             VStack(alignment: .leading, spacing: 1) {
                 Text(connection.name)
-                    .font(.system(size: 13, weight: isActive ? .semibold : .regular))
+                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: isActive ? .semibold : .regular))
                     .foregroundStyle(isHighlighted ? .white : .primary)
                     .lineLimit(1)
 
                 Text(connectionSubtitle(connection))
-                    .font(.system(size: 11))
+                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
                     .foregroundStyle(isHighlighted ? .white.opacity(0.7) : .secondary)
                     .lineLimit(1)
             }
@@ -242,7 +242,7 @@ struct ConnectionSwitcherPopover: View {
             } else if isActive {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(isHighlighted ? .white : Color(nsColor: .systemGreen))
-                    .font(.system(size: 14))
+                    .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.default))
             } else if isConnected {
                 Circle()
                     .fill(isHighlighted ? Color.white : Color(nsColor: .systemGreen))
@@ -251,7 +251,7 @@ struct ConnectionSwitcherPopover: View {
 
             // Database type badge
             Text(connection.type.rawValue.uppercased())
-                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.tiny, weight: .medium, design: .monospaced))
                 .foregroundStyle(isHighlighted ? .white : .secondary)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)

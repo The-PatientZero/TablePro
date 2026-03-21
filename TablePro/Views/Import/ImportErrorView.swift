@@ -51,7 +51,7 @@ struct ImportErrorView: View {
                     .frame(height: 150)
                     .padding(8)
                     .background(Color(nsColor: .textBackgroundColor))
-                    .cornerRadius(4)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
                 } else {
                     Text(error?.localizedDescription ?? String(localized: "Unknown error"))
                         .font(.system(size: 13))

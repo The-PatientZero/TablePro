@@ -80,7 +80,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
 
         // Deferred to next run loop because prepareCoordinator runs during
         // TextViewController.init, before the view hierarchy is fully loaded.
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             self.fixFindPanelHitTesting(controller: controller)
             self.applyHorizontalScrollFix(controller: controller)
@@ -98,7 +98,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         vimEngine?.invalidateLineCache()
 
         // Notify inline suggestion manager immediately (lightweight)
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             self?.inlineSuggestionManager?.handleTextChange()
             self?.vimCursorManager?.updatePosition()
         }
@@ -133,7 +133,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         guard let range = newPositions.first?.range, range.location != NSNotFound else { return }
 
         // Defer to next run loop to let EmphasisManager finish its work first.
-        DispatchQueue.main.async { [weak controller] in
+        Task { @MainActor [weak controller] in
             controller?.textView.scrollToRange(range)
         }
     }
@@ -297,7 +297,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         ) { [weak self, weak controller] _ in
             guard let self, let controller else { return }
             // Defer so it runs AFTER reloadUI() → styleTextView()
-            DispatchQueue.main.async { [weak self, weak controller] in
+            Task { @MainActor [weak self, weak controller] in
                 guard let self, let controller else { return }
                 self.setHorizontalScrollProperties(controller: controller)
                 self.handleVimSettingsChange(controller: controller)
