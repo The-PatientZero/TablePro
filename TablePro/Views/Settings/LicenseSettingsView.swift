@@ -11,8 +11,6 @@ import SwiftUI
 
 struct LicenseSettingsView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "LicenseSettingsView")
-    // swiftlint:disable:next force_unwrapping
-    private static let pricingURL = URL(string: "https://tablepro.app/#pricing")!
 
     private let licenseManager = LicenseManager.shared
 
@@ -21,6 +19,7 @@ struct LicenseSettingsView: View {
     @State private var activations: [LicenseActivationInfo] = []
     @State private var maxActivations = 0
     @State private var isLoadingActivations = false
+    @State private var hasLoadedActivations = false
 
     var body: some View {
         Form {
@@ -32,7 +31,11 @@ struct LicenseSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .task { await loadActivations() }
+        .task {
+            guard !hasLoadedActivations else { return }
+            await loadActivations()
+            hasLoadedActivations = true
+        }
     }
 
     // MARK: - Licensed State
@@ -45,7 +48,7 @@ struct LicenseSettingsView: View {
                     .foregroundStyle(.orange)
                 Text("License expires in \(days) day(s)")
                 Spacer()
-                Link(String(localized: "Renew"), destination: Self.pricingURL)
+                Link(String(localized: "Renew"), destination: LicenseConstants.pricingURL)
                     .controlSize(.small)
             }
             .padding(12)
@@ -179,7 +182,7 @@ struct LicenseSettingsView: View {
 
             HStack {
                 Spacer()
-                Link("Purchase License", destination: Self.pricingURL)
+                Link("Purchase License", destination: LicenseConstants.pricingURL)
                     .font(.subheadline)
             }
         }
@@ -224,7 +227,7 @@ struct LicenseSettingsView: View {
         } catch {
             AlertHelper.showErrorSheet(
                 title: String(localized: "Activation Failed"),
-                message: error.localizedDescription,
+                message: (error as? LicenseError)?.friendlyDescription ?? error.localizedDescription,
                 window: NSApp.keyWindow
             )
         }

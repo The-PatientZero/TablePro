@@ -9,11 +9,12 @@ import SwiftUI
 
 struct SyncStatusIndicator: View {
     private let syncCoordinator = SyncCoordinator.shared
+    @State private var showActivationSheet = false
 
     var body: some View {
         if shouldShow {
             Button {
-                openSyncSettings()
+                handleTap()
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: iconName)
@@ -24,6 +25,9 @@ struct SyncStatusIndicator: View {
             }
             .buttonStyle(.plain)
             .help(helpText)
+            .sheet(isPresented: $showActivationSheet) {
+                LicenseActivationSheet()
+            }
         }
     }
 
@@ -110,10 +114,15 @@ struct SyncStatusIndicator: View {
 
     // MARK: - Actions
 
-    private func openSyncSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+    private func handleTap() {
+        switch syncCoordinator.syncStatus {
+        case .disabled(.licenseRequired), .disabled(.licenseExpired):
+            showActivationSheet = true
+        default:
             UserDefaults.standard.set(SettingsTab.sync.rawValue, forKey: "selectedSettingsTab")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
         }
     }
 }

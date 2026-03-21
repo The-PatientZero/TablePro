@@ -100,6 +100,8 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
 
     // Safe mode level
     @State private var safeModeLevel: SafeModeLevel = .silent
+    @State private var showSafeModeProAlert = false
+    @State private var showActivationSheet = false
 
     // AI policy
     @State private var aiPolicy: AIConnectionPolicy?
@@ -350,10 +352,32 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                 LabeledContent(String(localized: "Group")) {
                     ConnectionGroupPicker(selectedGroupId: $selectedGroupId)
                 }
+                let isProUnlocked = LicenseManager.shared.isFeatureAvailable(.safeMode)
                 Picker(String(localized: "Safe Mode"), selection: $safeModeLevel) {
                     ForEach(SafeModeLevel.allCases) { level in
-                        Text(level.displayName).tag(level)
+                        if level.requiresPro && !isProUnlocked {
+                            Text("\(level.displayName) (Pro)").tag(level)
+                        } else {
+                            Text(level.displayName).tag(level)
+                        }
                     }
+                }
+                .onChange(of: safeModeLevel) { oldValue, newValue in
+                    if newValue.requiresPro && !isProUnlocked {
+                        safeModeLevel = oldValue
+                        showSafeModeProAlert = true
+                    }
+                }
+                .alert(
+                    String(localized: "Pro License Required"),
+                    isPresented: $showSafeModeProAlert
+                ) {
+                    Button(String(localized: "Activate License...")) {
+                        showActivationSheet = true
+                    }
+                    Button(String(localized: "OK"), role: .cancel) {}
+                } message: {
+                    Text(String(localized: "Safe Mode, Safe Mode (Full), and Read-Only require a Pro license."))
                 }
             }
         }
@@ -361,6 +385,9 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         .scrollContentBackground(.hidden)
         .sheet(isPresented: $showURLImport) {
             connectionURLImportSheet
+        }
+        .sheet(isPresented: $showActivationSheet) {
+            LicenseActivationSheet()
         }
     }
 

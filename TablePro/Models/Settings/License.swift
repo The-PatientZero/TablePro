@@ -246,27 +246,54 @@ enum LicenseError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidKey:
-            return "The license key is invalid."
+            return String(localized: "The license key is invalid.")
         case .signatureInvalid:
-            return "License signature verification failed."
+            return String(localized: "License signature verification failed.")
         case .publicKeyNotFound:
-            return "License public key not found in app bundle."
+            return String(localized: "License public key not found in app bundle.")
         case .publicKeyInvalid:
-            return "License public key is invalid."
+            return String(localized: "License public key is invalid.")
         case .activationLimitReached:
-            return "Maximum number of activations reached."
+            return String(localized: "Maximum number of activations reached.")
         case .licenseExpired:
-            return "The license has expired."
+            return String(localized: "The license has expired.")
         case .licenseSuspended:
-            return "The license has been suspended."
+            return String(localized: "The license has been suspended.")
         case .notActivated:
-            return "This machine is not activated."
+            return String(localized: "This machine is not activated.")
         case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
+            return String(localized: "Network error: \(error.localizedDescription)")
         case .serverError(let code, let message):
-            return "Server error (\(code)): \(message)"
+            return String(localized: "Server error (\(code)): \(message)")
         case .decodingError(let error):
-            return "Failed to parse server response: \(error.localizedDescription)"
+            return String(localized: "Failed to parse server response: \(error.localizedDescription)")
+        }
+    }
+
+    /// User-friendly description suitable for display in activation dialogs
+    var friendlyDescription: String {
+        switch self {
+        case .invalidKey:
+            return String(localized: "That doesn't look like a valid license key. Check for typos and try again.")
+        case .activationLimitReached:
+            return String(localized: "This license has reached its activation limit. Deactivate another Mac first.")
+        case .licenseExpired:
+            return String(localized: "This license has expired. Renew it to continue using Pro features.")
+        case .licenseSuspended:
+            return String(localized: "This license has been suspended. Contact support for help.")
+        case .networkError:
+            return String(localized: "Could not reach the license server. Check your internet connection and try again.")
+        case .serverError(let code, _):
+            if code == 422 {
+                return String(localized: "Invalid license key format. Check for typos and try again.")
+            }
+            return String(localized: "Something went wrong (error \(code)). Try again in a moment.")
+        case .signatureInvalid, .publicKeyNotFound, .publicKeyInvalid:
+            return String(localized: "License verification failed. Try updating the app to the latest version.")
+        case .notActivated:
+            return String(localized: "This machine is not activated for this license.")
+        case .decodingError:
+            return String(localized: "Could not read the server response. Try again in a moment.")
         }
     }
 }

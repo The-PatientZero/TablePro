@@ -12,8 +12,8 @@ struct ProFeatureGateModifier: ViewModifier {
     let feature: ProFeature
 
     private let licenseManager = LicenseManager.shared
-    // swiftlint:disable:next force_unwrapping
-    private static let pricingURL = URL(string: "https://tablepro.app/#pricing")!
+
+    @State private var showActivationSheet = false
 
     func body(content: Content) -> some View {
         let available = licenseManager.isFeatureAvailable(feature)
@@ -24,6 +24,9 @@ struct ProFeatureGateModifier: ViewModifier {
                 if !available {
                     proRequiredOverlay
                 }
+            }
+            .sheet(isPresented: $showActivationSheet) {
+                LicenseActivationSheet()
             }
     }
 
@@ -49,11 +52,11 @@ struct ProFeatureGateModifier: ViewModifier {
                     Text(feature.featureDescription)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Button(String(localized: "Renew License...")) {
-                        openLicenseSettings()
+                    Button(String(localized: "Activate License...")) {
+                        showActivationSheet = true
                     }
                     .buttonStyle(.borderedProminent)
-                    Link(String(localized: "Renew License"), destination: Self.pricingURL)
+                    Link(String(localized: "Renew License"), destination: LicenseConstants.pricingURL)
                         .font(.subheadline)
                 case .validationFailed:
                     Text("License validation failed")
@@ -72,21 +75,14 @@ struct ProFeatureGateModifier: ViewModifier {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Button(String(localized: "Activate License...")) {
-                        openLicenseSettings()
+                        showActivationSheet = true
                     }
                     .buttonStyle(.borderedProminent)
-                    Link(String(localized: "Purchase License"), destination: Self.pricingURL)
+                    Link(String(localized: "Purchase License"), destination: LicenseConstants.pricingURL)
                         .font(.subheadline)
                 }
             }
             .padding()
-        }
-    }
-
-    private func openLicenseSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            UserDefaults.standard.set(SettingsTab.license.rawValue, forKey: "selectedSettingsTab")
         }
     }
 }

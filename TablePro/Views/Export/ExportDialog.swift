@@ -28,6 +28,7 @@ struct ExportDialog: View {
     @State private var showSuccessDialog = false
     @State private var exportedFileURL: URL?
     @State private var currentExportTable = ""
+    @State private var showActivationSheet = false
 
     // MARK: - User Preferences
 
@@ -62,6 +63,9 @@ struct ExportDialog: View {
         }
         .frame(width: dialogWidth)
         .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $showActivationSheet) {
+            LicenseActivationSheet()
+        }
         .onAppear {
             let available = availableFormats
             if !available.contains(where: { type(of: $0).formatId == config.formatId }) {
@@ -220,7 +224,11 @@ struct ExportDialog: View {
                         Picker("", selection: $config.formatId) {
                             ForEach(availableFormatIds, id: \.self) { formatId in
                                 if let plugin = PluginManager.shared.exportPlugins[formatId] {
-                                    Text(type(of: plugin).formatDisplayName).tag(formatId)
+                                    if isProGatedFormat(formatId) {
+                                        Text("\(type(of: plugin).formatDisplayName) (Pro)").tag(formatId)
+                                    } else {
+                                        Text(type(of: plugin).formatDisplayName).tag(formatId)
+                                    }
                                 }
                             }
                         }
@@ -232,16 +240,27 @@ struct ExportDialog: View {
                     }
                 }
 
-                // Selection count (shows exportable count when some tables have no options)
+                // Selection count or Pro gate message
                 VStack(spacing: 2) {
-                    Text("\(exportableCount) table\(exportableCount == 1 ? "" : "s") to export")
-                        .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                        .foregroundStyle(.secondary)
-
-                    if let plugin = currentPlugin, !type(of: plugin).perTableOptionColumns.isEmpty, exportableCount < selectedCount {
-                        Text("\(selectedCount - exportableCount) skipped (no options)")
+                    if isProGatedFormat(config.formatId) {
+                        Text(String(localized: "XLSX export requires a Pro license."))
                             .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
                             .foregroundStyle(.orange)
+                        Button(String(localized: "Activate License...")) {
+                            showActivationSheet = true
+                        }
+                        .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
+                        .buttonStyle(.link)
+                    } else {
+                        Text("\(exportableCount) table\(exportableCount == 1 ? "" : "s") to export")
+                            .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
+                            .foregroundStyle(.secondary)
+
+                        if let plugin = currentPlugin, !type(of: plugin).perTableOptionColumns.isEmpty, exportableCount < selectedCount {
+                            Text("\(selectedCount - exportableCount) skipped (no options)")
+                                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -327,7 +346,7 @@ struct ExportDialog: View {
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.return, modifiers: [])
-            .disabled(exportableCount == 0 || isExporting || !isFileNameValid || availableFormats.isEmpty)
+            .disabled(exportableCount == 0 || isExporting || !isFileNameValid || availableFormats.isEmpty || isProGatedFormat(config.formatId))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -359,6 +378,11 @@ struct ExportDialog: View {
     }
 
     private static let formatDisplayOrder = ["csv", "json", "sql", "xlsx", "mql"]
+    private static let proFormatIds: Set<String> = ["xlsx"]
+
+    private func isProGatedFormat(_ formatId: String) -> Bool {
+        Self.proFormatIds.contains(formatId) && !LicenseManager.shared.isFeatureAvailable(.xlsxExport)
+    }
 
     /// Windows reserved device names (case-insensitive)
     private static let windowsReservedNames: Set<String> = [

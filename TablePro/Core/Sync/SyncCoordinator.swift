@@ -26,6 +26,7 @@ final class SyncCoordinator {
     @ObservationIgnored private let conflictResolver = ConflictResolver.shared
     @ObservationIgnored private var accountObserver: NSObjectProtocol?
     @ObservationIgnored private var changeObserver: NSObjectProtocol?
+    @ObservationIgnored private var licenseObserver: NSObjectProtocol?
     @ObservationIgnored private var syncTask: Task<Void, Never>?
 
     private init() {
@@ -35,6 +36,7 @@ final class SyncCoordinator {
     deinit {
         if let accountObserver { NotificationCenter.default.removeObserver(accountObserver) }
         if let changeObserver { NotificationCenter.default.removeObserver(changeObserver) }
+        if let licenseObserver { NotificationCenter.default.removeObserver(licenseObserver) }
         syncTask?.cancel()
     }
 
@@ -44,6 +46,7 @@ final class SyncCoordinator {
     func start() {
         observeAccountChanges()
         observeLocalChanges()
+        observeLicenseChanges()
 
         // If local storage is empty (fresh install or wiped), clear the sync token
         // to force a full fetch instead of a delta that returns nothing
@@ -644,6 +647,23 @@ final class SyncCoordinator {
                     try? await Task.sleep(for: .seconds(2))
                     guard !Task.isCancelled else { return }
                     await self.syncNow()
+                }
+            }
+        }
+    }
+
+    private func observeLicenseChanges() {
+        licenseObserver = NotificationCenter.default.addObserver(
+            forName: .licenseStatusDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                evaluateStatus()
+
+                if syncStatus.isEnabled {
+                    await syncNow()
                 }
             }
         }
