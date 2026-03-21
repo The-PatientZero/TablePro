@@ -523,6 +523,8 @@ struct QueryTab: Identifiable, Equatable {
         hasher.combine(rowsAffected)
         hasher.combine(isPreview)
         hasher.combine(hasUserInteraction)
+        hasher.combine(databaseName)
+        hasher.combine(filterState.filters.count)
         return hasher.finalize()
     }
 }

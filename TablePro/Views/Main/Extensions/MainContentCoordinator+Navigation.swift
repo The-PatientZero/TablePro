@@ -58,7 +58,9 @@ extension MainContentCoordinator {
             return
         }
 
-        // Check if another native window tab already has this table open — switch to it
+        // Check if another native window tab already has this table open — switch to it.
+        // Safe to match by title within tabbedWindows: all tabs in a group share the same
+        // connection (same tabbingIdentifier), so table names are unique within the group.
         if let currentWindow = self.window {
             let tabbedWindows = currentWindow.tabbedWindows ?? [currentWindow]
             for tabbedWindow in tabbedWindows where tabbedWindow.title == tableName {

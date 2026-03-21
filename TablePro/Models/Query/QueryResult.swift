@@ -127,7 +127,7 @@ struct ColumnInfo: Identifiable, Hashable {
 
 /// Information about a table index
 struct IndexInfo: Identifiable, Hashable {
-    var id: String { "\(name)_\(columns.joined(separator: ","))" }
+    var id: String { name }
     let name: String
     let columns: [String]
     let isUnique: Bool
@@ -137,7 +137,7 @@ struct IndexInfo: Identifiable, Hashable {
 
 /// Information about a foreign key relationship
 struct ForeignKeyInfo: Identifiable, Hashable {
-    var id: String { "\(column)_\(referencedTable)_\(referencedColumn)" }
+    var id: String { name }
     let name: String
     let column: String
     let referencedTable: String
