@@ -161,7 +161,7 @@ struct SQLFavoriteStorageTests {
         // Favorite should now be in parent folder
         let fetched = await storage.fetchFavorites()
         let found = fetched.first { $0.id == fav.id }
-        #expect(found?.folderId == parent.id.uuidString || found?.folderId == parent.id)
+        #expect(found?.folderId == parent.id)
     }
 
     // MARK: - Keyword

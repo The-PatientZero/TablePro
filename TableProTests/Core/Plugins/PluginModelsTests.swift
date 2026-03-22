@@ -8,51 +8,60 @@ import TableProPluginKit
 import Testing
 @testable import TablePro
 
-@Suite("PluginEntry Computed Properties — Fallback Behavior")
-struct PluginEntryFallbackTests {
+@Suite("PluginEntry Computed Properties")
+struct PluginEntryTests {
 
-    private func makeNonPluginEntry() -> PluginEntry {
+    private func makeEntry(
+        databaseTypeId: String? = nil,
+        additionalTypeIds: [String] = [],
+        pluginIconName: String = "puzzlepiece",
+        defaultPort: Int? = nil
+    ) -> PluginEntry {
         PluginEntry(
-            id: "test.non-plugin",
+            id: "test.plugin",
             bundle: Bundle.main,
             url: Bundle.main.bundleURL,
             source: .builtIn,
-            name: "Non-Plugin Bundle",
+            name: "Test Plugin",
             version: "1.0.0",
-            pluginDescription: "A bundle whose principalClass is not a DriverPlugin",
+            pluginDescription: "A test plugin",
             capabilities: [.databaseDriver],
-            isEnabled: true
+            isEnabled: true,
+            databaseTypeId: databaseTypeId,
+            additionalTypeIds: additionalTypeIds,
+            pluginIconName: pluginIconName,
+            defaultPort: defaultPort
         )
     }
 
-    @Test("driverPlugin returns nil for a non-plugin bundle")
-    func driverPluginReturnsNil() {
-        let entry = makeNonPluginEntry()
-        #expect(entry.driverPlugin == nil)
-    }
-
-    @Test("iconName falls back to puzzlepiece when driverPlugin is nil")
-    func iconNameFallback() {
-        let entry = makeNonPluginEntry()
-        #expect(entry.iconName == "puzzlepiece")
-    }
-
-    @Test("databaseTypeId returns nil when driverPlugin is nil")
+    @Test("databaseTypeId returns nil when not set")
     func databaseTypeIdNil() {
-        let entry = makeNonPluginEntry()
+        let entry = makeEntry()
         #expect(entry.databaseTypeId == nil)
     }
 
-    @Test("additionalTypeIds returns empty array when driverPlugin is nil")
+    @Test("databaseTypeId returns value when set")
+    func databaseTypeIdSet() {
+        let entry = makeEntry(databaseTypeId: "MySQL")
+        #expect(entry.databaseTypeId == "MySQL")
+    }
+
+    @Test("additionalTypeIds returns empty array by default")
     func additionalTypeIdsEmpty() {
-        let entry = makeNonPluginEntry()
+        let entry = makeEntry()
         #expect(entry.additionalTypeIds.isEmpty)
     }
 
-    @Test("defaultPort returns nil when driverPlugin is nil")
+    @Test("defaultPort returns nil when not set")
     func defaultPortNil() {
-        let entry = makeNonPluginEntry()
+        let entry = makeEntry()
         #expect(entry.defaultPort == nil)
+    }
+
+    @Test("pluginIconName returns provided value")
+    func pluginIconName() {
+        let entry = makeEntry(pluginIconName: "mysql-icon")
+        #expect(entry.pluginIconName == "mysql-icon")
     }
 }
 
@@ -82,7 +91,11 @@ struct PluginEntryIdentityTests {
             version: "0.1.0",
             pluginDescription: "",
             capabilities: [],
-            isEnabled: false
+            isEnabled: false,
+            databaseTypeId: nil,
+            additionalTypeIds: [],
+            pluginIconName: "puzzlepiece",
+            defaultPort: nil
         )
         #expect(entry.id == "com.example.test-plugin")
     }

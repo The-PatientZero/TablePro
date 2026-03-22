@@ -15,32 +15,32 @@ struct DatabaseTypeMSSQLTests {
 
     @Test("defaultPort is 1433")
     func defaultPort() {
-        #expect(.mssql.defaultPort == 1_433)
+        #expect(DatabaseType.mssql.defaultPort == 1_433)
     }
 
     @Test("rawValue is SQL Server")
     func rawValue() {
-        #expect(.mssql.rawValue == "SQL Server")
+        #expect(DatabaseType.mssql.rawValue == "SQL Server")
     }
 
     @Test("requiresAuthentication is true")
     func requiresAuthentication() {
-        #expect(.mssql.requiresAuthentication == true)
+        #expect(DatabaseType.mssql.requiresAuthentication == true)
     }
 
     @Test("supportsForeignKeys is true")
     func supportsForeignKeys() {
-        #expect(.mssql.supportsForeignKeys == true)
+        #expect(DatabaseType.mssql.supportsForeignKeys == true)
     }
 
     @Test("supportsSchemaEditing is true")
     func supportsSchemaEditing() {
-        #expect(.mssql.supportsSchemaEditing == true)
+        #expect(DatabaseType.mssql.supportsSchemaEditing == true)
     }
 
     @Test("iconName is mssql-icon")
     func iconName() {
-        #expect(.mssql.iconName == "mssql-icon")
+        #expect(DatabaseType.mssql.iconName == "mssql-icon")
     }
 
     // MARK: - allKnownTypes Tests

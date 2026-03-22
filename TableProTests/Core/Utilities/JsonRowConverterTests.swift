@@ -3,6 +3,8 @@
 //  TableProTests
 //
 
+import Foundation
+
 @testable import TablePro
 import Testing
 
