@@ -33,6 +33,8 @@ internal struct EditorTabPayload: Codable, Hashable {
     internal let isPreview: Bool
     /// Initial filter state (for FK navigation — pre-applies a WHERE filter)
     internal let initialFilterState: TabFilterState?
+    /// Source file URL for .sql files opened from disk (used for deduplication)
+    internal let sourceFileURL: URL?
 
     internal init(
         id: UUID = UUID(),
@@ -45,7 +47,8 @@ internal struct EditorTabPayload: Codable, Hashable {
         showStructure: Bool = false,
         skipAutoExecute: Bool = false,
         isPreview: Bool = false,
-        initialFilterState: TabFilterState? = nil
+        initialFilterState: TabFilterState? = nil,
+        sourceFileURL: URL? = nil
     ) {
         self.id = id
         self.connectionId = connectionId
@@ -58,6 +61,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         self.skipAutoExecute = skipAutoExecute
         self.isPreview = isPreview
         self.initialFilterState = initialFilterState
+        self.sourceFileURL = sourceFileURL
     }
 
     internal init(from decoder: Decoder) throws {
@@ -73,6 +77,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         skipAutoExecute = try container.decodeIfPresent(Bool.self, forKey: .skipAutoExecute) ?? false
         isPreview = try container.decodeIfPresent(Bool.self, forKey: .isPreview) ?? false
         initialFilterState = try container.decodeIfPresent(TabFilterState.self, forKey: .initialFilterState)
+        sourceFileURL = try container.decodeIfPresent(URL.self, forKey: .sourceFileURL)
     }
 
     /// Whether this payload is a "connection-only" payload — just a connectionId
@@ -95,5 +100,6 @@ internal struct EditorTabPayload: Codable, Hashable {
         self.skipAutoExecute = skipAutoExecute
         self.isPreview = false
         self.initialFilterState = nil
+        self.sourceFileURL = tab.sourceFileURL
     }
 }

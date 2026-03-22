@@ -83,7 +83,8 @@ enum SessionStateFactory {
             case .query:
                 tabMgr.addTab(
                     initialQuery: payload.initialQuery,
-                    databaseName: payload.databaseName ?? connection.database
+                    databaseName: payload.databaseName ?? connection.database,
+                    sourceFileURL: payload.sourceFileURL
                 )
             }
         }

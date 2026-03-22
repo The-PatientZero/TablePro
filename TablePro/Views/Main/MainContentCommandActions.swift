@@ -587,7 +587,8 @@ final class MainContentCommandActions {
                     let payload = EditorTabPayload(
                         connectionId: connection.id,
                         tabType: .query,
-                        initialQuery: content
+                        initialQuery: content,
+                        sourceFileURL: url
                     )
                     WindowOpener.shared.openNativeTab(payload)
                 }

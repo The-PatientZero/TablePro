@@ -23,7 +23,8 @@ struct PersistedTab: Codable {
     let tabType: TabType
     let tableName: String?
     var isView: Bool = false
-    var databaseName: String = ""  // Database context for this tab (for multi-database restore)
+    var databaseName: String = ""
+    var sourceFileURL: URL?
 }
 
 /// Stores pending changes for a tab (used to preserve state when switching tabs)
@@ -358,6 +359,9 @@ struct QueryTab: Identifiable, Equatable {
     // Whether this tab is a preview (temporary) tab that gets replaced on next navigation
     var isPreview: Bool
 
+    // Source file URL for .sql files opened from disk (used for deduplication)
+    var sourceFileURL: URL?
+
     // Version counter incremented when resultRows changes (used for sort caching)
     var resultVersion: Int
 
@@ -395,6 +399,7 @@ struct QueryTab: Identifiable, Equatable {
         self.filterState = TabFilterState()
         self.columnLayout = ColumnLayoutState()
         self.isPreview = false
+        self.sourceFileURL = nil
         self.resultVersion = 0
         self.metadataVersion = 0
     }
@@ -427,6 +432,7 @@ struct QueryTab: Identifiable, Equatable {
         self.filterState = TabFilterState()
         self.columnLayout = ColumnLayoutState()
         self.isPreview = false
+        self.sourceFileURL = persisted.sourceFileURL
         self.resultVersion = 0
         self.metadataVersion = 0
     }
@@ -488,7 +494,8 @@ struct QueryTab: Identifiable, Equatable {
             tabType: tabType,
             tableName: tableName,
             isView: isView,
-            databaseName: databaseName
+            databaseName: databaseName,
+            sourceFileURL: sourceFileURL
         )
     }
 
@@ -537,18 +544,27 @@ final class QueryTabManager {
 
     // MARK: - Tab Management
 
-    func addTab(initialQuery: String? = nil, title: String? = nil, databaseName: String = "") {
+    func addTab(initialQuery: String? = nil, title: String? = nil, databaseName: String = "", sourceFileURL: URL? = nil) {
+        if let sourceFileURL,
+           let existingIndex = tabs.firstIndex(where: { $0.sourceFileURL == sourceFileURL }) {
+            if let query = initialQuery {
+                tabs[existingIndex].query = query
+            }
+            selectedTabId = tabs[existingIndex].id
+            return
+        }
+
         let queryCount = tabs.count(where: { $0.tabType == .query })
         let tabTitle = title ?? "Query \(queryCount + 1)"
         var newTab = QueryTab(title: tabTitle, tabType: .query)
 
-        // If initialQuery provided, use it; otherwise tab starts empty
         if let query = initialQuery {
             newTab.query = query
-            newTab.hasUserInteraction = true  // Mark as having content
+            newTab.hasUserInteraction = true
         }
 
         newTab.databaseName = databaseName
+        newTab.sourceFileURL = sourceFileURL
         tabs.append(newTab)
         selectedTabId = newTab.id
     }
