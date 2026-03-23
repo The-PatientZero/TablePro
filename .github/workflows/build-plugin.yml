@@ -286,7 +286,7 @@ jobs:
                   {"architecture": "x86_64", "downloadURL": x86_64_url, "sha256": x86_64_sha}
               ],
               "minAppVersion": min_app_version,
-              "minPluginKitVersion": 1,
+              "minPluginKitVersion": 2,
               "iconName": icon, "isVerified": True
           }
 
