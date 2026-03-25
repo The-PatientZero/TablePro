@@ -190,26 +190,24 @@ extension AppDelegate {
 
     // MARK: - Welcome Window Suppression
 
-    func scheduleWelcomeWindowSuppression() {
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(200))
-            self?.closeWelcomeWindowIfMainExists()
-            try? await Task.sleep(for: .milliseconds(500))
-            guard let self else { return }
-            self.closeWelcomeWindowIfMainExists()
-            self.fileOpenSuppressionCount = max(0, self.fileOpenSuppressionCount - 1)
-            if self.fileOpenSuppressionCount == 0 {
-                self.isHandlingFileOpen = false
-            }
+    /// Called by connection handlers when the file-open connection attempt finishes
+    /// (success or failure). Decrements the suppression counter and resets the flag
+    /// when all outstanding file opens have completed.
+    func endFileOpenSuppression() {
+        fileOpenSuppressionCount = max(0, fileOpenSuppressionCount - 1)
+        if fileOpenSuppressionCount == 0 {
+            isHandlingFileOpen = false
         }
     }
 
-    private func closeWelcomeWindowIfMainExists() {
+    @discardableResult
+    private func closeWelcomeWindowIfMainExists() -> Bool {
         let hasMainWindow = NSApp.windows.contains { isMainWindow($0) && $0.isVisible }
-        guard hasMainWindow else { return }
+        guard hasMainWindow else { return false }
         for window in NSApp.windows where isWelcomeWindow(window) {
             window.close()
         }
+        return true
     }
 
     // MARK: - Window Notifications
@@ -219,9 +217,13 @@ extension AppDelegate {
         let windowId = ObjectIdentifier(window)
 
         if isWelcomeWindow(window) && isHandlingFileOpen {
-            window.close()
-            for mainWin in NSApp.windows where isMainWindow(mainWin) {
+            // Only close welcome if a main window exists to take its place;
+            // otherwise just hide it so the user doesn't see a flash.
+            if let mainWin = NSApp.windows.first(where: { isMainWindow($0) }) {
+                window.close()
                 mainWin.makeKeyAndOrderFront(nil)
+            } else {
+                window.orderOut(nil)
             }
             return
         }
@@ -234,6 +236,10 @@ extension AppDelegate {
         if isConnectionFormWindow(window) && !configuredWindows.contains(windowId) {
             configureConnectionFormWindowStyle(window)
             configuredWindows.insert(windowId)
+        }
+
+        if isMainWindow(window) && isHandlingFileOpen {
+            closeWelcomeWindowIfMainExists()
         }
 
         if isMainWindow(window) && !configuredWindows.contains(windowId) {
