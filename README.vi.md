@@ -10,8 +10,8 @@
 
 <p align="center">
   <a href="https://docs.tablepro.app">Tài liệu</a> ·
-  <a href="https://github.com/datlechin/tablepro/releases">Tải xuống</a> ·
-  <a href="https://github.com/datlechin/tablepro/issues">Báo lỗi</a>
+  <a href="https://github.com/TableProApp/TablePro/releases">Tải xuống</a> ·
+  <a href="https://github.com/TableProApp/TablePro/issues">Báo lỗi</a>
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@ TablePro là ứng dụng quản lý database native cho macOS. Kết nối MySQ
 brew install --cask tablepro
 ```
 
-Hoặc tải DMG từ [GitHub Releases](https://github.com/datlechin/tablepro/releases).
+Hoặc tải DMG từ [GitHub Releases](https://github.com/TableProApp/TablePro/releases).
 
 ## Tài liệu
 
@@ -51,11 +51,11 @@ Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
 ## Lịch sử Star
 
-<a href="https://www.star-history.com/?repos=datlechin%2FTablePro&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=TableProApp%2FTablePro&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=datlechin/TablePro&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=datlechin/TablePro&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=datlechin/TablePro&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=TableProApp/TablePro&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=TableProApp/TablePro&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=TableProApp/TablePro&type=date&legend=top-left" />
  </picture>
 </a>
 

@@ -91,7 +91,7 @@ Drivers are `.tableplugin` bundles loaded at runtime. Create a new bundle under 
 
 ## Reporting Bugs
 
-Open a [GitHub issue](https://github.com/datlechin/TablePro/issues) with your macOS version, TablePro version, and reproduction steps. For database-specific bugs, include the database type and version.
+Open a [GitHub issue](https://github.com/TableProApp/TablePro/issues) with your macOS version, TablePro version, and reproduction steps. For database-specific bugs, include the database type and version.
 
 ## CLA
 

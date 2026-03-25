@@ -82,7 +82,7 @@ fi
 DESCRIPTION_HTML="<body style=\"font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;\">${RELEASE_HTML}</body>"
 
 # Build appcast.xml with architecture-specific items (Sparkle 2 convention)
-DOWNLOAD_PREFIX="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-datlechin/TablePro}/releases/download/v${VERSION}"
+DOWNLOAD_PREFIX="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-TableProApp/TablePro}/releases/download/v${VERSION}"
 PUB_DATE=$(date -u '+%a, %d %b %Y %H:%M:%S +0000')
 
 mkdir -p appcast

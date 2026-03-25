@@ -7,7 +7,7 @@ set -euo pipefail
 # Libraries are hosted as a tar.gz on the "libs-v1" release tag
 # to avoid Git LFS bandwidth limits.
 
-REPO="datlechin/TablePro"
+REPO="TableProApp/TablePro"
 LIBS_TAG="libs-v1"
 LIBS_ARCHIVE="tablepro-libs-v1.tar.gz"
 LIBS_DIR="Libs"

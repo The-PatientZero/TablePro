@@ -45,7 +45,7 @@ struct AboutView: View {
                 linkButton(
                     title: "GitHub",
                     icon: "chevron.left.forwardslash.chevron.right",
-                    url: "https://github.com/datlechin/TablePro"
+                    url: "https://github.com/TableProApp/TablePro"
                 )
                 linkButton(
                     title: String(localized: "Documentation"),

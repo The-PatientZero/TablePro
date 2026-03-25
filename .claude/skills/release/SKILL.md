@@ -117,12 +117,12 @@ Make these edits to `CHANGELOG.md`:
 
    Replace the `[Unreleased]` compare link:
    ```
-   [Unreleased]: https://github.com/datlechin/tablepro/compare/v<old-version>...HEAD
+   [Unreleased]: https://github.com/TableProApp/TablePro/compare/v<old-version>...HEAD
    ```
    with:
    ```
-   [Unreleased]: https://github.com/datlechin/tablepro/compare/v<version>...HEAD
-   [<version>]: https://github.com/datlechin/tablepro/compare/v<old-version>...v<version>
+   [Unreleased]: https://github.com/TableProApp/TablePro/compare/v<version>...HEAD
+   [<version>]: https://github.com/TableProApp/TablePro/compare/v<old-version>...v<version>
    ```
 
    `<old-version>` is the previous release version (the one currently in
@@ -281,15 +281,15 @@ After all pushes, print a summary:
 Release v<version> (build <build-number>) pushed successfully.
 
 CI will now build arm64 + x86_64, create DMG/ZIP, update appcast.xml, create GitHub Release.
-Monitor: https://github.com/datlechin/TablePro/actions
-Release: https://github.com/datlechin/TablePro/releases/tag/v<version>
+Monitor: https://github.com/TableProApp/TablePro/actions
+Release: https://github.com/TableProApp/TablePro/releases/tag/v<version>
 ```
 
 If plugin releases were also triggered, append:
 
 ```
 Plugin releases:
-- <DisplayName> v<plugin-version>: https://github.com/datlechin/TablePro/releases/tag/plugin-<name>-v<plugin-version>
+- <DisplayName> v<plugin-version>: https://github.com/TableProApp/TablePro/releases/tag/plugin-<name>-v<plugin-version>
 ```
 
 ---
@@ -340,7 +340,7 @@ The `build-plugin.yml` workflow:
 3. Strips binaries, code signs, creates ZIPs with SHA-256 checksums
 4. Optionally notarizes (if `NOTARIZE_PLUGINS` var is set)
 5. Creates a GitHub Release with both arch ZIPs
-6. Updates the plugin registry (`datlechin/tablepro-plugins` repo's
+6. Updates the plugin registry (`TableProApp/plugins` repo's
    `plugins.json`) with download URLs, SHA-256 hashes, and
    `minAppVersion` (read from the current `MARKETING_VERSION`)
 
@@ -350,6 +350,6 @@ The `build-plugin.yml` workflow:
 Plugin <DisplayName> v<version> tag pushed.
 
 CI will build arm64 + x86_64, create ZIPs, update plugin registry.
-Monitor: https://github.com/datlechin/TablePro/actions
-Release: https://github.com/datlechin/TablePro/releases/tag/plugin-<name>-v<version>
+Monitor: https://github.com/TableProApp/TablePro/actions
+Release: https://github.com/TableProApp/TablePro/releases/tag/plugin-<name>-v<version>
 ```

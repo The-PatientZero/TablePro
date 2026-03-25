@@ -55,7 +55,7 @@ Static libs (`Libs/*.a`) are hosted on the `libs-v1` GitHub Release (not in git)
 shasum -a 256 Libs/*.a > Libs/checksums.sha256
 # 3. Recreate and upload the archive
 tar czf /tmp/tablepro-libs-v1.tar.gz -C Libs .
-gh release upload libs-v1 /tmp/tablepro-libs-v1.tar.gz --clobber --repo datlechin/TablePro
+gh release upload libs-v1 /tmp/tablepro-libs-v1.tar.gz --clobber --repo TableProApp/TablePro
 # 4. Commit the updated checksums
 git add Libs/checksums.sha256 && git commit -m "build: update static library checksums"
 ```

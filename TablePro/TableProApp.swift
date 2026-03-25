@@ -405,7 +405,7 @@ struct AppMenuCommands: Commands {
             Divider()
 
             Button("GitHub Repository") {
-                if let url = URL(string: "https://github.com/datlechin/TablePro") { NSWorkspace.shared.open(url) }
+                if let url = URL(string: "https://github.com/TableProApp/TablePro") { NSWorkspace.shared.open(url) }
             }
 
             Button(String(localized: "Sponsor TablePro")) {

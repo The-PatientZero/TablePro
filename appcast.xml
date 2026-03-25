@@ -22,7 +22,7 @@
 <li>New tabs opening as separate windows instead of joining the connection tab group</li>
 <li>Clicking tables in sidebar not opening table tabs</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.23.2/TablePro-0.23.2-arm64.zip" length="20720955" type="application/octet-stream" sparkle:edSignature="0W2Xer02xzc06tE6N+IzjH/dgVtNM+KhPxBrWHvRasBUx8olTOXap87ldwa/u9mJeU+2+xoXHJ+if0JYiJCxDw=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.23.2/TablePro-0.23.2-arm64.zip" length="20720955" type="application/octet-stream" sparkle:edSignature="0W2Xer02xzc06tE6N+IzjH/dgVtNM+KhPxBrWHvRasBUx8olTOXap87ldwa/u9mJeU+2+xoXHJ+if0JYiJCxDw=="/>
         </item>
         <item>
             <title>0.23.2</title>
@@ -43,7 +43,7 @@
 <li>New tabs opening as separate windows instead of joining the connection tab group</li>
 <li>Clicking tables in sidebar not opening table tabs</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.23.2/TablePro-0.23.2-x86_64.zip" length="20216007" type="application/octet-stream" sparkle:edSignature="jBmG7cQCneAwXAcDaVkLJgbTWoVvOAZLk2OWd6hXNM7xof6n7a8+AbffOsiAPjx2jY34LumkRhR4Na4/nu+7Dg=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.23.2/TablePro-0.23.2-x86_64.zip" length="20216007" type="application/octet-stream" sparkle:edSignature="jBmG7cQCneAwXAcDaVkLJgbTWoVvOAZLk2OWd6hXNM7xof6n7a8+AbffOsiAPjx2jY34LumkRhR4Na4/nu+7Dg=="/>
         </item>
     </channel>
 </rss>

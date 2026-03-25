@@ -13,7 +13,7 @@ if [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
   exit 1
 fi
 
-RELEASE_URL="https://github.com/datlechin/TablePro/releases/tag/v${VERSION}"
+RELEASE_URL="https://github.com/TableProApp/TablePro/releases/tag/v${VERSION}"
 NOTES=$(cat release_notes.md 2>/dev/null || echo "Bug fixes and improvements")
 
 # Convert CHANGELOG markdown to Telegram HTML:

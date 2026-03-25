@@ -242,7 +242,7 @@ jobs:
             eval "$(ssh-agent -s)"
             echo "$REGISTRY_DEPLOY_KEY" | ssh-add -
 
-            git clone git@github.com:datlechin/tablepro-plugins.git "$WORK/registry"
+            git clone git@github.com:TableProApp/plugins.git "$WORK/registry"
             cd "$WORK/registry"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
