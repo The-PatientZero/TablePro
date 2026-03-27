@@ -878,6 +878,16 @@
         }
       }
     },
+    "%@:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@:%2$@"
+          }
+        }
+      }
+    },
     "%@." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1126,6 +1136,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld / %lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld connections selected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld connections selected"
           }
         }
       }
@@ -2580,6 +2600,9 @@
           }
         }
       }
+    },
+    "Action" : {
+
     },
     "Activate" : {
       "localizations" : {
@@ -7312,6 +7335,9 @@
         }
       }
     },
+    "Copy as Import Link" : {
+
+    },
     "Copy as JSON" : {
       "localizations" : {
         "tr" : {
@@ -11618,6 +11644,9 @@
         }
       }
     },
+    "Export %lld Connections..." : {
+
+    },
     "Export %lld row(s) to %@" : {
       "localizations" : {
         "en" : {
@@ -11695,6 +11724,9 @@
           }
         }
       }
+    },
+    "Export Connection..." : {
+
     },
     "Export data" : {
       "extractionState" : "stale",
@@ -11785,6 +11817,9 @@
           }
         }
       }
+    },
+    "Export Failed" : {
+
     },
     "Export failed: %@" : {
       "localizations" : {
@@ -12163,6 +12198,9 @@
         }
       }
     },
+    "Failed to encode connection data" : {
+
+    },
     "Failed to encode content as UTF-8" : {
       "localizations" : {
         "tr" : {
@@ -12524,6 +12562,9 @@
           }
         }
       }
+    },
+    "Failed to parse connection file: %@" : {
+
     },
     "Failed to parse plugin registry" : {
       "localizations" : {
@@ -14366,6 +14407,9 @@
         }
       }
     },
+    "Import as Copy" : {
+
+    },
     "Import cancelled by user" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -14388,6 +14432,12 @@
           }
         }
       }
+    },
+    "Import Connections" : {
+
+    },
+    "Import Connections..." : {
+
     },
     "Import data" : {
       "extractionState" : "stale",
@@ -23795,6 +23845,9 @@
         }
       }
     },
+    "Replace Existing" : {
+
+    },
     "Replication lag: %llds" : {
       "localizations" : {
         "tr" : {
@@ -29442,6 +29495,12 @@
           }
         }
       }
+    },
+    "This file is not a valid TablePro export" : {
+
+    },
+    "This file requires a newer version of TablePro (format version %lld)" : {
+
     },
     "This is a built-in theme." : {
       "localizations" : {
