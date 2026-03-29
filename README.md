@@ -50,7 +50,8 @@ Thanks to these amazing people for supporting TablePro:
 
 - **[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)**
 - **[Nimbus](https://getnimbus.io?ref=tablepro)**
-- **[Huy TQ](https://github.com/imhuytq)** — Apple Developer Program sponsor
+- **[Visnalize](https://visnalize.com?ref=tablepro)**
+- **[Huy TQ](https://github.com/imhuytq)**
 - **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
 ## Star History

@@ -91,11 +91,11 @@ Plugin bundles under `Plugins/`:
 | DynamoDBDriverPlugin   | DynamoDB             | (AWS SDK)            | Built-in     |
 | BigQueryDriverPlugin   | BigQuery             | (URLSession REST)    | Registry     |
 
-When adding a new driver: create a new plugin bundle under `Plugins/`, implement `DriverPlugin` + `PluginDatabaseDriver`, add target to pbxproj. See `docs/development/plugin-system/` for details.
+When adding a new driver: create a new plugin bundle under `Plugins/`, implement `DriverPlugin` + `PluginDatabaseDriver`, add target to pbxproj, add `DatabaseType` static constant, add case to `resolve_plugin_info()` in `.github/workflows/build-plugin.yml`, add row to `docs/index.mdx` supported databases table, and add CHANGELOG entry. See `docs/development/plugin-system/` for details.
 
 When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (with default implementation), then update `PluginDriverAdapter` to bridge it to `DatabaseDriver`.
 
-**PluginKit ABI versioning**: When `DriverPlugin` or `PluginDatabaseDriver` protocol changes (new methods, changed signatures), bump `currentPluginKitVersion` in `PluginManager.swift` AND `TableProPluginKitVersion` in every plugin's `Info.plist`. Stale user-installed plugins with mismatched versions crash on load with `EXC_BAD_INSTRUCTION` (not catchable in Swift).
+**PluginKit ABI versioning**: When `DriverPlugin` or `PluginDatabaseDriver` protocol changes (new methods, changed signatures), bump `currentPluginKitVersion` in `PluginManager.swift` AND `TableProPluginKitVersion` in every plugin's `Info.plist`. Stale user-installed plugins with mismatched versions crash on load with `EXC_BAD_INSTRUCTION` (not catchable in Swift). Removing protocol methods that have default `nil` implementations does NOT require a version bump — old plugins have dead code, new plugins fall back to defaults.
 
 ### DatabaseType (String-Based Struct)
 
@@ -124,6 +124,8 @@ When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (
 
 `MainContentCoordinator` is the central coordinator, split across 7+ extension files in `Views/Main/Extensions/` (e.g., `+Alerts`, `+Filtering`, `+Pagination`, `+RowOperations`). When adding coordinator functionality, add a new extension file rather than growing the main file.
 
+**Tab replacement guard**: `openTableTab` checks for active work (unsaved edits, applied filters, sorting) before replacing the current tab. Tabs with active work open a new native window tab instead. This check runs before the preview tab branch.
+
 ### Source Organization
 
 `Core/Services/` is split into domain subdirectories:
@@ -150,7 +152,8 @@ When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (
 | User preferences     | UserDefaults     | `AppSettingsStorage` / `AppSettingsManager` |
 | Query history        | SQLite FTS5      | `QueryHistoryStorage`                       |
 | Tab state            | JSON persistence | `TabPersistenceService` / `TabStateStorage` |
-| Filter presets       | —                | `FilterSettingsStorage`                     |
+| Filter presets       | UserDefaults     | `FilterSettingsStorage`                     |
+| Per-table filters    | UserDefaults     | `FilterSettingsStorage` (saves `appliedFilters` only) |
 
 ### Logging
 
@@ -198,14 +201,14 @@ These are **non-negotiable** — never skip them:
 
 1. **CHANGELOG.md**: Update under `[Unreleased]` section (Added/Fixed/Changed) for new features and notable changes. But do **not** add a "Fixed" entry for fixing something that is itself still unreleased — if a feature under `[Unreleased]` has a bug, just fix it without adding another CHANGELOG entry. "Fixed" entries are only for bugs in already-released features. Documentation-only changes (`docs/`) do **not** need a CHANGELOG entry.
 
-2. **Localization**: Use `String(localized:)` for new user-facing strings in computed properties, AppKit code, alerts, and error descriptions. SwiftUI view literals (`Text("literal")`, `Button("literal")`) auto-localize. Do NOT localize technical terms (font names, database types, SQL keywords, encoding names).
+2. **Localization**: Use `String(localized:)` for new user-facing strings in computed properties, AppKit code, alerts, and error descriptions. SwiftUI view literals (`Text("literal")`, `Button("literal")`) auto-localize. Do NOT localize technical terms (font names, database types, SQL keywords, encoding names). Never use `String(localized:)` with string interpolation — `String(localized: "Preview \(name)")` creates a dynamic key that never matches the strings catalog. Use static keys or `String(format: String(localized: "Preview %@"), name)`.
 
 3. **Documentation**: Update docs in `docs/` (Mintlify-based) when adding/changing features. Key mappings:
     - New keyboard shortcuts → `docs/features/keyboard-shortcuts.mdx`
     - UI/feature changes → relevant `docs/features/*.mdx` page
     - Settings changes → `docs/customization/settings.mdx`
     - Database driver changes → `docs/databases/*.mdx`
-    - Update both English (`docs/`) and Vietnamese (`docs/vi/`) pages
+    - Update English docs in `docs/` (no Vietnamese `docs/vi/` directory currently exists)
 
 4. **Test-first correctness**: When tests fail, fix the **source code** — never adjust tests to match incorrect output. Tests define expected behavior.
 
@@ -229,6 +232,7 @@ These are **non-negotiable** — never skip them:
 
 These have caused real production bugs — be aware when working in editor/autocomplete/persistence code:
 
+- **Never use `ForEach($bindable.array) { $item in }`** on `@Observable` arrays that can be cleared externally — index-based bindings crash with out-of-bounds when the array shrinks during SwiftUI evaluation. Use `ForEach(array) { item in` with a manual `Binding` via `binding(for: item)` instead.
 - **Never use `string.count`** on large strings — O(n) in Swift. Use `(string as NSString).length` for O(1).
 - **Never use `string.index(string.startIndex, offsetBy:)` in loops** on bridged NSStrings — O(n) per call. Use `(string as NSString).character(at:)` for O(1) random access.
 - **Never call `ensureLayout(forCharacterRange:)`** — defeats `allowsNonContiguousLayout`. Let layout manager queries trigger lazy local layout.
