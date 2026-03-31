@@ -14,19 +14,12 @@ final class AppState {
     let connectionManager: ConnectionManager
 
     init() {
-        let pluginLoader = StaticPluginLoader()
+        let driverFactory = IOSDriverFactory()
         let secureStore = KeychainSecureStore()
         self.connectionManager = ConnectionManager(
-            pluginLoader: pluginLoader,
+            driverFactory: driverFactory,
             secureStore: secureStore
         )
-
-        loadSampleConnections()
-    }
-
-    private func loadSampleConnections() {
-        // TODO: Load from persistent storage / iCloud sync
-        // For now, empty — user adds connections manually
     }
 
     func addConnection(_ connection: DatabaseConnection) {
