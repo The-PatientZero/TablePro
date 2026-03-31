@@ -25,7 +25,10 @@ struct QueryEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             editorArea
-            keywordAccessory
+            if editorFocused {
+                keywordAccessory
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
             Divider()
             resultArea
         }
@@ -98,7 +101,7 @@ struct QueryEditorView: View {
                 .textInputAutocapitalization(.never)
                 .keyboardType(.asciiCapable)
                 .scrollContentBackground(.hidden)
-                .frame(minHeight: 100, maxHeight: 180)
+                .frame(minHeight: 100, maxHeight: result != nil || errorMessage != nil ? 150 : 300)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .focused($editorFocused)

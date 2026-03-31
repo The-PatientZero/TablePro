@@ -68,7 +68,7 @@ struct InsertRowView: View {
                             Text(column.name)
 
                             if column.isPrimaryKey {
-                                Text("auto-increment")
+                                Text(isAutoIncrement(column) ? "auto-increment" : "primary key")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -143,6 +143,10 @@ struct InsertRowView: View {
         return column.typeName
     }
 
+    private func isAutoIncrement(_ column: ColumnInfo) -> Bool {
+        column.isPrimaryKey && column.typeName.uppercased().contains("INT")
+    }
+
     private func keyboardType(for column: ColumnInfo) -> UIKeyboardType {
         let type = column.typeName.uppercased()
         if type.contains("INT") || type.contains("REAL") || type.contains("FLOAT")
@@ -171,7 +175,7 @@ struct InsertRowView: View {
             }
 
             insertColumns.append(column.name)
-            if isNull || text.isEmpty {
+            if isNull {
                 insertValues.append(nil)
             } else {
                 insertValues.append(text)

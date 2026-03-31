@@ -9,6 +9,7 @@ import TableProModels
 
 struct ConnectedView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.scenePhase) private var scenePhase
     let connection: DatabaseConnection
 
     @State private var session: ConnectionSession?
@@ -49,6 +50,11 @@ struct ConnectedView: View {
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task { await connect() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active, session != nil {
+                Task { await reconnectIfNeeded() }
+            }
+        }
     }
 
     private var connectedContent: some View {
@@ -62,19 +68,22 @@ struct ConnectedView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
 
-            switch selectedTab {
-            case .tables:
+            ZStack {
                 TableListView(
                     connection: connection,
                     tables: tables,
                     session: session,
                     onRefresh: { await refreshTables() }
                 )
-            case .query:
+                .opacity(selectedTab == .tables ? 1 : 0)
+                .allowsHitTesting(selectedTab == .tables)
+
                 QueryEditorView(
                     session: session,
                     tables: tables
                 )
+                .opacity(selectedTab == .query ? 1 : 0)
+                .allowsHitTesting(selectedTab == .query)
             }
         }
     }
@@ -91,6 +100,22 @@ struct ConnectedView: View {
         } catch {
             errorMessage = error.localizedDescription
             isConnecting = false
+        }
+    }
+
+    private func reconnectIfNeeded() async {
+        guard let session else { return }
+        do {
+            _ = try await session.driver.ping()
+        } catch {
+            // Connection lost — reconnect
+            do {
+                let newSession = try await appState.connectionManager.connect(connection)
+                self.session = newSession
+            } catch {
+                errorMessage = error.localizedDescription
+                self.session = nil
+            }
         }
     }
 

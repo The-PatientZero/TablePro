@@ -297,8 +297,8 @@ struct ConnectionFormView: View {
         }
 
         do {
-            let session = try await appState.connectionManager.connect(connection)
-            try? await session.driver.disconnect()
+            _ = try await appState.connectionManager.connect(connection)
+            await appState.connectionManager.disconnect(connection.id)
             testResult = TestResult(success: true, message: "Connection successful")
         } catch {
             testResult = TestResult(success: false, message: error.localizedDescription)

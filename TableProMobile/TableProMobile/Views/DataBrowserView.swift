@@ -53,11 +53,16 @@ struct DataBrowserView: View {
                     .buttonStyle(.borderedProminent)
                 }
             } else if rows.isEmpty {
-                ContentUnavailableView(
-                    "No Data",
-                    systemImage: "tray",
-                    description: Text("This table is empty.")
-                )
+                ContentUnavailableView {
+                    Label("No Data", systemImage: "tray")
+                } description: {
+                    Text("This table is empty.")
+                } actions: {
+                    if !isView {
+                        Button("Insert Row") { showInsertSheet = true }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
             } else {
                 cardList
             }
@@ -81,7 +86,7 @@ struct DataBrowserView: View {
                 }
             }
         }
-        .task { await loadData() }
+        .task { await loadData(isInitial: true) }
         .sheet(isPresented: $showInsertSheet) {
             InsertRowView(
                 table: table,
@@ -131,7 +136,6 @@ struct DataBrowserView: View {
                         maxPreviewColumns: maxPreviewColumns
                     )
                 }
-                .listRowBackground(Color(.secondarySystemGroupedBackground))
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     if !isView && hasPrimaryKeys {
                         Button(role: .destructive) {
@@ -170,14 +174,16 @@ struct DataBrowserView: View {
         .refreshable { await loadData() }
     }
 
-    private func loadData() async {
+    private func loadData(isInitial: Bool = false) async {
         guard let session else {
             errorMessage = "Not connected"
             isLoading = false
             return
         }
 
-        isLoading = true
+        if isInitial || rows.isEmpty {
+            isLoading = true
+        }
         errorMessage = nil
         pagination.reset()
 

@@ -194,29 +194,40 @@ struct RowDetailView: View {
             },
             set: { newValue in
                 guard index < editedValues.count else { return }
-                editedValues[index] = newValue.isEmpty ? nil : newValue
+                editedValues[index] = newValue
             }
         )
 
-        return HStack {
-            TextField("NULL", text: binding)
-                .font(.body)
+        let isNull = index < editedValues.count ? editedValues[index] == nil : true
 
-            if value != nil {
-                Button {
-                    guard index < editedValues.count else { return }
-                    editedValues[index] = nil
-                } label: {
-                    Text("NULL")
-                        .font(.caption2)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.secondary)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
+        return HStack {
+            if isNull {
+                Text("NULL")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            } else {
+                TextField("Value", text: binding)
+                    .font(.body)
             }
+
+            Button {
+                guard index < editedValues.count else { return }
+                if editedValues[index] == nil {
+                    editedValues[index] = ""
+                } else {
+                    editedValues[index] = nil
+                }
+            } label: {
+                Text("NULL")
+                    .font(.caption2)
+                    .foregroundStyle(isNull ? .white : .secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(isNull ? Color.accentColor : Color(.systemFill))
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -298,6 +309,10 @@ struct RowDetailView: View {
             isEditing = false
             showSaveSuccess = true
             onSaved?()
+            Task {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                withAnimation { showSaveSuccess = false }
+            }
         } catch {
             operationError = error.localizedDescription
             showOperationError = true

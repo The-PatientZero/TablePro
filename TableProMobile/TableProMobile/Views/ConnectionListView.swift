@@ -26,6 +26,7 @@ struct ConnectionListView: View {
                 }
             }
             .navigationTitle("Connections")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -142,11 +143,7 @@ private struct ConnectionRow: View {
             }
 
             Spacer()
-
-            Circle()
-                .fill(.green.opacity(0.8))
-                .frame(width: 8, height: 8)
-        }
+}
         .padding(.vertical, 4)
     }
 
