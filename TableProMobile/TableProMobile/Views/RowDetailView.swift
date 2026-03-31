@@ -4,16 +4,40 @@
 //
 
 import SwiftUI
+import TableProDatabase
 import TableProModels
 
 struct RowDetailView: View {
     let columns: [ColumnInfo]
     let rows: [[String?]]
-    @State private var currentIndex: Int
+    let table: TableInfo?
+    let session: ConnectionSession?
+    let columnDetails: [ColumnInfo]
+    var onSaved: (() -> Void)?
 
-    init(columns: [ColumnInfo], rows: [[String?]], initialIndex: Int) {
+    @State private var currentIndex: Int
+    @State private var isEditing = false
+    @State private var editedValues: [String?] = []
+    @State private var isSaving = false
+    @State private var operationError: String?
+    @State private var showOperationError = false
+    @State private var showSaveSuccess = false
+
+    init(
+        columns: [ColumnInfo],
+        rows: [[String?]],
+        initialIndex: Int,
+        table: TableInfo? = nil,
+        session: ConnectionSession? = nil,
+        columnDetails: [ColumnInfo] = [],
+        onSaved: (() -> Void)? = nil
+    ) {
         self.columns = columns
         self.rows = rows
+        self.table = table
+        self.session = session
+        self.columnDetails = columnDetails
+        self.onSaved = onSaved
         _currentIndex = State(initialValue: initialIndex)
     }
 
@@ -22,34 +46,67 @@ struct RowDetailView: View {
         return rows[currentIndex]
     }
 
+    private var isView: Bool {
+        guard let table else { return false }
+        return table.type == .view || table.type == .materializedView
+    }
+
+    private var canEdit: Bool {
+        table != nil && session != nil && !columnDetails.isEmpty && !isView
+            && columnDetails.contains(where: { $0.isPrimaryKey })
+    }
+
     var body: some View {
         List {
-            ForEach(Array(zip(columns, currentRow).enumerated()), id: \.offset) { _, pair in
-                let (column, value) = pair
+            if showSaveSuccess {
                 Section {
-                    fieldContent(value: value)
-                        .contextMenu {
-                            if let value {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Row updated successfully.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            ForEach(Array(zip(columns, isEditing ? editedValues : currentRow).enumerated()), id: \.offset) { index, pair in
+                let (column, value) = pair
+                let isPK = columnDetail(for: column.name)?.isPrimaryKey ?? column.isPrimaryKey
+                Section {
+                    if isEditing && !isPK {
+                        editableField(index: index, value: value)
+                    } else {
+                        fieldContent(value: value)
+                            .contextMenu {
+                                if let value {
+                                    Button {
+                                        UIPasteboard.general.string = value
+                                    } label: {
+                                        Label("Copy Value", systemImage: "doc.on.doc")
+                                    }
+                                }
                                 Button {
-                                    UIPasteboard.general.string = value
+                                    UIPasteboard.general.string = column.name
                                 } label: {
-                                    Label("Copy Value", systemImage: "doc.on.doc")
+                                    Label("Copy Column Name", systemImage: "textformat")
                                 }
                             }
-                            Button {
-                                UIPasteboard.general.string = column.name
-                            } label: {
-                                Label("Copy Column Name", systemImage: "textformat")
-                            }
-                        }
+                    }
                 } header: {
                     HStack(spacing: 6) {
-                        if column.isPrimaryKey {
+                        if isPK {
                             Image(systemName: "key.fill")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                         }
                         Text(column.name)
+
+                        if isEditing && isPK {
+                            Text("read-only")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
 
                         Spacer()
 
@@ -68,13 +125,41 @@ struct RowDetailView: View {
         .navigationTitle("Row \(currentIndex + 1) of \(rows.count)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                if canEdit {
+                    if isEditing {
+                        Button {
+                            Task { await saveChanges() }
+                        } label: {
+                            if isSaving {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Save")
+                            }
+                        }
+                        .disabled(isSaving)
+                    } else {
+                        Button("Edit") { startEditing() }
+                    }
+                }
+            }
+
+            if isEditing {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { cancelEditing() }
+                        .disabled(isSaving)
+                }
+            }
+
             ToolbarItemGroup(placement: .bottomBar) {
                 Button {
                     withAnimation { currentIndex -= 1 }
+                    if isEditing { startEditing() }
                 } label: {
                     Image(systemName: "chevron.left")
                 }
-                .disabled(currentIndex <= 0)
+                .disabled(currentIndex <= 0 || isEditing)
 
                 Spacer()
 
@@ -87,10 +172,50 @@ struct RowDetailView: View {
 
                 Button {
                     withAnimation { currentIndex += 1 }
+                    if isEditing { startEditing() }
                 } label: {
                     Image(systemName: "chevron.right")
                 }
-                .disabled(currentIndex >= rows.count - 1)
+                .disabled(currentIndex >= rows.count - 1 || isEditing)
+            }
+        }
+        .alert("Error", isPresented: $showOperationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(operationError ?? "An unknown error occurred.")
+        }
+    }
+
+    private func editableField(index: Int, value: String?) -> some View {
+        let binding = Binding<String>(
+            get: {
+                guard index < editedValues.count else { return "" }
+                return editedValues[index] ?? ""
+            },
+            set: { newValue in
+                guard index < editedValues.count else { return }
+                editedValues[index] = newValue.isEmpty ? nil : newValue
+            }
+        )
+
+        return HStack {
+            TextField("NULL", text: binding)
+                .font(.body)
+
+            if value != nil {
+                Button {
+                    guard index < editedValues.count else { return }
+                    editedValues[index] = nil
+                } label: {
+                    Text("NULL")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.secondary)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -106,6 +231,75 @@ struct RowDetailView: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .italic()
+        }
+    }
+
+    private func columnDetail(for name: String) -> ColumnInfo? {
+        columnDetails.first { $0.name == name }
+    }
+
+    private func startEditing() {
+        editedValues = currentRow
+        isEditing = true
+        showSaveSuccess = false
+    }
+
+    private func cancelEditing() {
+        isEditing = false
+        editedValues = []
+        showSaveSuccess = false
+    }
+
+    private func saveChanges() async {
+        guard let session, let table else { return }
+
+        isSaving = true
+        defer { isSaving = false }
+
+        let pkValues: [(column: String, value: String)] = columnDetails.compactMap { col in
+            guard col.isPrimaryKey else { return nil }
+            let colIndex = columns.firstIndex(where: { $0.name == col.name })
+            guard let colIndex, colIndex < currentRow.count, let value = currentRow[colIndex] else { return nil }
+            return (column: col.name, value: value)
+        }
+
+        guard !pkValues.isEmpty else {
+            operationError = "Cannot save: no primary key values found."
+            showOperationError = true
+            return
+        }
+
+        var changes: [(column: String, value: String?)] = []
+        for (index, column) in columns.enumerated() {
+            let isPK = columnDetail(for: column.name)?.isPrimaryKey ?? column.isPrimaryKey
+            if isPK { continue }
+            guard index < editedValues.count else { continue }
+            let oldValue = index < currentRow.count ? currentRow[index] : nil
+            let newValue = editedValues[index]
+            if oldValue != newValue {
+                changes.append((column: column.name, value: newValue))
+            }
+        }
+
+        guard !changes.isEmpty else {
+            isEditing = false
+            return
+        }
+
+        let sql = SQLHelper.buildUpdate(
+            table: table.name,
+            changes: changes,
+            primaryKeys: pkValues
+        )
+
+        do {
+            _ = try await session.driver.execute(query: sql)
+            isEditing = false
+            showSaveSuccess = true
+            onSaved?()
+        } catch {
+            operationError = error.localizedDescription
+            showOperationError = true
         }
     }
 }

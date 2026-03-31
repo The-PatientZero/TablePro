@@ -13,14 +13,28 @@ struct DataBrowserView: View {
     let session: ConnectionSession?
 
     @State private var columns: [ColumnInfo] = []
+    @State private var columnDetails: [ColumnInfo] = []
     @State private var rows: [[String?]] = []
     @State private var isLoading = true
     @State private var isLoadingMore = false
     @State private var errorMessage: String?
     @State private var pagination = PaginationState(pageSize: 100, currentPage: 0)
     @State private var hasMore = true
+    @State private var showInsertSheet = false
+    @State private var deleteTarget: Int?
+    @State private var showDeleteConfirmation = false
+    @State private var operationError: String?
+    @State private var showOperationError = false
 
     private let maxPreviewColumns = 4
+
+    private var isView: Bool {
+        table.type == .view || table.type == .materializedView
+    }
+
+    private var hasPrimaryKeys: Bool {
+        columnDetails.contains { $0.isPrimaryKey }
+    }
 
     var body: some View {
         Group {
@@ -52,12 +66,47 @@ struct DataBrowserView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Text("\(rows.count) rows")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Text("\(rows.count) rows")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if !isView {
+                        Button {
+                            showInsertSheet = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                    }
+                }
             }
         }
         .task { await loadData() }
+        .sheet(isPresented: $showInsertSheet) {
+            InsertRowView(
+                table: table,
+                columnDetails: columnDetails,
+                session: session,
+                onInserted: {
+                    Task { await loadData() }
+                }
+            )
+        }
+        .alert("Delete Row", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                if let index = deleteTarget {
+                    Task { await deleteRow(at: index) }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this row? This action cannot be undone.")
+        }
+        .alert("Error", isPresented: $showOperationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(operationError ?? "An unknown error occurred.")
+        }
     }
 
     private var cardList: some View {
@@ -67,7 +116,13 @@ struct DataBrowserView: View {
                     RowDetailView(
                         columns: columns,
                         rows: rows,
-                        initialIndex: index
+                        initialIndex: index,
+                        table: table,
+                        session: session,
+                        columnDetails: columnDetails,
+                        onSaved: {
+                            Task { await loadData() }
+                        }
                     )
                 } label: {
                     RowCard(
@@ -77,6 +132,16 @@ struct DataBrowserView: View {
                     )
                 }
                 .listRowBackground(Color(.secondarySystemGroupedBackground))
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    if !isView && hasPrimaryKeys {
+                        Button(role: .destructive) {
+                            deleteTarget = index
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
             }
 
             if hasMore {
@@ -117,11 +182,16 @@ struct DataBrowserView: View {
         pagination.reset()
 
         do {
-            let query = "SELECT * FROM \(table.name) LIMIT \(pagination.pageSize) OFFSET \(pagination.currentOffset)"
+            let query = "SELECT * FROM `\(table.name)` LIMIT \(pagination.pageSize) OFFSET \(pagination.currentOffset)"
             let result = try await session.driver.execute(query: query)
             self.columns = result.columns
             self.rows = result.rows
             self.hasMore = result.rows.count >= pagination.pageSize
+
+            if columnDetails.isEmpty {
+                self.columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
+            }
+
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription
@@ -136,7 +206,7 @@ struct DataBrowserView: View {
         pagination.currentPage += 1
 
         do {
-            let query = "SELECT * FROM \(table.name) LIMIT \(pagination.pageSize) OFFSET \(pagination.currentOffset)"
+            let query = "SELECT * FROM `\(table.name)` LIMIT \(pagination.pageSize) OFFSET \(pagination.currentOffset)"
             let result = try await session.driver.execute(query: query)
             rows.append(contentsOf: result.rows)
             hasMore = result.rows.count >= pagination.pageSize
@@ -145,6 +215,38 @@ struct DataBrowserView: View {
         }
 
         isLoadingMore = false
+    }
+
+    private func deleteRow(at index: Int) async {
+        guard let session, index < rows.count else { return }
+
+        let row = rows[index]
+        let pkValues = primaryKeyValues(for: row)
+
+        guard !pkValues.isEmpty else {
+            operationError = "Cannot delete: no primary key columns found."
+            showOperationError = true
+            return
+        }
+
+        let sql = SQLHelper.buildDelete(table: table.name, primaryKeys: pkValues)
+
+        do {
+            _ = try await session.driver.execute(query: sql)
+            await loadData()
+        } catch {
+            operationError = error.localizedDescription
+            showOperationError = true
+        }
+    }
+
+    private func primaryKeyValues(for row: [String?]) -> [(column: String, value: String)] {
+        columnDetails.enumerated().compactMap { index, col in
+            guard col.isPrimaryKey else { return nil }
+            let colIndex = columns.firstIndex(where: { $0.name == col.name })
+            guard let colIndex, colIndex < row.count, let value = row[colIndex] else { return nil }
+            return (column: col.name, value: value)
+        }
     }
 }
 
