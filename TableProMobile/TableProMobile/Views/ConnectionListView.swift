@@ -177,12 +177,3 @@ private struct ConnectionRow: View {
     }
 }
 
-extension DatabaseConnection: @retroactive Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-
-    public static func == (lhs: DatabaseConnection, rhs: DatabaseConnection) -> Bool {
-        lhs.id == rhs.id
-    }
-}

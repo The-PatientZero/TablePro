@@ -1,6 +1,6 @@
 import Foundation
 
-public struct SSLConfiguration: Codable, Sendable {
+public struct SSLConfiguration: Codable, Hashable, Sendable {
     public var mode: SSLMode
     public var caCertificatePath: String?
     public var clientCertificatePath: String?

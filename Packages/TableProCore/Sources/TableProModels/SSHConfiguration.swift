@@ -1,6 +1,6 @@
 import Foundation
 
-public struct SSHConfiguration: Codable, Sendable {
+public struct SSHConfiguration: Codable, Hashable, Sendable {
     public var host: String
     public var port: Int
     public var username: String
@@ -31,7 +31,7 @@ public struct SSHConfiguration: Codable, Sendable {
     }
 }
 
-public struct SSHJumpHost: Codable, Sendable, Identifiable {
+public struct SSHJumpHost: Codable, Hashable, Sendable, Identifiable {
     public var id: UUID
     public var host: String
     public var port: Int

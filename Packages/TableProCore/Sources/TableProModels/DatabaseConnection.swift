@@ -1,6 +1,6 @@
 import Foundation
 
-public struct DatabaseConnection: Identifiable, Codable, Sendable {
+public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
     public var id: UUID
     public var name: String
     public var type: DatabaseType
