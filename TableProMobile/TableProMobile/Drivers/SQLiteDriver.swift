@@ -13,8 +13,6 @@ import TableProModels
 final class SQLiteDriver: DatabaseDriver, @unchecked Sendable {
     private let dbPath: String
     private let actor = SQLiteActor()
-    private let interruptLock = NSLock()
-    nonisolated(unsafe) private var interruptHandle: OpaquePointer?
 
     var supportsSchemas: Bool { false }
     var currentSchema: String? { nil }
@@ -36,16 +34,9 @@ final class SQLiteDriver: DatabaseDriver, @unchecked Sendable {
         }
 
         try await actor.open(path: expanded)
-        let handle = await actor.rawHandle
-        interruptLock.lock()
-        interruptHandle = handle
-        interruptLock.unlock()
     }
 
     func disconnect() async throws {
-        interruptLock.lock()
-        interruptHandle = nil
-        interruptLock.unlock()
         await actor.close()
     }
 
@@ -80,10 +71,7 @@ final class SQLiteDriver: DatabaseDriver, @unchecked Sendable {
     }
 
     func cancelCurrentQuery() async throws {
-        interruptLock.lock()
-        let db = interruptHandle
-        interruptLock.unlock()
-        if let db { sqlite3_interrupt(db) }
+        await actor.interrupt()
     }
 
     // MARK: - Schema
@@ -96,8 +84,8 @@ final class SQLiteDriver: DatabaseDriver, @unchecked Sendable {
             """)
 
         return raw.rows.compactMap { row in
-            guard let name = row[safe: 0] ?? nil else { return nil }
-            let kind: TableInfo.TableKind = (row[safe: 1] ?? nil)?.lowercased() == "view" ? .view : .table
+            guard row.count > 0, let name = row[0] else { return nil }
+            let kind: TableInfo.TableKind = (row.count > 1 ? row[1] : nil)?.lowercased() == "view" ? .view : .table
             return TableInfo(name: name, type: kind, rowCount: nil, dataSize: nil, comment: nil)
         }
     }
@@ -209,8 +197,6 @@ final class SQLiteDriver: DatabaseDriver, @unchecked Sendable {
 private actor SQLiteActor {
     private var db: OpaquePointer?
 
-    var rawHandle: OpaquePointer? { db }
-
     func open(path: String) throws {
         if sqlite3_open(path, &db) != SQLITE_OK {
             let msg = db.map { String(cString: sqlite3_errmsg($0)) } ?? "Unknown error"
@@ -224,6 +210,10 @@ private actor SQLiteActor {
             sqlite3_close(db)
             self.db = nil
         }
+    }
+
+    func interrupt() {
+        if let db { sqlite3_interrupt(db) }
     }
 
     func execute(_ query: String) throws -> RawResult {
@@ -305,13 +295,5 @@ enum SQLiteError: Error, LocalizedError {
         case .queryFailed(let msg): return "SQLite query failed: \(msg)"
         case .unsupported(let msg): return msg
         }
-    }
-}
-
-// MARK: - Array Safe Subscript
-
-private extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
     }
 }

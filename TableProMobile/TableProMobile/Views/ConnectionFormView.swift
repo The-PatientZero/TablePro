@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import TableProDatabase
 import TableProModels
 import UniformTypeIdentifiers
 
