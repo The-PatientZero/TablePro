@@ -10,6 +10,7 @@ struct ConnectionListView: View {
     @Environment(AppState.self) private var appState
     @State private var showingAddConnection = false
     @State private var editingConnection: DatabaseConnection?
+    @State private var selectedConnection: DatabaseConnection?
 
     private var groupedConnections: [(String, [DatabaseConnection])] {
         let grouped = Dictionary(grouping: appState.connections) { $0.type.rawValue.capitalized }
@@ -17,97 +18,103 @@ struct ConnectionListView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if appState.connections.isEmpty {
-                    emptyState
-                } else {
-                    connectionList
-                }
-            }
-            .navigationTitle("Connections")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingAddConnection = true
-                    } label: {
-                        Image(systemName: "plus")
+        NavigationSplitView {
+            sidebar
+                .navigationTitle("Connections")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingAddConnection = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
-            }
-            .sheet(isPresented: $showingAddConnection) {
-                ConnectionFormView { connection in
-                    appState.addConnection(connection)
-                    showingAddConnection = false
-                }
-            }
-            .sheet(item: $editingConnection) { connection in
-                ConnectionFormView(editing: connection) { updated in
-                    appState.updateConnection(updated)
-                    editingConnection = nil
-                }
-            }
-            .navigationDestination(for: DatabaseConnection.self) { connection in
+        } detail: {
+            if let connection = selectedConnection {
                 ConnectedView(connection: connection)
+            } else {
+                ContentUnavailableView(
+                    "Select a Connection",
+                    systemImage: "server.rack",
+                    description: Text("Choose a connection from the sidebar.")
+                )
+            }
+        }
+        .sheet(isPresented: $showingAddConnection) {
+            ConnectionFormView { connection in
+                appState.addConnection(connection)
+                showingAddConnection = false
+            }
+        }
+        .sheet(item: $editingConnection) { connection in
+            ConnectionFormView(editing: connection) { updated in
+                appState.updateConnection(updated)
+                editingConnection = nil
             }
         }
     }
 
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label("No Connections", systemImage: "server.rack")
-        } description: {
-            Text("Add a database connection to get started.")
-        } actions: {
-            Button("Add Connection") {
-                showingAddConnection = true
+    @ViewBuilder
+    private var sidebar: some View {
+        if appState.connections.isEmpty {
+            ContentUnavailableView {
+                Label("No Connections", systemImage: "server.rack")
+            } description: {
+                Text("Add a database connection to get started.")
+            } actions: {
+                Button("Add Connection") {
+                    showingAddConnection = true
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
-        }
-    }
-
-    private var connectionList: some View {
-        List {
-            ForEach(groupedConnections, id: \.0) { sectionTitle, connections in
-                Section(sectionTitle) {
-                    ForEach(connections) { connection in
-                        NavigationLink(value: connection) {
+        } else {
+            List(selection: $selectedConnection) {
+                ForEach(groupedConnections, id: \.0) { sectionTitle, connections in
+                    Section(sectionTitle) {
+                        ForEach(connections) { connection in
                             ConnectionRow(connection: connection)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                appState.removeConnection(connection)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .contextMenu {
-                            Button {
-                                editingConnection = connection
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            Button {
-                                var duplicate = connection
-                                duplicate.id = UUID()
-                                duplicate.name = "\(connection.name) Copy"
-                                appState.addConnection(duplicate)
-                            } label: {
-                                Label("Duplicate", systemImage: "doc.on.doc")
-                            }
-                            Divider()
-                            Button(role: .destructive) {
-                                appState.removeConnection(connection)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                                .tag(connection)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        if selectedConnection?.id == connection.id {
+                                            selectedConnection = nil
+                                        }
+                                        appState.removeConnection(connection)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .contextMenu {
+                                    Button {
+                                        editingConnection = connection
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    Button {
+                                        var duplicate = connection
+                                        duplicate.id = UUID()
+                                        duplicate.name = "\(connection.name) Copy"
+                                        appState.addConnection(duplicate)
+                                    } label: {
+                                        Label("Duplicate", systemImage: "doc.on.doc")
+                                    }
+                                    Divider()
+                                    Button(role: .destructive) {
+                                        if selectedConnection?.id == connection.id {
+                                            selectedConnection = nil
+                                        }
+                                        appState.removeConnection(connection)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                         }
                     }
                 }
             }
+            .listStyle(.insetGrouped)
         }
-        .listStyle(.insetGrouped)
     }
 }
 
@@ -128,21 +135,19 @@ private struct ConnectionRow: View {
                     .font(.body)
                     .fontWeight(.medium)
 
-                HStack(spacing: 4) {
-                    if connection.type != .sqlite {
-                        Text("\(connection.host):\(connection.port)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(connection.database.components(separatedBy: "/").last ?? "database")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                if connection.type != .sqlite {
+                    Text("\(connection.host):\(connection.port)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(connection.database.components(separatedBy: "/").last ?? "database")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
             Spacer()
-}
+        }
         .padding(.vertical, 4)
     }
 
@@ -172,4 +177,3 @@ private struct ConnectionRow: View {
         }
     }
 }
-
