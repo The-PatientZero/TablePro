@@ -4,9 +4,9 @@ set -euo pipefail
 # Signs release archives and generates appcast.xml using Sparkle's
 # generate_appcast — the official tool for building Sparkle update feeds.
 #
-# generate_appcast handles: EdDSA signing, architecture detection,
-# version extraction from Info.plist, CDATA release notes, and merging
-# new items into an existing appcast (preserving history).
+# Sparkle 2.9+ rejects multiple archives with the same bundle version in
+# a single directory, so we run generate_appcast once per architecture
+# and merge the resulting appcast entries.
 #
 # Usage: sign-and-appcast.sh <version>
 # Requires: SPARKLE_PRIVATE_KEY env var, artifacts/ directory with ZIPs.
@@ -25,22 +25,7 @@ brew list --cask sparkle &>/dev/null || brew install --cask sparkle
 SPARKLE_BIN="$(brew --caskroom)/sparkle/$(ls "$(brew --caskroom)/sparkle" | head -1)/bin"
 
 # ---------------------------------------------------------------------------
-# 2. Prepare staging directory
-# ---------------------------------------------------------------------------
-STAGING=$(mktemp -d)
-trap 'rm -rf "$STAGING"' EXIT
-
-# Copy archives
-cp "artifacts/TablePro-${VERSION}-arm64.zip" "$STAGING/"
-cp "artifacts/TablePro-${VERSION}-x86_64.zip" "$STAGING/"
-
-# Copy existing appcast for history preservation
-if [ -f appcast.xml ]; then
-  cp appcast.xml "$STAGING/"
-fi
-
-# ---------------------------------------------------------------------------
-# 3. Extract release notes from CHANGELOG.md → HTML
+# 2. Extract release notes from CHANGELOG.md → HTML
 # ---------------------------------------------------------------------------
 if [ -f release_notes.md ]; then
   NOTES=$(cat release_notes.md)
@@ -68,35 +53,108 @@ else
   ')
 fi
 
-# Create HTML release notes files matching each archive name.
-# generate_appcast picks up <archive-name>.html automatically.
-for zip in "$STAGING"/TablePro-*.zip; do
-  basename="${zip%.zip}"
-  echo "$RELEASE_HTML" > "${basename}.html"
-done
-
-# ---------------------------------------------------------------------------
-# 4. Run generate_appcast
-# ---------------------------------------------------------------------------
 DOWNLOAD_PREFIX="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-TableProApp/TablePro}/releases/download/v${VERSION}"
 
 KEY_FILE=$(mktemp)
-# Override trap to clean up both
-trap 'rm -rf "$STAGING" "$KEY_FILE"' EXIT
+trap 'rm -rf "$KEY_FILE"' EXIT
+
 echo "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
 
-"$SPARKLE_BIN/generate_appcast" \
-  --ed-key-file "$KEY_FILE" \
-  --download-url-prefix "$DOWNLOAD_PREFIX" \
-  --embed-release-notes \
-  --maximum-versions 0 \
-  "$STAGING"
+# ---------------------------------------------------------------------------
+# 3. Generate appcast per architecture
+# ---------------------------------------------------------------------------
+# Sparkle 2.9+ does not allow two archives with the same bundle version
+# in one directory. Process each architecture separately and merge.
+
+ARCHS=("arm64" "x86_64")
+APPCAST_XMLS=()
+
+for arch in "${ARCHS[@]}"; do
+  ZIP="artifacts/TablePro-${VERSION}-${arch}.zip"
+  if [ ! -f "$ZIP" ]; then
+    echo "⚠️  Skipping $arch — $ZIP not found"
+    continue
+  fi
+
+  STAGING=$(mktemp -d)
+
+  cp "$ZIP" "$STAGING/"
+
+  # Release notes file matching archive name
+  basename="${STAGING}/TablePro-${VERSION}-${arch}"
+  echo "$RELEASE_HTML" > "${basename}.html"
+
+  # Copy existing appcast for history preservation (only for first arch)
+  if [ "${#APPCAST_XMLS[@]}" -eq 0 ] && [ -f appcast.xml ]; then
+    cp appcast.xml "$STAGING/"
+  fi
+
+  "$SPARKLE_BIN/generate_appcast" \
+    --ed-key-file "$KEY_FILE" \
+    --download-url-prefix "$DOWNLOAD_PREFIX" \
+    --embed-release-notes \
+    --maximum-versions 0 \
+    "$STAGING"
+
+  APPCAST_XMLS+=("$STAGING/appcast.xml")
+done
+
+# ---------------------------------------------------------------------------
+# 4. Merge appcast files
+# ---------------------------------------------------------------------------
+if [ "${#APPCAST_XMLS[@]}" -eq 0 ]; then
+  echo "❌ ERROR: No archives found to process"
+  exit 1
+fi
+
+if [ "${#APPCAST_XMLS[@]}" -eq 1 ]; then
+  # Single arch — use as-is
+  FINAL_APPCAST="${APPCAST_XMLS[0]}"
+else
+  # Merge: take the first appcast (has history + arm64 entry), then
+  # extract only the NEW item(s) from the second appcast and insert them.
+  FINAL_APPCAST="${APPCAST_XMLS[0]}"
+  SECOND_APPCAST="${APPCAST_XMLS[1]}"
+
+  # Extract <item>...</item> blocks for the current version from second appcast
+  NEW_ITEMS=$(awk "
+    /<item>/ { capture=1; buf=\"\" }
+    capture { buf = buf \$0 \"\\n\" }
+    /<\\/item>/ {
+      capture=0
+      if (buf ~ /<sparkle:shortVersionString>${VERSION}</) {
+        printf \"%s\", buf
+      }
+    }
+  " "$SECOND_APPCAST")
+
+  if [ -n "$NEW_ITEMS" ]; then
+    # Insert the new items after the first <item> block for this version
+    # (i.e., after the arm64 entry's closing </item>)
+    awk -v new_items="$NEW_ITEMS" -v version="$VERSION" '
+      BEGIN { inserted=0 }
+      /<\/item>/ {
+        print
+        if (!inserted && found_version) {
+          printf "%s", new_items
+          inserted=1
+        }
+        next
+      }
+      /<sparkle:shortVersionString>/ {
+        if (index($0, version) > 0) found_version=1
+      }
+      { print }
+    ' "$FINAL_APPCAST" > "${FINAL_APPCAST}.merged"
+    mv "${FINAL_APPCAST}.merged" "$FINAL_APPCAST"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # 5. Copy result
 # ---------------------------------------------------------------------------
 mkdir -p appcast
-cp "$STAGING/appcast.xml" appcast/appcast.xml
+cp "$FINAL_APPCAST" appcast/appcast.xml
 
 echo "✅ Appcast generated by generate_appcast:"
 cat appcast/appcast.xml
