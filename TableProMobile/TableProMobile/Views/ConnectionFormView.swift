@@ -176,7 +176,21 @@ struct ConnectionFormView: View {
                 allowsMultipleSelection: false
             ) { result in
                 if case .success(let urls) = result, let url = urls.first {
-                    sshKeyPath = url.path
+                    guard url.startAccessingSecurityScopedResource() else { return }
+                    defer { url.stopAccessingSecurityScopedResource() }
+
+                    // Read key content directly — more reliable than copying file
+                    if let content = try? String(contentsOf: url, encoding: .utf8) {
+                        sshKeyContent = content
+                        sshKeyInputMode = .paste
+                    } else {
+                        // Fallback: copy to app Documents
+                        guard let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+                        let dest = docsDir.appendingPathComponent("ssh_" + url.lastPathComponent)
+                        try? FileManager.default.removeItem(at: dest)
+                        try? FileManager.default.copyItem(at: url, to: dest)
+                        sshKeyPath = dest.path
+                    }
                 }
             }
             .alert("New Database", isPresented: $showNewDatabaseAlert) {
