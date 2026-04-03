@@ -89,6 +89,11 @@ struct ConnectedView: View {
     }
 
     private func connect() async {
+        guard session == nil else {
+            isConnecting = false
+            return
+        }
+
         isConnecting = true
         errorMessage = nil
 
