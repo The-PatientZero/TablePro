@@ -41,6 +41,7 @@ public enum SyncRecordMapper {
         record["sslEnabled"] = Int64(connection.sslEnabled ? 1 : 0) as CKRecordValue
 
         if let colorTag = connection.colorTag {
+            record["color"] = colorTag as CKRecordValue
             record["colorTag"] = colorTag as CKRecordValue
         }
         if let groupId = connection.groupId {
@@ -99,7 +100,7 @@ public enum SyncRecordMapper {
         let port = (record["port"] as? Int64).map { Int($0) } ?? 3306
         let database = record["database"] as? String ?? ""
         let username = record["username"] as? String ?? ""
-        let colorTag = record["colorTag"] as? String
+        let colorTag = record["color"] as? String ?? record["colorTag"] as? String
         let groupId = (record["groupId"] as? String).flatMap { UUID(uuidString: $0) }
         let sortOrder = (record["sortOrder"] as? Int64).map { Int($0) } ?? 0
         let isReadOnly = (record["isReadOnly"] as? Int64 ?? 0) != 0
@@ -152,6 +153,55 @@ public enum SyncRecordMapper {
             groupId: groupId,
             sortOrder: sortOrder
         )
+    }
+
+    // MARK: - Update Existing CKRecord (preserves macOS-only fields)
+
+    public static func updateRecord(_ record: CKRecord, with connection: DatabaseConnection) {
+        record["connectionId"] = connection.id.uuidString as CKRecordValue
+        record["name"] = connection.name as CKRecordValue
+        record["host"] = connection.host as CKRecordValue
+        record["port"] = Int64(connection.port) as CKRecordValue
+        record["database"] = connection.database as CKRecordValue
+        record["username"] = connection.username as CKRecordValue
+        record["type"] = connection.type.rawValue as CKRecordValue
+        record["sortOrder"] = Int64(connection.sortOrder) as CKRecordValue
+        record["isReadOnly"] = Int64(connection.isReadOnly ? 1 : 0) as CKRecordValue
+        record["sshEnabled"] = Int64(connection.sshEnabled ? 1 : 0) as CKRecordValue
+        record["sslEnabled"] = Int64(connection.sslEnabled ? 1 : 0) as CKRecordValue
+
+        if let colorTag = connection.colorTag {
+            record["color"] = colorTag as CKRecordValue
+            record["colorTag"] = colorTag as CKRecordValue
+        }
+
+        if let groupId = connection.groupId {
+            record["groupId"] = groupId.uuidString as CKRecordValue
+        }
+
+        if let queryTimeout = connection.queryTimeoutSeconds {
+            record["queryTimeoutSeconds"] = Int64(queryTimeout) as CKRecordValue
+        }
+
+        if let sshConfig = connection.sshConfiguration {
+            if let data = try? encoder.encode(sshConfig) {
+                record["sshConfigJson"] = data as CKRecordValue
+            }
+        }
+
+        if let sslConfig = connection.sslConfiguration {
+            if let data = try? encoder.encode(sslConfig) {
+                record["sslConfigJson"] = data as CKRecordValue
+            }
+        }
+
+        if !connection.additionalFields.isEmpty {
+            if let data = try? encoder.encode(connection.additionalFields) {
+                record["additionalFieldsJson"] = data as CKRecordValue
+            }
+        }
+
+        record["modifiedAtLocal"] = Date() as CKRecordValue
     }
 
     // MARK: - Group -> CKRecord

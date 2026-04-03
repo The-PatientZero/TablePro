@@ -16,6 +16,7 @@ final class IOSSyncCoordinator {
 
     private var engine: CloudKitSyncEngine?
     private let metadata = SyncMetadataStorage()
+    private var cachedRecords: [UUID: CKRecord] = [:]
 
     private func getEngine() -> CloudKitSyncEngine {
         if engine == nil {
@@ -85,7 +86,14 @@ final class IOSSyncCoordinator {
         let dirtyIDs = metadata.dirtyIDs(for: .connection)
         let dirtyRecords = localConnections
             .filter { dirtyIDs.contains($0.id.uuidString) }
-            .map { SyncRecordMapper.toRecord($0, zoneID: zoneID) }
+            .map { connection -> CKRecord in
+                if let existing = cachedRecords[connection.id] {
+                    SyncRecordMapper.updateRecord(existing, with: connection)
+                    return existing
+                } else {
+                    return SyncRecordMapper.toRecord(connection, zoneID: zoneID)
+                }
+            }
 
         // Tombstones
         let tombstones = metadata.tombstones(for: .connection)
@@ -115,6 +123,7 @@ final class IOSSyncCoordinator {
         for record in result.changedRecords {
             if record.recordType == SyncRecordType.connection.rawValue {
                 if let connection = SyncRecordMapper.toConnection(record) {
+                    cachedRecords[connection.id] = record
                     connections.append(connection)
                 }
             }
