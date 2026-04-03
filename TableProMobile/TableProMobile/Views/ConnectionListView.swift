@@ -116,6 +116,9 @@ struct ConnectionListView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .refreshable {
+                await appState.syncCoordinator.sync(localConnections: appState.connections)
+            }
         }
     }
 }
