@@ -84,25 +84,8 @@ private struct ConnectionPersistence {
     func load() -> [DatabaseConnection] {
         guard let fileURL, let data = try? Data(contentsOf: fileURL),
               let connections = try? JSONDecoder().decode([DatabaseConnection].self, from: data) else {
-            return migrateFromUserDefaults()
-        }
-        let normalized = connections.map { conn -> DatabaseConnection in
-            var c = conn
-            c.type = conn.type.normalized
-            return c
-        }
-        if normalized != connections { save(normalized) }
-        return normalized
-    }
-
-    private func migrateFromUserDefaults() -> [DatabaseConnection] {
-        let key = "com.TablePro.Mobile.connections"
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let connections = try? JSONDecoder().decode([DatabaseConnection].self, from: data) else {
             return []
         }
-        save(connections)
-        UserDefaults.standard.removeObject(forKey: key)
         return connections
     }
 }

@@ -32,20 +32,6 @@ public struct DatabaseType: Hashable, Codable, Sendable, RawRepresentable {
         .etcd, .cloudflareD1, .dynamodb, .bigquery
     ]
 
-    /// Normalize legacy lowercase raw values to canonical form.
-    /// Used when loading connections persisted before raw value alignment.
-    public var normalized: DatabaseType {
-        let map: [String: DatabaseType] = [
-            "mysql": .mysql, "mariadb": .mariadb, "postgresql": .postgresql,
-            "sqlite": .sqlite, "redis": .redis, "mongodb": .mongodb,
-            "clickhouse": .clickhouse, "mssql": .mssql, "oracle": .oracle,
-            "duckdb": .duckdb, "cassandra": .cassandra, "redshift": .redshift,
-            "etcd": .etcd, "cloudflared1": .cloudflareD1, "dynamodb": .dynamodb,
-            "bigquery": .bigquery,
-        ]
-        return map[rawValue] ?? self
-    }
-
     /// Plugin type ID for plugin lookup.
     /// Multi-type plugins share a single driver: MariaDB -> "MySQL", Redshift -> "PostgreSQL"
     public var pluginTypeId: String {

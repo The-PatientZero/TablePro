@@ -35,7 +35,6 @@ final class KeychainSecureStore: SecureStore {
 
     init() {
         self.accessGroup = Self.resolveAccessGroup()
-        migrateFromOldServiceIfNeeded()
     }
 
     func store(_ value: String, forKey key: String) throws {
@@ -106,32 +105,6 @@ final class KeychainSecureStore: SecureStore {
         }
     }
 
-    // MARK: - Migration
-
-    private func migrateFromOldServiceIfNeeded() {
-        let migrationKey = "com.TablePro.Mobile.keychainMigrated"
-        guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
-        defer { UserDefaults.standard.set(true, forKey: migrationKey) }
-
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.TablePro.Mobile",
-            kSecReturnAttributes as String: true,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitAll,
-        ]
-
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let items = result as? [[String: Any]] else { return }
-
-        for item in items {
-            guard let account = item[kSecAttrAccount as String] as? String,
-                  let data = item[kSecValueData as String] as? Data,
-                  let value = String(data: data, encoding: .utf8) else { continue }
-            try? store(value, forKey: account)
-        }
-    }
 }
 
 enum KeychainError: Error, LocalizedError {
