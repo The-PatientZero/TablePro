@@ -68,22 +68,19 @@ struct ConnectedView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
 
-            ZStack {
+            switch selectedTab {
+            case .tables:
                 TableListView(
                     connection: connection,
                     tables: tables,
                     session: session,
                     onRefresh: { await refreshTables() }
                 )
-                .opacity(selectedTab == .tables ? 1 : 0)
-                .allowsHitTesting(selectedTab == .tables)
-
+            case .query:
                 QueryEditorView(
                     session: session,
                     tables: tables
                 )
-                .opacity(selectedTab == .query ? 1 : 0)
-                .allowsHitTesting(selectedTab == .query)
             }
         }
     }
