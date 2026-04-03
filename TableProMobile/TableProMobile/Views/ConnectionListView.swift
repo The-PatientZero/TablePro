@@ -5,6 +5,7 @@
 
 import SwiftUI
 import TableProModels
+import TableProSync
 
 struct ConnectionListView: View {
     @Environment(AppState.self) private var appState
