@@ -9,7 +9,7 @@ if [[ "$ARCH" != "arm64" && "$ARCH" != "x86_64" ]]; then
   exit 1
 fi
 
-VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//') || { echo "❌ ERROR: Cannot determine version from git tags"; exit 1; }
+VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//') || VERSION="dev"
 
 # --- Create DMG ---
 echo "Creating DMG installer..."
