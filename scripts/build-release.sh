@@ -352,12 +352,26 @@ build_for_arch() {
     SPM_CACHE_DIR="${HOME}/.spm-cache"
     mkdir -p "$SPM_CACHE_DIR"
 
+    # Create archive entitlements without iCloud (Developer ID profiles don't
+    # include iCloud capability). Full entitlements are used for final codesign.
+    local archive_entitlements="build/archive-entitlements.plist"
+    if [ -f "$ENTITLEMENTS" ]; then
+        echo "🔑 Preparing CI entitlements (stripping iCloud for archive)..."
+        cp "$ENTITLEMENTS" "$archive_entitlements"
+        /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.icloud-container-identifiers" "$archive_entitlements" 2>/dev/null || true
+        /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.icloud-services" "$archive_entitlements" 2>/dev/null || true
+    fi
+
     # Generate ExportOptions.plist
     local export_options="build/ExportOptions-${arch}.plist"
     mkdir -p build
     generate_export_options "$export_options"
 
     # ── Step 1: Archive ──
+    # Swap entitlements: use stripped version for archive, restore original after
+    cp "$ENTITLEMENTS" "${ENTITLEMENTS}.bak"
+    cp "$archive_entitlements" "$ENTITLEMENTS"
+
     local archive_path="build/TablePro-${arch}.xcarchive"
     echo "📦 Archiving..."
     if ! xcodebuild archive \
@@ -367,7 +381,8 @@ build_for_arch() {
         -arch "$arch" \
         -archivePath "$archive_path" \
         ONLY_ACTIVE_ARCH=YES \
-        CODE_SIGN_STYLE=Automatic \
+        CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
+        CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
@@ -378,6 +393,9 @@ build_for_arch() {
         exit 1
     fi
     echo "✅ Archive succeeded for $arch"
+
+    # Restore original entitlements (with iCloud) for final codesign
+    mv "${ENTITLEMENTS}.bak" "$ENTITLEMENTS"
 
     # Verify archive was created
     if [ ! -d "$archive_path" ]; then
