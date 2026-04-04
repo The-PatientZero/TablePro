@@ -360,6 +360,14 @@ build_for_arch() {
     # ── Step 1: Archive ──
     local archive_path="build/TablePro-${arch}.xcarchive"
     echo "📦 Archiving..."
+    # Resolve provisioning profile name for archive
+    local archive_profile_name=""
+    local profile_path_for_archive
+    profile_path_for_archive=$(find ~/Library/MobileDevice/Provisioning\ Profiles -name "*.provisionprofile" -print -quit 2>/dev/null || true)
+    if [ -n "${profile_path_for_archive:-}" ]; then
+        archive_profile_name=$(/usr/libexec/PlistBuddy -c "Print Name" /dev/stdin <<< "$(security cms -D -i "$profile_path_for_archive" 2>/dev/null)" 2>/dev/null || true)
+    fi
+
     if ! xcodebuild archive \
         -project "$PROJECT" \
         -scheme "$SCHEME" \
@@ -370,6 +378,7 @@ build_for_arch() {
         CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
         CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
+        ${archive_profile_name:+PROVISIONING_PROFILE_SPECIFIER="$archive_profile_name"} \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
