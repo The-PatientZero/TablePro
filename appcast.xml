@@ -3,6 +3,49 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.27.3</title>
+            <pubDate>Fri, 03 Apr 2026 14:07:56 +0000</pubDate>
+            <sparkle:version>56</sparkle:version>
+            <sparkle:shortVersionString>0.27.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>Structure tab context menu with Copy Name, Copy Definition (SQL), Duplicate, and Delete for columns, indexes, and foreign keys</li>
+<li>Foreign key preview: press Cmd+Enter on a FK cell to see the referenced row in a popover</li>
+<li>Column header: sort ascending/descending and show all hidden columns in context menu</li>
+<li>Data grid: preview and navigate FK references from right-click context menu</li>
+<li>Data grid: add row from right-click on empty space</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Oracle: crash when opening views caused by OracleNIO state-machine corruption from concurrent queries, LONG column types, and DBMS_METADATA errors</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.27.3/TablePro-0.27.3-arm64.zip" length="26429702" type="application/octet-stream" sparkle:edSignature="IWjkCtYm6gB1CVISohfedNVOmtTiywA5+vqgxDULQtEZCiASkC8wITfCMPZwnxOC6W+hLKF/nzYEmm6FQFk+Dw=="/>
+        </item>
+        <item>
+            <title>0.27.3</title>
+            <pubDate>Fri, 03 Apr 2026 14:07:57 +0000</pubDate>
+            <sparkle:version>56</sparkle:version>
+            <sparkle:shortVersionString>0.27.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>Structure tab context menu with Copy Name, Copy Definition (SQL), Duplicate, and Delete for columns, indexes, and foreign keys</li>
+<li>Foreign key preview: press Cmd+Enter on a FK cell to see the referenced row in a popover</li>
+<li>Column header: sort ascending/descending and show all hidden columns in context menu</li>
+<li>Data grid: preview and navigate FK references from right-click context menu</li>
+<li>Data grid: add row from right-click on empty space</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Oracle: crash when opening views caused by OracleNIO state-machine corruption from concurrent queries, LONG column types, and DBMS_METADATA errors</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.27.3/TablePro-0.27.3-x86_64.zip" length="23361650" type="application/octet-stream" sparkle:edSignature="d4njTAJZ4CpnMajA86yNvpT+Q6ntyF/InURI2Od9Q6D5gRJeQJfyalcMZRrv0qW8DpahncNLRtAoH5onFEsTBg=="/>
+        </item>
+        <item>
             <title>0.27.2</title>
             <pubDate>Thu, 02 Apr 2026 06:21:44 +0000</pubDate>
             <sparkle:version>55</sparkle:version>

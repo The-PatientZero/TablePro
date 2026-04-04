@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use Apple-standard `xcodebuild archive` + `exportArchive` build pipeline with dSYM collection
+
 ## [0.27.3] - 2026-04-03
 
 ### Added
