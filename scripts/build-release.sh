@@ -352,6 +352,8 @@ build_for_arch() {
     SPM_CACHE_DIR="${HOME}/.spm-cache"
     mkdir -p "$SPM_CACHE_DIR"
 
+    mkdir -p build
+
     # Create archive entitlements without iCloud (Developer ID profiles don't
     # include iCloud capability). Full entitlements are used for final codesign.
     local archive_entitlements="build/archive-entitlements.plist"
@@ -364,7 +366,6 @@ build_for_arch() {
 
     # Generate ExportOptions.plist
     local export_options="build/ExportOptions-${arch}.plist"
-    mkdir -p build
     generate_export_options "$export_options"
 
     # ── Step 1: Archive ──
