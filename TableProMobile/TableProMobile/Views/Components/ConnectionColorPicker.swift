@@ -31,6 +31,7 @@ struct ConnectionColorPicker: View {
                         .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Text(color.rawValue))
                 }
             }
             .padding(.vertical, 4)

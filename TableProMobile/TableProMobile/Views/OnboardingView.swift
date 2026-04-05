@@ -82,7 +82,6 @@ struct OnboardingView: View {
                         description: String(localized: "Import connections from your Mac")
                     )
                 }
-                .buttonStyle(.plain)
 
                 Button(action: addNewConnection) {
                     actionCard(
@@ -92,7 +91,6 @@ struct OnboardingView: View {
                         description: String(localized: "Set up a new database connection")
                     )
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
 

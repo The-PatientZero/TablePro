@@ -19,8 +19,8 @@ struct ConnectedView: View {
     @State private var tables: [TableInfo] = []
     @State private var isConnecting = true
     @State private var appError: AppError?
-    @State private var toastMessage: String?
-    @State private var toastTask: Task<Void, Never>?
+    @State private var failureAlertMessage: String?
+    @State private var showFailureAlert = false
     @State private var selectedTab = ConnectedTab.tables
     @State private var queryHistory: [QueryHistoryItem] = []
     private let historyStorage = QueryHistoryStorage()
@@ -77,28 +77,24 @@ struct ConnectedView: View {
                     .animation(.default, value: isSwitching)
             }
         }
-        .overlay(alignment: .bottom) {
-            if let toastMessage {
-                ErrorToast(message: toastMessage)
-                    .onAppear {
-                        toastTask?.cancel()
-                        toastTask = Task {
-                            try? await Task.sleep(nanoseconds: 3_000_000_000)
-                            withAnimation { self.toastMessage = nil }
-                        }
-                    }
-                    .onDisappear {
-                        toastTask?.cancel()
-                        toastTask = nil
-                    }
-            }
+        .alert("Error", isPresented: $showFailureAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(failureAlertMessage ?? "")
         }
-        .animation(.default, value: toastMessage)
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Tab", selection: $selectedTab) {
+                    Text("Tables").tag(ConnectedTab.tables)
+                    Text("Query").tag(ConnectedTab.query)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 200)
+            }
             if supportsDatabaseSwitching && databases.count > 1 {
-                ToolbarItem(placement: .principal) {
+                ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         ForEach(databases, id: \.self) { db in
                             Button {
@@ -114,7 +110,7 @@ struct ConnectedView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Text(activeDatabase)
-                                .font(.headline)
+                                .font(.subheadline)
                             if isSwitching {
                                 ProgressView()
                                     .controlSize(.mini)
@@ -163,15 +159,6 @@ struct ConnectedView: View {
 
     private var connectedContent: some View {
         VStack(spacing: 0) {
-            Picker("Tab", selection: $selectedTab) {
-                ForEach(ConnectedTab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-
             switch selectedTab {
             case .tables:
                 TableListView(
@@ -301,7 +288,8 @@ struct ConnectedView: View {
             activeSchema = name
             self.tables = try await session.driver.fetchTables(schema: name)
         } catch {
-            withAnimation { toastMessage = String(localized: "Failed to switch schema") }
+            failureAlertMessage = String(localized: "Failed to switch schema")
+            showFailureAlert = true
         }
     }
 
@@ -318,7 +306,8 @@ struct ConnectedView: View {
                 activeDatabase = name
                 self.tables = try await session.driver.fetchTables(schema: nil)
             } catch {
-                withAnimation { toastMessage = String(localized: "Failed to switch database") }
+                failureAlertMessage = String(localized: "Failed to switch database")
+                showFailureAlert = true
             }
         }
     }
@@ -346,7 +335,8 @@ struct ConnectedView: View {
                 let fallbackSession = try await appState.connectionManager.connect(connection)
                 self.session = fallbackSession
                 self.tables = try await fallbackSession.driver.fetchTables(schema: nil)
-                withAnimation { toastMessage = String(localized: "Failed to switch database") }
+                failureAlertMessage = String(localized: "Failed to switch database")
+                showFailureAlert = true
             } catch {
                 // Both failed — show error view
                 let context = ErrorContext(
@@ -368,7 +358,8 @@ struct ConnectedView: View {
             self.tables = try await session.driver.fetchTables(schema: schema)
         } catch {
             Self.logger.warning("Failed to refresh tables: \(error.localizedDescription, privacy: .public)")
-            withAnimation { toastMessage = String(localized: "Failed to refresh tables") }
+            failureAlertMessage = String(localized: "Failed to refresh tables")
+            showFailureAlert = true
         }
     }
 }

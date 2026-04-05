@@ -178,7 +178,7 @@ struct DataBrowserView: View {
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .opacity(isPageLoading ? 0.5 : 1)
         .allowsHitTesting(!isPageLoading)
         .overlay { if isPageLoading { ProgressView() } }

@@ -25,6 +25,7 @@ struct QueryEditorView: View {
     let connectionId: UUID
     let historyStorage: QueryHistoryStorage
     @State private var showHistory = false
+    @State private var showClearHistoryConfirmation = false
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -134,58 +135,70 @@ struct QueryEditorView: View {
         }
     }
 
-    // Native iOS pattern: List with rows, each row shows column:value pairs
     private func resultList(_ result: QueryResult) -> some View {
         List {
             ForEach(Array(result.rows.enumerated()), id: \.offset) { rowIndex, row in
-                Section {
-                    ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, col in
-                        let value = colIndex < row.count ? row[colIndex] : nil
-                        HStack(alignment: .top) {
-                            Text(verbatim: col.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 90, alignment: .leading)
-                            Text(verbatim: value ?? "NULL")
-                                .font(.system(.body, design: .monospaced))
-                                .foregroundStyle(value == nil ? .secondary : .primary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .lineLimit(3)
-                                .textSelection(.enabled)
-                        }
-                        .contextMenu {
-                            if let value {
-                                Button {
-                                    UIPasteboard.general.string = value
-                                } label: {
-                                    Label("Copy Value", systemImage: "doc.on.doc")
-                                }
-                            }
-                            Button {
-                                UIPasteboard.general.string = col.name
-                            } label: {
-                                Label("Copy Column Name", systemImage: "textformat")
-                            }
-                            Divider()
-                            Menu("Copy Row") {
-                                ForEach(ExportFormat.allCases) { format in
-                                    Button(format.rawValue) {
-                                        let text = ClipboardExporter.exportRow(
-                                            columns: result.columns, row: row,
-                                            format: format
-                                        )
-                                        ClipboardExporter.copyToClipboard(text)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } header: {
-                    Text(verbatim: "Row \(rowIndex + 1)")
+                NavigationLink {
+                    RowDetailView(
+                        columns: result.columns,
+                        rows: result.rows,
+                        initialIndex: rowIndex
+                    )
+                } label: {
+                    resultRowCard(columns: result.columns, row: row)
+                }
+                .contextMenu {
+                    resultRowContextMenu(columns: result.columns, row: row)
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
+    }
+
+    private func resultRowCard(columns: [ColumnInfo], row: [String?]) -> some View {
+        let preview = Array(zip(columns, row).prefix(4))
+        return VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(preview.enumerated()), id: \.offset) { index, pair in
+                HStack(spacing: 6) {
+                    Text(pair.0.name)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text(verbatim: pair.1 ?? "NULL")
+                        .font(index == 0 ? .subheadline : .caption)
+                        .fontWeight(index == 0 ? .medium : .regular)
+                        .foregroundStyle(pair.1 == nil ? .secondary : .primary)
+                        .lineLimit(1)
+                }
+            }
+            if columns.count > 4 {
+                Text("+\(columns.count - 4) more columns")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private func resultRowContextMenu(columns: [ColumnInfo], row: [String?]) -> some View {
+        if let firstValue = row.first, let value = firstValue {
+            Button {
+                UIPasteboard.general.string = value
+            } label: {
+                Label("Copy Value", systemImage: "doc.on.doc")
+            }
+        }
+        Menu("Copy Row") {
+            ForEach(ExportFormat.allCases) { format in
+                Button(format.rawValue) {
+                    let text = ClipboardExporter.exportRow(
+                        columns: columns, row: row,
+                        format: format
+                    )
+                    ClipboardExporter.copyToClipboard(text)
+                }
+            }
+        }
     }
 
     // MARK: - Toolbar
@@ -287,21 +300,27 @@ struct QueryEditorView: View {
                     }
                     queryHistory = historyStorage.load(for: connectionId)
                 }
+
+                if !queryHistory.isEmpty {
+                    Section {
+                        Button("Clear All History", role: .destructive) {
+                            showClearHistoryConfirmation = true
+                        }
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Query History")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    if !queryHistory.isEmpty {
-                        Button("Clear All", role: .destructive) {
-                            historyStorage.clearAll(for: connectionId)
-                            queryHistory = []
-                        }
-                    }
-                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { showHistory = false }
+                }
+            }
+            .confirmationDialog("Clear History", isPresented: $showClearHistoryConfirmation) {
+                Button("Clear All", role: .destructive) {
+                    historyStorage.clearAll(for: connectionId)
+                    queryHistory = []
                 }
             }
             .overlay {

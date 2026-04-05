@@ -136,11 +136,10 @@ struct InsertRowView: View {
             .alert(operationError?.title ?? "Error", isPresented: $showOperationError) {
                 Button("OK", role: .cancel) {}
             } message: {
-                VStack {
-                    Text(operationError?.message ?? "An unknown error occurred.")
-                    if let recovery = operationError?.recovery {
-                        Text(verbatim: recovery)
-                    }
+                if let recovery = operationError?.recovery {
+                    Text("\(operationError?.message ?? "")\n\(recovery)")
+                } else {
+                    Text(operationError?.message ?? "")
                 }
             }
         }

@@ -236,9 +236,9 @@ struct StructureView: View {
         guard let session else {
             appError = AppError(
                 category: .config,
-                title: "Not Connected",
-                message: "No active database session.",
-                recovery: "Go back and reconnect to the database.",
+                title: String(localized: "Not Connected"),
+                message: String(localized: "No active database session."),
+                recovery: String(localized: "Go back and reconnect to the database."),
                 underlying: nil
             )
             isLoading = false
