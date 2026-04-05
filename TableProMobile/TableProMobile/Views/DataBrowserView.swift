@@ -76,11 +76,6 @@ struct DataBrowserView: View {
         .navigationTitle(table.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .status) {
-                Text(verbatim: paginationLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
                     StructureView(
@@ -101,28 +96,35 @@ struct DataBrowserView: View {
                     }
                 }
             }
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button {
-                    Task { await goToPreviousPage() }
-                } label: {
-                    Image(systemName: "chevron.left")
+        }
+        .safeAreaInset(edge: .bottom) {
+            if !rows.isEmpty {
+                HStack {
+                    Button {
+                        Task { await goToPreviousPage() }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .disabled(pagination.currentPage == 0 || isLoading)
+
+                    Spacer()
+
+                    Text(paginationLabel)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        Task { await goToNextPage() }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .disabled(!pagination.hasNextPage || isLoading)
                 }
-                .disabled(pagination.currentPage == 0 || isLoading)
-
-                Spacer()
-
-                Text(paginationLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button {
-                    Task { await goToNextPage() }
-                } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .disabled(!pagination.hasNextPage || isLoading)
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+                .background(.bar)
             }
         }
         .task { await loadData(isInitial: true) }
