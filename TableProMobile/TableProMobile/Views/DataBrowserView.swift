@@ -420,6 +420,11 @@ private struct FilterSheetView: View {
     let onApply: () -> Void
     let onClear: () -> Void
 
+    private func bindingForFilter(_ id: UUID) -> Binding<TableFilter>? {
+        guard let index = filters.firstIndex(where: { $0.id == id }) else { return nil }
+        return $filters[index]
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -433,30 +438,32 @@ private struct FilterSheetView: View {
                     }
                 }
 
-                ForEach($filters) { $filter in
-                    Section {
-                        Picker("Column", selection: $filter.columnName) {
-                            ForEach(columns, id: \.name) { col in
-                                Text(col.name).tag(col.name)
+                ForEach(filters) { filter in
+                    if let binding = bindingForFilter(filter.id) {
+                        Section {
+                            Picker("Column", selection: binding.columnName) {
+                                ForEach(columns, id: \.name) { col in
+                                    Text(col.name).tag(col.name)
+                                }
                             }
-                        }
 
-                        Picker("Operator", selection: $filter.filterOperator) {
-                            ForEach(FilterOperator.allCases, id: \.self) { op in
-                                Text(op.displayName).tag(op)
+                            Picker("Operator", selection: binding.filterOperator) {
+                                ForEach(FilterOperator.allCases, id: \.self) { op in
+                                    Text(op.displayName).tag(op)
+                                }
                             }
-                        }
 
-                        if filter.filterOperator.needsValue {
-                            TextField("Value", text: $filter.value)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                        }
+                            if filter.filterOperator.needsValue {
+                                TextField("Value", text: binding.value)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            }
 
-                        if filter.filterOperator == .between {
-                            TextField("Second value", text: $filter.secondValue)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
+                            if filter.filterOperator == .between {
+                                TextField("Second value", text: binding.secondValue)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            }
                         }
                     }
                 }
