@@ -162,11 +162,26 @@ struct DataBrowserView: View {
 
             Spacer()
 
-            Text(paginationLabel)
-                .font(.footnote)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .fixedSize()
+            Menu {
+                ForEach([50, 100, 200, 500], id: \.self) { size in
+                    Button {
+                        changePageSize(size)
+                    } label: {
+                        HStack {
+                            Text("\(size) rows")
+                            if pagination.pageSize == size {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Text(paginationLabel)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+            }
 
             Spacer()
 
@@ -237,6 +252,13 @@ struct DataBrowserView: View {
         } catch {
             Self.logger.warning("Failed to fetch row count: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    private func changePageSize(_ newSize: Int) {
+        pagination.pageSize = newSize
+        pagination.currentPage = 0
+        pagination.totalRows = nil
+        Task { await loadData() }
     }
 
     private func goToNextPage() async {
