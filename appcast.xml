@@ -3,6 +3,51 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.27.4</title>
+            <pubDate>Sun, 05 Apr 2026 07:33:27 +0000</pubDate>
+            <sparkle:version>57</sparkle:version>
+            <sparkle:shortVersionString>0.27.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>Cloudflare D1: batch query execution via REST API for multi-statement SQL</li>
+<li>Cloudflare D1: schema editing — CREATE TABLE, ADD/DROP COLUMN, CREATE/DROP INDEX</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Multi-statement SQL execution fails on Cloudflare D1, ClickHouse, and other drivers that don't support transactions</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Use Apple-standard `xcodebuild archive` + `exportArchive` build pipeline with dSYM collection</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.27.4/TablePro-0.27.4-arm64.zip" length="23506100" type="application/octet-stream" sparkle:edSignature="b9OtOE8d+GYDzQzjCzic5MsoHjXSYOMV9O/42shwtxVzh7rDuy5/+HS0y62jOwbZYNfr+w8b+svyqG0OTFX2BA=="/>
+        </item>
+        <item>
+            <title>0.27.4</title>
+            <pubDate>Sun, 05 Apr 2026 07:33:27 +0000</pubDate>
+            <sparkle:version>57</sparkle:version>
+            <sparkle:shortVersionString>0.27.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>Cloudflare D1: batch query execution via REST API for multi-statement SQL</li>
+<li>Cloudflare D1: schema editing — CREATE TABLE, ADD/DROP COLUMN, CREATE/DROP INDEX</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Multi-statement SQL execution fails on Cloudflare D1, ClickHouse, and other drivers that don't support transactions</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Use Apple-standard `xcodebuild archive` + `exportArchive` build pipeline with dSYM collection</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.27.4/TablePro-0.27.4-x86_64.zip" length="20666094" type="application/octet-stream" sparkle:edSignature="0mJyaJmMPQke1Tkerx0AWdjN55e0uxL9ybJWSpS4qs/KiFxLf3xTYnYImu0MZbQGOzjDSpwtKS3+FJK31iHLAQ=="/>
+        </item>
+        <item>
             <title>0.27.3</title>
             <pubDate>Fri, 03 Apr 2026 14:07:56 +0000</pubDate>
             <sparkle:version>56</sparkle:version>
