@@ -1,1417 +1,1658 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "%lld" : {
-
+  "sourceLanguage": "en",
+  "strings": {
+    "%lld": {},
+    "%lld / %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "+%lld more columns": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld cột khác"
+          }
+        }
+      }
+    },
+    "A fast, lightweight database client for your iPhone and iPad.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ứng dụng quản lý cơ sở dữ liệu nhanh và nhẹ cho iPhone và iPad."
+          }
+        }
+      }
+    },
+    "Add a database connection to get started.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm kết nối cơ sở dữ liệu để bắt đầu."
+          }
+        }
+      }
+    },
+    "Add Connection": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm kết nối"
+          }
+        }
+      }
+    },
+    "All": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tất cả"
+          }
+        }
+      }
+    },
+    "An unknown error occurred.": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã xảy ra lỗi không xác định."
+          }
+        }
+      }
+    },
+    "Are you sure you want to delete this row? This action cannot be undone.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bạn có chắc muốn xóa dòng này? Thao tác này không thể hoàn tác."
+          }
+        }
+      }
+    },
+    "Auth Method": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phương thức xác thực"
+          }
+        }
+      }
+    },
+    "Authentication Failed": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xác thực thất bại"
+          }
+        }
+      }
+    },
+    "auto-increment": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tự tăng"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hủy"
+          }
+        }
+      }
+    },
+    "Cannot Save": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể lưu"
+          }
+        }
+      }
+    },
+    "Check your %@ username and password.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra tên đăng nhập và mật khẩu %@."
+          }
+        }
+      }
+    },
+    "Check your connection settings.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra cài đặt kết nối."
+          }
+        }
+      }
+    },
+    "Check your network connection and server availability.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra kết nối mạng và trạng thái máy chủ."
+          }
+        }
+      }
+    },
+    "Check your query and try again.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra truy vấn và thử lại."
+          }
+        }
+      }
+    },
+    "Check your SQL syntax.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra cú pháp SQL."
+          }
+        }
+      }
+    },
+    "Check your SSH host, port, and credentials.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra máy chủ, cổng và thông tin xác thực SSH."
+          }
+        }
+      }
     },
-    "%lld / %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld / %2$lld"
+    "Check your SSH username, password, or private key.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra tên đăng nhập, mật khẩu hoặc khóa riêng SSH."
           }
         }
       }
     },
-    "+%lld more columns" : {
-
+    "Choose a connection from the sidebar.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn kết nối từ thanh bên."
+          }
+        }
+      }
     },
-    "A fast, lightweight database client for your iPhone and iPad." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ứng dụng quản lý cơ sở dữ liệu nhanh và nhẹ cho iPhone và iPad."
+    "Clear": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xóa"
           }
         }
       }
     },
-    "Add a database connection to get started." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thêm kết nối cơ sở dữ liệu để bắt đầu."
+    "Color": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màu sắc"
           }
         }
       }
     },
-    "Add Connection" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thêm kết nối"
+    "Columns": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cột"
           }
         }
       }
     },
-    "An unknown error occurred." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đã xảy ra lỗi không xác định."
+    "Configuration Error": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lỗi cấu hình"
           }
         }
       }
     },
-    "Are you sure you want to delete this row? This action cannot be undone." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bạn có chắc muốn xóa dòng này? Thao tác này không thể hoàn tác."
+    "Connecting to %@...": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang kết nối đến %@..."
           }
         }
       }
     },
-    "Auth Method" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Phương thức xác thực"
+    "Connection": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết nối"
           }
         }
       }
     },
-    "Authentication Failed" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xác thực thất bại"
+    "Connection Failed": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết nối thất bại"
           }
         }
       }
     },
-    "auto-increment" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tự tăng"
+    "Connection refused. The server may not be running or the port is incorrect.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết nối bị từ chối. Máy chủ có thể chưa chạy hoặc cổng không đúng."
           }
         }
       }
     },
-    "Cancel" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hủy"
+    "Connection successful": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết nối thành công"
           }
         }
       }
     },
-    "Cannot Save" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể lưu"
+    "Connections": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết nối"
           }
         }
       }
     },
-    "Check your %@ username and password." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra tên đăng nhập và mật khẩu %@."
+    "Continue": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiếp tục"
           }
         }
       }
     },
-    "Check your connection settings." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra cài đặt kết nối."
+    "Copy Column Name": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép tên cột"
           }
         }
       }
     },
-    "Check your network connection and server availability." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra kết nối mạng và trạng thái máy chủ."
+    "Copy Value": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép giá trị"
           }
         }
       }
     },
-    "Check your query and try again." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra truy vấn và thử lại."
+    "Create": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tạo"
           }
         }
       }
     },
-    "Check your SQL syntax." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra cú pháp SQL."
+    "Create a group to organize your connections.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tạo nhóm để sắp xếp các kết nối."
           }
         }
       }
     },
-    "Check your SSH host, port, and credentials." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra máy chủ, cổng và thông tin xác thực SSH."
+    "Create a tag to organize your connections.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tạo nhãn để sắp xếp các kết nối."
           }
         }
       }
     },
-    "Check your SSH username, password, or private key." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra tên đăng nhập, mật khẩu hoặc khóa riêng SSH."
+    "Create New Database": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tạo cơ sở dữ liệu mới"
           }
         }
       }
     },
-    "Choose a connection from the sidebar." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chọn kết nối từ thanh bên."
+    "Database": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cơ sở dữ liệu"
           }
         }
       }
     },
-    "Clear" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xóa"
+    "Database File": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tệp cơ sở dữ liệu"
           }
         }
       }
     },
-    "Columns" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cột"
+    "Database name": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên cơ sở dữ liệu"
           }
         }
       }
     },
-    "Configuration Error" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lỗi cấu hình"
+    "Database Name": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên cơ sở dữ liệu"
           }
         }
       }
     },
-    "Connecting to %@..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang kết nối đến %@..."
+    "Database Type": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loại cơ sở dữ liệu"
           }
         }
       }
     },
-    "Connection" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kết nối"
+    "Default: %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mặc định: %@"
           }
         }
       }
     },
-    "Connection Failed" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kết nối thất bại"
+    "Delete": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xóa"
           }
         }
       }
     },
-    "Connection refused. The server may not be running or the port is incorrect." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kết nối bị từ chối. Máy chủ có thể chưa chạy hoặc cổng không đúng."
+    "Delete Row": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xóa dòng"
           }
         }
       }
     },
-    "Connection successful" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kết nối thành công"
+    "Done": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xong"
           }
         }
       }
     },
-    "Connections" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kết nối"
+    "Duplicate": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhân đôi"
           }
         }
       }
     },
-    "Continue" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tiếp tục"
+    "Edit": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sửa"
           }
         }
       }
     },
-    "Copy Column Name" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sao chép tên cột"
+    "Edit Connection": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sửa kết nối"
           }
         }
       }
     },
-    "Copy Value" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sao chép giá trị"
+    "Edit Group": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sửa nhóm"
           }
         }
       }
     },
-    "Create" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo"
+    "Edit Tag": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sửa nhãn"
           }
         }
       }
     },
-    "Create New Database" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo cơ sở dữ liệu mới"
+    "Enter a name for the new SQLite database.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhập tên cho cơ sở dữ liệu SQLite mới."
           }
         }
       }
     },
-    "Database" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cơ sở dữ liệu"
+    "Error": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lỗi"
           }
         }
       }
     },
-    "Database File" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tệp cơ sở dữ liệu"
+    "Executed queries will appear here.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các truy vấn đã thực thi sẽ hiển thị ở đây."
           }
         }
       }
     },
-    "Database name" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tên cơ sở dữ liệu"
+    "Executing...": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang thực thi..."
           }
         }
       }
     },
-    "Database Name" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tên cơ sở dữ liệu"
+    "Failed to load more rows": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể tải thêm dòng"
           }
         }
       }
     },
-    "Database Type" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loại cơ sở dữ liệu"
+    "Failed to refresh tables": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể làm mới bảng"
           }
         }
       }
     },
-    "Default: %@" : {
-
+    "Failed to save credentials.": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể lưu thông tin xác thực."
+          }
+        }
+      }
     },
-    "Delete" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xóa"
+    "Failed to switch database": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể chuyển cơ sở dữ liệu"
           }
         }
       }
     },
-    "Delete Row" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xóa dòng"
+    "Failed to switch schema": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể chuyển schema"
           }
         }
       }
     },
-    "Done" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xong"
+    "Filter by Tag": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lọc theo nhãn"
           }
         }
       }
     },
-    "Duplicate" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nhân đôi"
+    "Foreign Keys": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa ngoại"
           }
         }
       }
     },
-    "Edit" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sửa"
+    "Get Started": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bắt đầu"
           }
         }
       }
     },
-    "Edit Connection" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sửa kết nối"
+    "Go back and reconnect to the database.": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quay lại và kết nối lại cơ sở dữ liệu."
           }
         }
       }
     },
-    "Enter a name for the new SQLite database." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nhập tên cho cơ sở dữ liệu SQLite mới."
+    "Group": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhóm"
           }
         }
       }
     },
-    "Error" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lỗi"
+    "Group by Folder": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhóm theo thư mục"
           }
         }
       }
     },
-    "Executed queries will appear here." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Các truy vấn đã thực thi sẽ hiển thị ở đây."
+    "Groups": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhóm"
           }
         }
       }
     },
-    "Executing..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang thực thi..."
+    "History": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lịch sử"
           }
         }
       }
     },
-    "Failed to load more rows" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể tải thêm dòng"
+    "Host": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máy chủ"
           }
         }
       }
     },
-    "Failed to refresh tables" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể làm mới bảng"
+    "Import connections from your Mac": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhập kết nối từ máy Mac"
           }
         }
       }
     },
-    "Failed to save credentials." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể lưu thông tin xác thực."
+    "Indexes": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ mục"
           }
         }
       }
     },
-    "Failed to switch database" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể chuyển cơ sở dữ liệu"
+    "Input Method": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phương thức nhập"
           }
         }
       }
     },
-    "Failed to switch schema" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể chuyển schema"
+    "Insert Row": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm dòng"
           }
         }
       }
     },
-    "Foreign Keys" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Khóa ngoại"
+    "Keychain Warning": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cảnh báo Keychain"
           }
         }
       }
     },
-    "Get Started" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bắt đầu"
+    "Load More": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tải thêm"
           }
         }
       }
     },
-    "Go back and reconnect to the database." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quay lại và kết nối lại cơ sở dữ liệu."
+    "Loading data...": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang tải dữ liệu..."
           }
         }
       }
     },
-    "History" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lịch sử"
+    "Loading structure...": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang tải cấu trúc..."
           }
         }
       }
     },
-    "Host" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ"
+    "Loading...": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang tải..."
           }
         }
       }
     },
-    "Import connections from your Mac" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nhập kết nối từ máy Mac"
+    "Manage Groups": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quản lý nhóm"
           }
         }
       }
     },
-    "Indexes" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chỉ mục"
+    "Manage Tags": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quản lý nhãn"
           }
         }
       }
     },
-    "Input Method" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Phương thức nhập"
+    "Name": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên"
           }
         }
       }
     },
-    "Insert Row" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thêm dòng"
+    "New Connection": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết nối mới"
           }
         }
       }
     },
-    "Keychain Warning" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cảnh báo Keychain"
+    "New Database": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cơ sở dữ liệu mới"
           }
         }
       }
     },
-    "Load More" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tải thêm"
+    "New Group": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhóm mới"
           }
         }
       }
     },
-    "Loading data..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang tải dữ liệu..."
+    "New Tag": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhãn mới"
           }
         }
       }
     },
-    "Loading structure..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang tải cấu trúc..."
+    "No active database session.": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có phiên cơ sở dữ liệu nào đang hoạt động."
           }
         }
       }
     },
-    "Loading..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang tải..."
+    "No Connections": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có kết nối"
           }
         }
       }
     },
-    "Name" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tên"
+    "No connections match the selected filter.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có kết nối nào khớp với bộ lọc đã chọn."
           }
         }
       }
     },
-    "New Connection" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kết nối mới"
+    "No Data": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có dữ liệu"
           }
         }
       }
     },
-    "New Database" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cơ sở dữ liệu mới"
+    "No Foreign Keys": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có khóa ngoại"
           }
         }
       }
     },
-    "No active database session." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có phiên cơ sở dữ liệu nào đang hoạt động."
+    "No Groups": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có nhóm"
           }
         }
       }
     },
-    "No Connections" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chưa có kết nối"
+    "No History": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có lịch sử"
           }
         }
       }
     },
-    "No Data" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có dữ liệu"
+    "No Indexes": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có chỉ mục"
           }
         }
       }
     },
-    "No Foreign Keys" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có khóa ngoại"
+    "No Matching Connections": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có kết nối phù hợp"
           }
         }
       }
     },
-    "No History" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chưa có lịch sử"
+    "No primary key values found.": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không tìm thấy giá trị khóa chính."
           }
         }
       }
     },
-    "No Indexes" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có chỉ mục"
+    "No Results": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có kết quả"
           }
         }
       }
     },
-    "No primary key values found." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không tìm thấy giá trị khóa chính."
+    "No Tables": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có bảng"
           }
         }
       }
     },
-    "No Results" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có kết quả"
+    "No Tags": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có nhãn"
           }
         }
       }
     },
-    "No Tables" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có bảng"
+    "None": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không"
           }
         }
       }
     },
-    "Not Connected" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chưa kết nối"
+    "Not Connected": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa kết nối"
           }
         }
       }
     },
-    "NULL" : {
-
+    "NULL": {},
+    "Nullable": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cho phép NULL"
+          }
+        }
+      }
     },
-    "Nullable" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cho phép NULL"
+    "OK": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
     },
-    "OK" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
+    "ON DELETE %@": {},
+    "ON UPDATE %@": {},
+    "Open Database File": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở tệp cơ sở dữ liệu"
           }
         }
       }
     },
-    "ON DELETE %@" : {
-
+    "Organization": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tổ chức"
+          }
+        }
+      }
     },
-    "ON UPDATE %@" : {
-
+    "Passphrase (optional)": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mật khẩu khóa (tùy chọn)"
+          }
+        }
+      }
     },
-    "Open Database File" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mở tệp cơ sở dữ liệu"
+    "Password": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mật khẩu"
           }
         }
       }
     },
-    "Passphrase (optional)" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mật khẩu khóa (tùy chọn)"
+    "Paste private key (PEM format)": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dán khóa riêng (định dạng PEM)"
           }
         }
       }
     },
-    "Password" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mật khẩu"
+    "Port": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cổng"
           }
         }
       }
     },
-    "Paste private key (PEM format)" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dán khóa riêng (định dạng PEM)"
+    "Primary": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chính"
           }
         }
       }
     },
-    "Port" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cổng"
+    "primary key": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "khóa chính"
           }
         }
       }
     },
-    "Primary" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chính"
+    "Primary Key": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa chính"
           }
         }
       }
     },
-    "primary key" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "khóa chính"
+    "Private Key": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa riêng"
           }
         }
       }
     },
-    "Primary Key" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Khóa chính"
+    "Query": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Truy vấn"
           }
         }
       }
     },
-    "Private Key" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Khóa riêng"
+    "Query Error": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lỗi truy vấn"
           }
         }
       }
     },
-    "Query" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Truy vấn"
+    "Query History": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lịch sử truy vấn"
           }
         }
       }
     },
-    "Query Error" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lỗi truy vấn"
+    "read-only": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "chỉ đọc"
           }
         }
       }
     },
-    "Query History" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lịch sử truy vấn"
+    "Retry": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thử lại"
           }
         }
       }
     },
-    "read-only" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "chỉ đọc"
+    "Row %d of %d": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dòng %d / %d"
           }
         }
       }
     },
-    "Retry" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thử lại"
+    "Row updated": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã cập nhật dòng"
           }
         }
       }
     },
-    "Row %d of %d" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dòng %d / %d"
+    "Run a Query": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chạy truy vấn"
           }
         }
       }
     },
-    "Row updated" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đã cập nhật dòng"
+    "Save": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lưu"
           }
         }
       }
     },
-    "Run a Query" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chạy truy vấn"
+    "Search tables": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tìm bảng"
           }
         }
       }
     },
-    "Save" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lưu"
+    "Section": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phần"
           }
         }
       }
     },
-    "Search tables" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tìm bảng"
+    "SELECT * FROM ...": {},
+    "Select a Connection": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn kết nối"
           }
         }
       }
     },
-    "Section" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Phần"
+    "Select Private Key": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn khóa riêng"
           }
         }
       }
     },
-    "SELECT * FROM ..." : {
-
+    "Server": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máy chủ"
+          }
+        }
+      }
     },
-    "Select a Connection" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chọn kết nối"
+    "Set up a new database connection": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thiết lập kết nối cơ sở dữ liệu mới"
           }
         }
       }
     },
-    "Select Private Key" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chọn khóa riêng"
+    "Skip": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bỏ qua"
           }
         }
       }
     },
-    "Server" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ"
+    "SSH Host": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máy chủ SSH"
           }
         }
       }
     },
-    "Set up a new database connection" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thiết lập kết nối cơ sở dữ liệu mới"
+    "SSH Password": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mật khẩu SSH"
           }
         }
       }
     },
-    "Skip" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bỏ qua"
+    "SSH Port": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cổng SSH"
           }
         }
       }
     },
-    "SSH Host" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ SSH"
+    "SSH Server": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máy chủ SSH"
           }
         }
       }
     },
-    "SSH Password" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mật khẩu SSH"
+    "SSH Tunnel": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đường hầm SSH"
           }
         }
       }
     },
-    "SSH Port" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cổng SSH"
+    "SSH Tunnel Failed": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đường hầm SSH thất bại"
           }
         }
       }
     },
-    "SSH Server" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ SSH"
+    "SSH Username": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên đăng nhập SSH"
           }
         }
       }
     },
-    "SSH Tunnel" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đường hầm SSH"
+    "SSL": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSL"
           }
         }
       }
     },
-    "SSH Tunnel Failed" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đường hầm SSH thất bại"
+    "Switching...": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang chuyển..."
           }
         }
       }
     },
-    "SSH Username" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tên đăng nhập SSH"
+    "Sync from iCloud": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đồng bộ từ iCloud"
           }
         }
       }
     },
-    "SSL" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SSL"
+    "Syncing from iCloud...": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang đồng bộ từ iCloud..."
           }
         }
       }
     },
-    "Switching..." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang chuyển..."
+    "Tab": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab"
           }
         }
       }
     },
-    "Sync from iCloud" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đồng bộ từ iCloud"
+    "Tables": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bảng"
           }
         }
       }
     },
-    "Syncing from iCloud..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang đồng bộ từ iCloud..."
+    "Tag": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhãn"
           }
         }
       }
     },
-    "Tab" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tab"
+    "Tags": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhãn"
           }
         }
       }
     },
-    "Tables" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bảng"
+    "Test Connection": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra kết nối"
           }
         }
       }
     },
-    "Test Connection" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra kết nối"
+    "Testing...": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang kiểm tra..."
           }
         }
       }
     },
-    "Testing..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang kiểm tra..."
+    "The operation violates a database constraint.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thao tác vi phạm ràng buộc cơ sở dữ liệu."
           }
         }
       }
     },
-    "The operation violates a database constraint." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thao tác vi phạm ràng buộc cơ sở dữ liệu."
+    "The server is not responding. Check the host and port.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máy chủ không phản hồi. Kiểm tra máy chủ và cổng."
           }
         }
       }
     },
-    "The server is not responding. Check the host and port." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ không phản hồi. Kiểm tra máy chủ và cổng."
+    "The SSH server may be unreachable or running a different protocol.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máy chủ SSH có thể không truy cập được hoặc đang chạy giao thức khác."
           }
         }
       }
     },
-    "The SSH server may be unreachable or running a different protocol." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ SSH có thể không truy cập được hoặc đang chạy giao thức khác."
+    "The SSH tunnel connected but could not forward to the database port.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đường hầm SSH đã kết nối nhưng không thể chuyển tiếp đến cổng cơ sở dữ liệu."
           }
         }
       }
     },
-    "The SSH tunnel connected but could not forward to the database port." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đường hầm SSH đã kết nối nhưng không thể chuyển tiếp đến cổng cơ sở dữ liệu."
+    "The table or column does not exist.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bảng hoặc cột không tồn tại."
           }
         }
       }
     },
-    "The table or column does not exist." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bảng hoặc cột không tồn tại."
+    "This database has no tables.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cơ sở dữ liệu này không có bảng."
           }
         }
       }
     },
-    "This database has no tables." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cơ sở dữ liệu này không có bảng."
+    "This table has no foreign key relationships.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bảng này không có quan hệ khóa ngoại."
           }
         }
       }
     },
-    "This table has no foreign key relationships." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bảng này không có quan hệ khóa ngoại."
+    "This table has no indexes.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bảng này không có chỉ mục."
           }
         }
       }
     },
-    "This table has no indexes." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bảng này không có chỉ mục."
+    "This table is empty.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bảng này trống."
           }
         }
       }
     },
-    "This table is empty." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bảng này trống."
+    "This table needs a primary key to identify the row.": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bảng này cần khóa chính để xác định dòng."
           }
         }
       }
     },
-    "This table needs a primary key to identify the row." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bảng này cần khóa chính để xác định dòng."
+    "Ungrouped": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa phân nhóm"
           }
         }
       }
     },
-    "Unique" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Duy nhất"
+    "Unique": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duy nhất"
           }
         }
       }
     },
-    "Username" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tên đăng nhập"
+    "Username": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tên đăng nhập"
           }
         }
       }
     },
-    "Value" : {
-
+    "Value": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giá trị"
+          }
+        }
+      }
     },
-    "Views" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "View"
+    "Views": {
+      "extractionState": "stale",
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View"
           }
         }
       }
     },
-    "Welcome to TablePro" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chào mừng đến TablePro"
+    "Welcome to TablePro": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chào mừng đến TablePro"
           }
         }
       }
     },
-    "Write SQL and tap the play button." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Viết SQL và nhấn nút chạy."
+    "Write SQL and tap the play button.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Viết SQL và nhấn nút chạy."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }
