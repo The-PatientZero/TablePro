@@ -37,7 +37,8 @@ struct ConnectionListView: View {
                     ConnectedView(connection: connection)
                 }
                 .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        filterMenu
                         Button {
                             showingAddConnection = true
                         } label: {
@@ -132,60 +133,59 @@ struct ConnectionListView: View {
                     localTags: appState.tags
                 )
             }
-            .toolbar {
-                ToolbarItem(placement: .secondaryAction) {
-                    Menu {
-                        Section {
-                            Toggle("Group by Folder", isOn: $groupByGroup)
-                        }
+        }
+    }
 
-                        if !appState.tags.isEmpty {
-                            Section("Filter by Tag") {
-                                Button {
-                                    filterTagId = nil
-                                } label: {
-                                    HStack {
-                                        Text("All")
-                                        if filterTagId == nil {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                                ForEach(appState.tags) { tag in
-                                    Button {
-                                        filterTagId = tag.id
-                                    } label: {
-                                        HStack {
-                                            Image(systemName: "circle.fill")
-                                                .font(.caption2)
-                                                .foregroundStyle(ConnectionColorPicker.swiftUIColor(for: tag.color))
-                                            Text(tag.name)
-                                            if filterTagId == tag.id {
-                                                Image(systemName: "checkmark")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+    private var filterMenu: some View {
+        Menu {
+            Section {
+                Toggle("Group by Folder", isOn: $groupByGroup)
+            }
 
-                        Section {
-                            Button {
-                                showingGroupManagement = true
-                            } label: {
-                                Label("Manage Groups", systemImage: "folder")
-                            }
-                            Button {
-                                showingTagManagement = true
-                            } label: {
-                                Label("Manage Tags", systemImage: "tag")
-                            }
-                        }
+            if !appState.tags.isEmpty {
+                Section("Filter by Tag") {
+                    Button {
+                        filterTagId = nil
                     } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
+                        HStack {
+                            Text("All")
+                            if filterTagId == nil {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    ForEach(appState.tags) { tag in
+                        Button {
+                            filterTagId = tag.id
+                        } label: {
+                            HStack {
+                                Image(systemName: "circle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(ConnectionColorPicker.swiftUIColor(for: tag.color))
+                                Text(tag.name)
+                                if filterTagId == tag.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
                     }
                 }
             }
+
+            Section {
+                Button {
+                    showingGroupManagement = true
+                } label: {
+                    Label("Manage Groups", systemImage: "folder")
+                }
+                Button {
+                    showingTagManagement = true
+                } label: {
+                    Label("Manage Tags", systemImage: "tag")
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
         }
     }
 
