@@ -192,7 +192,7 @@ struct QueryEditorView: View {
             .disabled(!isExecuting && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
 
-        ToolbarItem(placement: .secondaryAction) {
+        ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button {
                     showHistory = true
