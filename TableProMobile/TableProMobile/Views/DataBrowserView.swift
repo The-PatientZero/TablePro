@@ -122,9 +122,9 @@ struct DataBrowserView: View {
                     }
                     .disabled(!pagination.hasNextPage || isLoading)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                .background(.bar)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial)
             }
         }
         .task { await loadData(isInitial: true) }
@@ -213,7 +213,7 @@ struct DataBrowserView: View {
                 }
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
         .refreshable { await loadData() }
     }
 
@@ -319,42 +319,56 @@ private struct RowCard: View {
     let row: [String?]
     let maxPreviewColumns: Int
 
-    private var sortedPairs: [(column: ColumnInfo, value: String?)] {
-        let paired = zip(columns, row).map { ($0, $1) }
-        let pkPairs = paired.filter { $0.0.isPrimaryKey }
-        let nonPkPairs = paired.filter { !$0.0.isPrimaryKey }
-        return (pkPairs + nonPkPairs).prefix(maxPreviewColumns).map { ($0.0, $0.1) }
+    private var pkPair: (name: String, value: String)? {
+        for (col, val) in zip(columns, row) where col.isPrimaryKey {
+            return (col.name, val ?? "NULL")
+        }
+        if let first = columns.first {
+            return (first.name, row.first.flatMap { $0 } ?? "NULL")
+        }
+        return nil
+    }
+
+    private var previewPairs: [(name: String, value: String)] {
+        let paired = zip(columns, row)
+        return paired
+            .filter { !$0.0.isPrimaryKey }
+            .prefix(maxPreviewColumns - 1)
+            .map { ($0.0.name, $0.1 ?? "NULL") }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(sortedPairs.enumerated()), id: \.offset) { _, pair in
-                HStack(spacing: 8) {
-                    Text(pair.column.name)
+        VStack(alignment: .leading, spacing: 4) {
+            if let pk = pkPair {
+                HStack(spacing: 6) {
+                    Text(pk.name)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text(verbatim: pk.value)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                }
+            }
+
+            ForEach(Array(previewPairs.enumerated()), id: \.offset) { _, pair in
+                HStack(spacing: 6) {
+                    Text(pair.name)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text(verbatim: pair.value)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .frame(minWidth: 60, alignment: .leading)
-
-                    if let value = pair.value {
-                        Text(verbatim: value)
-                            .font(.subheadline)
-                            .fontWeight(pair.column.isPrimaryKey ? .semibold : .regular)
-                            .lineLimit(1)
-                    } else {
-                        Text(verbatim: "NULL")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .italic()
-                    }
+                        .lineLimit(1)
                 }
             }
 
             if columns.count > maxPreviewColumns {
                 Text("+\(columns.count - maxPreviewColumns) more columns")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.quaternary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 }
