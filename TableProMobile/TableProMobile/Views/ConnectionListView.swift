@@ -40,6 +40,9 @@ struct ConnectionListView: View {
         NavigationSplitView {
             sidebar
                 .navigationTitle("Connections")
+                .navigationDestination(for: DatabaseConnection.self) { connection in
+                    ConnectedView(connection: connection)
+                }
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
@@ -165,7 +168,7 @@ struct ConnectionListView: View {
                                 Text(tag.name)
                                     .font(.caption)
                                     .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
+                                    .padding(.vertical, 10)
                                     .background(
                                         Capsule()
                                             .fill(isSelected
@@ -173,6 +176,7 @@ struct ConnectionListView: View {
                                                 : ConnectionColorPicker.swiftUIColor(for: tag.color).opacity(0.15))
                                     )
                                     .foregroundStyle(isSelected ? .white : .primary)
+                                    .contentShape(Capsule())
                             }
                             .buttonStyle(.plain)
                         }
@@ -185,7 +189,7 @@ struct ConnectionListView: View {
     }
 
     private var connectionList: some View {
-        List(selection: $selectedConnection) {
+        List {
             switch viewMode {
             case .all:
                 allConnectionsList
@@ -250,9 +254,10 @@ struct ConnectionListView: View {
     }
 
     private func connectionRow(_ connection: DatabaseConnection) -> some View {
-        ConnectionRow(connection: connection, tag: appState.tag(for: connection.tagId))
-            .tag(connection)
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        NavigationLink(value: connection) {
+            ConnectionRow(connection: connection, tag: appState.tag(for: connection.tagId))
+        }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
                     if selectedConnection?.id == connection.id {
                         selectedConnection = nil

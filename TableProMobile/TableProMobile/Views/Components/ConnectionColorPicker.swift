@@ -26,6 +26,8 @@ struct ConnectionColorPicker: View {
                                 .foregroundStyle(.white)
                         }
                     }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
             }

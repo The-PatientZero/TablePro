@@ -35,7 +35,7 @@ struct GroupManagementView: View {
                                 .font(.subheadline)
                         }
                     }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
                             appState.deleteGroup(group.id)
                         } label: {
@@ -65,18 +65,16 @@ struct GroupManagementView: View {
             .navigationTitle("Groups")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    EditButton()
                     Button {
                         showingAddGroup = true
                     } label: {
                         Image(systemName: "plus")
                     }
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    EditButton()
                 }
             }
             .sheet(isPresented: $showingAddGroup) {
@@ -87,7 +85,6 @@ struct GroupManagementView: View {
             .sheet(item: $editingGroup) { group in
                 GroupFormSheet(editing: group) { updated in
                     appState.updateGroup(updated)
-                    editingGroup = nil
                 }
             }
         }

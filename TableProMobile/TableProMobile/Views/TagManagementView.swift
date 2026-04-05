@@ -43,7 +43,7 @@ struct TagManagementView: View {
                                 .font(.subheadline)
                         }
                     }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         if !tag.isPreset {
                             Button(role: .destructive) {
                                 appState.deleteTag(tag.id)
@@ -51,6 +51,15 @@ struct TagManagementView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
+                    }
+                }
+            }
+            .overlay {
+                if appState.tags.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Tags", systemImage: "tag")
+                    } description: {
+                        Text("Create a tag to organize your connections.")
                     }
                 }
             }
@@ -76,7 +85,6 @@ struct TagManagementView: View {
             .sheet(item: $editingTag) { tag in
                 TagFormSheet(editing: tag) { updated in
                     appState.updateTag(updated)
-                    editingTag = nil
                 }
             }
         }

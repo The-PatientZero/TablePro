@@ -34,6 +34,7 @@ final class IOSSyncCoordinator {
     var onConnectionsChanged: (([DatabaseConnection]) -> Void)?
     var onGroupsChanged: (([ConnectionGroup]) -> Void)?
     var onTagsChanged: (([ConnectionTag]) -> Void)?
+    var getCurrentState: (() -> (connections: [DatabaseConnection], groups: [ConnectionGroup], tags: [ConnectionTag]))?
 
     // MARK: - Sync
 
@@ -120,19 +121,16 @@ final class IOSSyncCoordinator {
         metadata.addTombstone(tagId.uuidString, type: .tag)
     }
 
-    func scheduleSyncAfterChange(
-        localConnections: [DatabaseConnection],
-        localGroups: [ConnectionGroup] = [],
-        localTags: [ConnectionTag] = []
-    ) {
+    func scheduleSyncAfterChange() {
         debounceTask?.cancel()
         debounceTask = Task {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard !Task.isCancelled else { return }
+            guard let state = getCurrentState?() else { return }
             await sync(
-                localConnections: localConnections,
-                localGroups: localGroups,
-                localTags: localTags
+                localConnections: state.connections,
+                localGroups: state.groups,
+                localTags: state.tags
             )
         }
     }

@@ -55,6 +55,11 @@ final class AppState {
             self.tags = merged
             self.tagStorage.save(merged)
         }
+
+        syncCoordinator.getCurrentState = { [weak self] in
+            guard let self else { return ([], [], []) }
+            return (self.connections, self.groups, self.tags)
+        }
     }
 
     // MARK: - Connections
@@ -63,11 +68,7 @@ final class AppState {
         connections.append(connection)
         storage.save(connections)
         syncCoordinator.markDirty(connection.id)
-        syncCoordinator.scheduleSyncAfterChange(
-            localConnections: connections,
-            localGroups: groups,
-            localTags: tags
-        )
+        syncCoordinator.scheduleSyncAfterChange()
     }
 
     func updateConnection(_ connection: DatabaseConnection) {
@@ -75,11 +76,7 @@ final class AppState {
             connections[index] = connection
             storage.save(connections)
             syncCoordinator.markDirty(connection.id)
-            syncCoordinator.scheduleSyncAfterChange(
-                localConnections: connections,
-                localGroups: groups,
-                localTags: tags
-            )
+            syncCoordinator.scheduleSyncAfterChange()
         }
     }
 
@@ -95,11 +92,7 @@ final class AppState {
         try? secureStore.delete(forKey: "com.TablePro.sshkeydata.\(connection.id.uuidString)")
         storage.save(connections)
         syncCoordinator.markDeleted(connection.id)
-        syncCoordinator.scheduleSyncAfterChange(
-            localConnections: connections,
-            localGroups: groups,
-            localTags: tags
-        )
+        syncCoordinator.scheduleSyncAfterChange()
     }
 
     // MARK: - Groups
@@ -108,11 +101,7 @@ final class AppState {
         groups.append(group)
         groupStorage.save(groups)
         syncCoordinator.markDirtyGroup(group.id)
-        syncCoordinator.scheduleSyncAfterChange(
-            localConnections: connections,
-            localGroups: groups,
-            localTags: tags
-        )
+        syncCoordinator.scheduleSyncAfterChange()
     }
 
     func updateGroup(_ group: ConnectionGroup) {
@@ -120,11 +109,7 @@ final class AppState {
             groups[index] = group
             groupStorage.save(groups)
             syncCoordinator.markDirtyGroup(group.id)
-            syncCoordinator.scheduleSyncAfterChange(
-                localConnections: connections,
-                localGroups: groups,
-                localTags: tags
-            )
+            syncCoordinator.scheduleSyncAfterChange()
         }
     }
 
@@ -139,11 +124,7 @@ final class AppState {
         storage.save(connections)
 
         syncCoordinator.markDeletedGroup(groupId)
-        syncCoordinator.scheduleSyncAfterChange(
-            localConnections: connections,
-            localGroups: groups,
-            localTags: tags
-        )
+        syncCoordinator.scheduleSyncAfterChange()
     }
 
     // MARK: - Tags
@@ -152,11 +133,7 @@ final class AppState {
         tags.append(tag)
         tagStorage.save(tags)
         syncCoordinator.markDirtyTag(tag.id)
-        syncCoordinator.scheduleSyncAfterChange(
-            localConnections: connections,
-            localGroups: groups,
-            localTags: tags
-        )
+        syncCoordinator.scheduleSyncAfterChange()
     }
 
     func updateTag(_ tag: ConnectionTag) {
@@ -164,11 +141,7 @@ final class AppState {
             tags[index] = tag
             tagStorage.save(tags)
             syncCoordinator.markDirtyTag(tag.id)
-            syncCoordinator.scheduleSyncAfterChange(
-                localConnections: connections,
-                localGroups: groups,
-                localTags: tags
-            )
+            syncCoordinator.scheduleSyncAfterChange()
         }
     }
 
@@ -185,11 +158,7 @@ final class AppState {
         storage.save(connections)
 
         syncCoordinator.markDeletedTag(tagId)
-        syncCoordinator.scheduleSyncAfterChange(
-            localConnections: connections,
-            localGroups: groups,
-            localTags: tags
-        )
+        syncCoordinator.scheduleSyncAfterChange()
     }
 
     // MARK: - Helpers
