@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix crash when export dialog refreshes database list while tree view is displayed
 - Use sheet presentation for password and TOTP prompts instead of blocking modal dialogs
 - Fix localized strings with interpolation creating untranslatable dynamic keys
+- Fix crash when closing window during SSH tunnel connection (use-after-free in libssh2)
 
 ### Added
 

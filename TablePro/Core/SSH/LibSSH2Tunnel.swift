@@ -188,12 +188,17 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
         // Close listenFD to stop accepting new connections
         Darwin.close(listenFD)
 
-        // Defer session teardown to a detached task that waits for relays to exit.
+        // Defer session teardown to a detached task that waits for forwarding + relays to exit.
         let session = self.session
         let socketFD = self.socketFD
         let jumpChain = self.jumpChain
         let connectionId = self.connectionId
+        let forwardingTask = self.forwardingTask
         Task.detached {
+            // Wait for forwarding loop to exit (it checks isRunning and will
+            // break out once isAlive is false and listenFD is closed)
+            await forwardingTask?.value
+
             // Wait for all relay tasks to finish (they'll exit quickly since
             // socketFD is shut down and isRunning is false)
             for task in currentRelayTasks {
@@ -286,7 +291,7 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
     /// Open a direct-tcpip channel, handling EAGAIN with select().
     /// Must be called on `sessionQueue`.
     private func openDirectTcpipChannel(remoteHost: String, remotePort: Int) -> OpaquePointer? {
-        while true {
+        while isRunning {
             let channel = libssh2_channel_direct_tcpip_ex(
                 session,
                 remoteHost,
@@ -308,6 +313,7 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
                 return nil
             }
         }
+        return nil
     }
 
     /// Bidirectional relay between a client socket and an SSH channel.
