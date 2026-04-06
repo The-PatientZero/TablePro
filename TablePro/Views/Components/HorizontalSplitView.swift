@@ -59,20 +59,24 @@ struct HorizontalSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
 
         if isTrailingCollapsed != wasCollapsed {
             context.coordinator.lastCollapsedState = isTrailingCollapsed
-            if isTrailingCollapsed {
-                if splitView.subviews.count >= 2 {
-                    context.coordinator.savedDividerPosition = splitView.subviews[1].frame.width
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.2
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                ctx.allowsImplicitAnimation = true
+
+                if isTrailingCollapsed {
+                    if splitView.subviews.count >= 2 {
+                        context.coordinator.savedDividerPosition = splitView.subviews[1].frame.width
+                    }
+                    splitView.setPosition(splitView.bounds.width, ofDividerAt: 0)
+                    trailingView.isHidden = true
+                } else {
+                    trailingView.isHidden = false
+                    splitView.adjustSubviews()
+                    if let saved = context.coordinator.savedDividerPosition {
+                        splitView.setPosition(splitView.bounds.width - saved, ofDividerAt: 0)
+                    }
                 }
-                splitView.setPosition(splitView.bounds.width, ofDividerAt: 0)
-                trailingView.isHidden = true
-                splitView.display()
-            } else {
-                trailingView.isHidden = false
-                splitView.adjustSubviews()
-                if let saved = context.coordinator.savedDividerPosition {
-                    splitView.setPosition(splitView.bounds.width - saved, ofDividerAt: 0)
-                }
-                splitView.display()
             }
         }
     }
