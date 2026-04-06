@@ -82,7 +82,7 @@ struct ConnectedView: View {
         } message: {
             Text(failureAlertMessage ?? "")
         }
-        .navigationTitle(displayName)
+        .navigationTitle(supportsDatabaseSwitching && databases.count > 1 ? "" : displayName)
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .top) {
             Picker("Tab", selection: $selectedTab) {
