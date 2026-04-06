@@ -101,7 +101,6 @@ final class DataChangeManager {
     private let undoManager: UndoManager = {
         let manager = UndoManager()
         manager.levelsOfUndo = 100
-        manager.groupsByEvent = false
         return manager
     }()
 
