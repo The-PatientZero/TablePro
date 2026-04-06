@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix potential deadlock in SSH host key verification prompts (semaphore → async/await)
 - Fix data race in ConnectionStorage, GroupStorage, and TagStorage (added @MainActor isolation)
 - Add schema versioning to SQLite databases (query history, favorites) for future migrations
+- Use semantic selected-text color instead of hardcoded white in selected rows
+- Use proper CommandGroup for full-screen shortcut instead of event monitor
 
 ### Added
 
