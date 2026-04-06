@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix crash when closing window during SSH tunnel connection (use-after-free in libssh2)
 - Fix potential deadlock in SSH host key verification prompts (semaphore → async/await)
 - Fix data race in ConnectionStorage, GroupStorage, and TagStorage (added @MainActor isolation)
+- Add schema versioning to SQLite databases (query history, favorites) for future migrations
 
 ### Added
 

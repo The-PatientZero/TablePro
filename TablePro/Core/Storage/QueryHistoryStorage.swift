@@ -150,7 +150,41 @@ final class QueryHistoryStorage {
         execute("PRAGMA synchronous=NORMAL;")
 
         createTables()
+        migrateIfNeeded()
     }
+
+    // MARK: - Schema Migration
+
+    private func migrateIfNeeded() {
+        let currentVersion = getUserVersion()
+
+        // Future migrations go here:
+        // if currentVersion < 2 {
+        //     execute("ALTER TABLE history ADD COLUMN new_col TEXT;")
+        // }
+
+        let targetVersion: Int32 = 1
+        if currentVersion < targetVersion {
+            setUserVersion(targetVersion)
+        }
+    }
+
+    private func getUserVersion() -> Int32 {
+        var statement: OpaquePointer?
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_prepare_v2(db, "PRAGMA user_version", -1, &statement, nil) == SQLITE_OK,
+              sqlite3_step(statement) == SQLITE_ROW
+        else {
+            return 0
+        }
+        return sqlite3_column_int(statement, 0)
+    }
+
+    private func setUserVersion(_ version: Int32) {
+        execute("PRAGMA user_version = \(version);")
+    }
+
+    // MARK: - Table Creation
 
     private func createTables() {
         // History table
