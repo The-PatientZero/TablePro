@@ -51,6 +51,7 @@ struct HorizontalSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
     func updateNSView(_ splitView: NSSplitView, context: Context) {
         context.coordinator.leadingHosting?.rootView = leading
         context.coordinator.trailingHosting?.rootView = trailing
+        context.coordinator.trailingWidth = $trailingWidth
         context.coordinator.minWidth = minTrailingWidth
         context.coordinator.maxWidth = maxTrailingWidth
 
@@ -65,13 +66,11 @@ struct HorizontalSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
                 }
                 splitView.setPosition(splitView.bounds.width, ofDividerAt: 0)
                 trailingView.isHidden = true
-                splitView.display()
             } else {
                 trailingView.isHidden = false
                 let targetWidth = context.coordinator.savedDividerPosition ?? trailingWidth
                 splitView.adjustSubviews()
                 splitView.setPosition(splitView.bounds.width - targetWidth, ofDividerAt: 0)
-                splitView.display()
             }
         }
     }
@@ -81,8 +80,8 @@ struct HorizontalSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
         var trailingHosting: NSHostingView<Trailing>?
         var lastCollapsedState = false
         var savedDividerPosition: CGFloat?
-        var minWidth: CGFloat = 200
-        var maxWidth: CGFloat = 600
+        var minWidth: CGFloat = 0
+        var maxWidth: CGFloat = 0
         var trailingWidth: Binding<CGFloat>
 
         init(trailingWidth: Binding<CGFloat>) {
@@ -137,9 +136,8 @@ struct HorizontalSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
                   trailingHosting?.isHidden != true
             else { return }
             let width = splitView.subviews[1].frame.width
-            if width > 0 {
-                trailingWidth.wrappedValue = width
-            }
+            guard width > 0, abs(width - trailingWidth.wrappedValue) > 0.5 else { return }
+            trailingWidth.wrappedValue = width
         }
     }
 }

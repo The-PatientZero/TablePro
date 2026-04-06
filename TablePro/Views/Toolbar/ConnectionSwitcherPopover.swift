@@ -168,22 +168,18 @@ struct ConnectionSwitcherPopover: View {
             return .handled
         }
         .onKeyPress(.upArrow) {
-            if selectedIndex > 0 { selectedIndex -= 1 }
-            return .handled
+            moveSelection(by: -1)
         }
         .onKeyPress(.downArrow) {
-            if selectedIndex < allItems.count - 1 { selectedIndex += 1 }
-            return .handled
+            moveSelection(by: 1)
         }
         .onKeyPress(characters: .init(charactersIn: "j"), phases: [.down, .repeat]) { keyPress in
             guard keyPress.modifiers.contains(.control) else { return .ignored }
-            if selectedIndex < allItems.count - 1 { selectedIndex += 1 }
-            return .handled
+            return moveSelection(by: 1)
         }
         .onKeyPress(characters: .init(charactersIn: "k"), phases: [.down, .repeat]) { keyPress in
             guard keyPress.modifiers.contains(.control) else { return .ignored }
-            if selectedIndex > 0 { selectedIndex -= 1 }
-            return .handled
+            return moveSelection(by: -1)
         }
     }
 
@@ -192,6 +188,13 @@ struct ConnectionSwitcherPopover: View {
     private enum ConnectionItem {
         case session(ConnectionSession)
         case saved(DatabaseConnection)
+    }
+
+    private func moveSelection(by offset: Int) -> KeyPress.Result {
+        let newIndex = selectedIndex + offset
+        guard newIndex >= 0, newIndex < allItems.count else { return .handled }
+        selectedIndex = newIndex
+        return .handled
     }
 
     // MARK: - Subviews

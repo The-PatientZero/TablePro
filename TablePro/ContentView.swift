@@ -429,10 +429,6 @@ struct ContentView: View {
         }
     }
 
-    private func saveCurrentSessionState() {
-        // State is automatically saved through bindings
-    }
-
     // MARK: - Persistence
 
     private func deleteConnection(_ connection: DatabaseConnection) {

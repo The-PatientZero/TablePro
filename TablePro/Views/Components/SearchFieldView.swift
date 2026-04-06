@@ -8,17 +8,18 @@ import SwiftUI
 struct SearchFieldView: View {
     let placeholder: String
     @Binding var text: String
-    var fontSize: CGFloat = ThemeEngine.shared.activeTheme.typography.body
+    var fontSize: CGFloat?
 
     var body: some View {
+        let resolvedSize = fontSize ?? ThemeEngine.shared.activeTheme.typography.body
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: fontSize))
+                .font(.system(size: resolvedSize))
                 .foregroundStyle(.tertiary)
 
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.system(size: fontSize))
+                .font(.system(size: resolvedSize))
 
             if !text.isEmpty {
                 Button { text = "" } label: {
