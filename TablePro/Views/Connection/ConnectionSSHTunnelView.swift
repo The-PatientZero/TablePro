@@ -335,6 +335,7 @@ struct ConnectionSSHTunnelView: View {
     // MARK: - Helper Methods
 
     private func browseForPrivateKey() {
+        guard let window = NSApp.keyWindow else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -342,7 +343,7 @@ struct ConnectionSSHTunnelView: View {
             ".ssh")
         panel.showsHiddenFiles = true
 
-        panel.begin { response in
+        panel.beginSheetModal(for: window) { response in
             if response == .OK, let url = panel.url {
                 sshPrivateKeyPath = url.path(percentEncoded: false)
             }
@@ -350,6 +351,7 @@ struct ConnectionSSHTunnelView: View {
     }
 
     private func browseForJumpHostKey(jumpHost: Binding<SSHJumpHost>) {
+        guard let window = NSApp.keyWindow else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -357,7 +359,7 @@ struct ConnectionSSHTunnelView: View {
             ".ssh")
         panel.showsHiddenFiles = true
 
-        panel.begin { response in
+        panel.beginSheetModal(for: window) { response in
             if response == .OK, let url = panel.url {
                 jumpHost.wrappedValue.privateKeyPath = url.path(percentEncoded: false)
             }

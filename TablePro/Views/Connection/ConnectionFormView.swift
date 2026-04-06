@@ -1155,12 +1155,13 @@ struct ConnectionFormView: View {
     }
 
     private func browseForFile() {
+        guard let window = NSApp.keyWindow else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.database, .data]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
 
-        panel.begin { response in
+        panel.beginSheetModal(for: window) { response in
             if response == .OK, let url = panel.url {
                 database = url.path(percentEncoded: false)
             }

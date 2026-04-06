@@ -76,13 +76,14 @@ struct ConnectionSSLView: View {
     }
 
     private func browseForCertificate(binding: Binding<String>) {
+        guard let window = NSApp.keyWindow else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.data]
         panel.showsHiddenFiles = true
 
-        panel.begin { response in
+        panel.beginSheetModal(for: window) { response in
             if response == .OK, let url = panel.url {
                 binding.wrappedValue = url.path(percentEncoded: false)
             }

@@ -203,8 +203,6 @@ extension AppDelegate {
 
         window.collectionBehavior.remove(.fullScreenPrimary)
         window.collectionBehavior.insert(.fullScreenNone)
-
-        window.level = .floating
     }
 
     // MARK: - Welcome Window Suppression

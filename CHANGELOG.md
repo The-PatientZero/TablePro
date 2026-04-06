@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- File picker dialog appears behind the connection form window
+
 ### Added
 
 - iOS: connection groups and tags

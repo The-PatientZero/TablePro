@@ -510,12 +510,13 @@ struct SSHProfileEditorView: View {
     }
 
     private func browseForPrivateKey() {
+        guard let window = NSApp.keyWindow else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
         panel.showsHiddenFiles = true
-        panel.begin { response in
+        panel.beginSheetModal(for: window) { response in
             if response == .OK, let url = panel.url {
                 privateKeyPath = url.path(percentEncoded: false)
             }
@@ -523,12 +524,13 @@ struct SSHProfileEditorView: View {
     }
 
     private func browseForJumpHostKey(jumpHost: Binding<SSHJumpHost>) {
+        guard let window = NSApp.keyWindow else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
         panel.showsHiddenFiles = true
-        panel.begin { response in
+        panel.beginSheetModal(for: window) { response in
             if response == .OK, let url = panel.url {
                 jumpHost.wrappedValue.privateKeyPath = url.path(percentEncoded: false)
             }
