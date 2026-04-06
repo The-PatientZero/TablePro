@@ -133,7 +133,8 @@ extension MainContentCoordinator {
         panel.allowsMultipleSelection = false
         panel.message = "Select SQL file to import"
 
-        panel.begin { [weak self] response in
+        guard let window = contentWindow else { return }
+        panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             self?.importFileURL = url
             self?.activeSheet = .importDialog

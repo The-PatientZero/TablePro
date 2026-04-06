@@ -173,26 +173,32 @@ internal struct ThemeListView: View {
     }
 
     private func exportActiveTheme() {
+        guard let window = NSApp.keyWindow else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = engine.activeTheme.name + ".json"
         panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? engine.exportTheme(engine.activeTheme, to: url)
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else { return }
+            try? engine.exportTheme(engine.activeTheme, to: url)
+        }
     }
 
     private func importTheme() {
+        guard let window = NSApp.keyWindow else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let imported = try engine.importTheme(from: url)
-            selectedThemeId = imported.id
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                let imported = try self.engine.importTheme(from: url)
+                self.selectedThemeId = imported.id
+            } catch {
+                self.errorMessage = error.localizedDescription
+                self.showError = true
+            }
         }
     }
 }

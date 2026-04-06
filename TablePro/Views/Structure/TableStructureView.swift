@@ -979,7 +979,8 @@ struct TableStructureView: View {
         }
         savePanel.nameFieldStringValue = "\(tableName).sql"
 
-        savePanel.begin { response in
+        guard let window = NSApp.keyWindow else { return }
+        savePanel.beginSheetModal(for: window) { response in
             guard response == .OK, let url = savePanel.url else { return }
             do {
                 try ddlStatement.write(to: url, atomically: true, encoding: .utf8)

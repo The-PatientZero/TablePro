@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add schema versioning to SQLite databases (query history, favorites) for future migrations
 - Use semantic selected-text color instead of hardcoded white in selected rows
 - Use proper CommandGroup for full-screen shortcut instead of event monitor
+- Use sheet presentation for all file open/save panels instead of free-floating dialogs
 
 ### Added
 

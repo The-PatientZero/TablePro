@@ -294,11 +294,13 @@ struct ImportDialog: View {
         panel.allowsMultipleSelection = false
         panel.message = "Select file to import"
 
-        panel.begin { response in
+        guard let keyWindow = NSApp.keyWindow else { return }
+        let window = keyWindow.sheetParent ?? keyWindow
+        panel.beginSheetModal(for: window) { response in
             guard response == .OK, let url = panel.url else { return }
 
-            loadFileTask = Task {
-                await loadFile(url)
+            self.loadFileTask = Task {
+                await self.loadFile(url)
             }
         }
     }

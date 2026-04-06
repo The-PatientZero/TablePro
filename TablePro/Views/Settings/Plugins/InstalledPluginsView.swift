@@ -297,9 +297,11 @@ struct InstalledPluginsView: View {
         panel.canChooseDirectories = false
         panel.treatsFilePackagesAsDirectories = false
 
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        installPlugin(from: url)
+        guard let window = NSApp.keyWindow else { return }
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else { return }
+            self.installPlugin(from: url)
+        }
     }
 
     private func installPlugin(from url: URL) {

@@ -104,24 +104,27 @@ struct ConnectionExportOptionsSheet: View {
                 : "Connections.tablepro"
             panel.nameFieldStringValue = defaultName
             panel.canCreateDirectories = true
-            guard panel.runModal() == .OK, let url = panel.url else { return }
+            guard let window = NSApp.keyWindow else { return }
+            panel.beginSheetModal(for: window) { response in
+                guard response == .OK, let url = panel.url else { return }
 
-            do {
-                if shouldEncrypt {
-                    try ConnectionExportService.exportConnectionsEncrypted(
-                        capturedConnections,
-                        to: url,
-                        passphrase: capturedPassphrase
+                do {
+                    if shouldEncrypt {
+                        try ConnectionExportService.exportConnectionsEncrypted(
+                            capturedConnections,
+                            to: url,
+                            passphrase: capturedPassphrase
+                        )
+                    } else {
+                        try ConnectionExportService.exportConnections(capturedConnections, to: url)
+                    }
+                } catch {
+                    AlertHelper.showErrorSheet(
+                        title: String(localized: "Export Failed"),
+                        message: error.localizedDescription,
+                        window: window
                     )
-                } else {
-                    try ConnectionExportService.exportConnections(capturedConnections, to: url)
                 }
-            } catch {
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Export Failed"),
-                    message: error.localizedDescription,
-                    window: NSApp.keyWindow
-                )
             }
         }
     }

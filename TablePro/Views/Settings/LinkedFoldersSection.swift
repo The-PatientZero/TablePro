@@ -101,15 +101,16 @@ struct LinkedFoldersSection: View {
         panel.allowsMultipleSelection = false
         panel.message = String(localized: "Choose a folder to watch for .tablepro connection files")
 
-        panel.begin { response in
+        guard let window = NSApp.keyWindow else { return }
+        panel.beginSheetModal(for: window) { response in
             guard response == .OK, let url = panel.url else { return }
             let path = PathPortability.contractHome(url.path)
 
-            guard !folders.contains(where: { $0.path == path }) else { return }
+            guard !self.folders.contains(where: { $0.path == path }) else { return }
 
             let folder = LinkedFolder(path: path)
             LinkedFolderStorage.shared.addFolder(folder)
-            folders = LinkedFolderStorage.shared.loadFolders()
+            self.folders = LinkedFolderStorage.shared.loadFolders()
             LinkedFolderWatcher.shared.reload()
         }
     }

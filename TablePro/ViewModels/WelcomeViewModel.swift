@@ -377,8 +377,11 @@ final class WelcomeViewModel {
         panel.allowedContentTypes = [.tableproConnectionShare]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        activeSheet = .importFile(url)
+        guard let window = NSApp.keyWindow else { return }
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else { return }
+            self.activeSheet = .importFile(url)
+        }
     }
 
     func showImportResultAlert(count: Int) {
