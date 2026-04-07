@@ -26,9 +26,7 @@ struct RowDetailView: View {
     @State private var operationError: AppError?
     @State private var showOperationError = false
     @State private var showSaveSuccess = false
-    @State private var fkPreviewFk: ForeignKeyInfo?
-    @State private var fkPreviewValue: String?
-    @State private var showFKPreview = false
+    @State private var fkPreviewItem: FKPreviewItem?
 
     init(
         columns: [ColumnInfo],
@@ -96,9 +94,7 @@ struct RowDetailView: View {
                             }
                         if let fk = foreignKeys.first(where: { $0.column == column.name }), let value {
                             Button {
-                                fkPreviewFk = fk
-                                fkPreviewValue = value
-                                showFKPreview = true
+                                fkPreviewItem = FKPreviewItem(fk: fk, value: value)
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "arrow.right.circle.fill")
@@ -236,15 +232,13 @@ struct RowDetailView: View {
                 Text(operationError?.message ?? "")
             }
         }
-        .sheet(isPresented: $showFKPreview) {
-            if let fk = fkPreviewFk, let value = fkPreviewValue {
-                FKPreviewView(
-                    fk: fk,
-                    value: value,
-                    session: session,
-                    databaseType: databaseType
-                )
-            }
+        .sheet(item: $fkPreviewItem) { item in
+            FKPreviewView(
+                fk: item.fk,
+                value: item.value,
+                session: session,
+                databaseType: databaseType
+            )
         }
     }
 

@@ -7,6 +7,12 @@ import SwiftUI
 import TableProDatabase
 import TableProModels
 
+struct FKPreviewItem: Identifiable {
+    let id = UUID()
+    let fk: ForeignKeyInfo
+    let value: String
+}
+
 struct FKPreviewView: View {
     @Environment(\.dismiss) private var dismiss
     let fk: ForeignKeyInfo

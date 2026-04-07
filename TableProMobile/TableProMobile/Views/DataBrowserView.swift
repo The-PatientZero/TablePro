@@ -36,8 +36,7 @@ struct DataBrowserView: View {
     @State private var sortState = SortState()
     @State private var rowListGeneration = 0
     @State private var foreignKeys: [ForeignKeyInfo] = []
-    @State private var fkPreviewTarget: (fk: ForeignKeyInfo, value: String)?
-    @State private var showFKPreview = false
+    @State private var fkPreviewItem: FKPreviewItem?
     @State private var memoryWarningMessage: String?
 
     private var isView: Bool {
@@ -106,15 +105,13 @@ struct DataBrowserView: View {
                     onClear: { clearFilters() }
                 )
             }
-            .sheet(isPresented: $showFKPreview) {
-                if let target = fkPreviewTarget {
-                    FKPreviewView(
-                        fk: target.fk,
-                        value: target.value,
-                        session: session,
-                        databaseType: connection.type
-                    )
-                }
+            .sheet(item: $fkPreviewItem) { item in
+                FKPreviewView(
+                    fk: item.fk,
+                    value: item.value,
+                    session: session,
+                    databaseType: connection.type
+                )
             }
             .confirmationDialog("Delete Row", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
@@ -244,8 +241,7 @@ struct DataBrowserView: View {
                                     if let colIndex = columns.firstIndex(where: { $0.name == fk.column }),
                                        colIndex < rows[index].count,
                                        let value = rows[index][colIndex] {
-                                        fkPreviewTarget = (fk: fk, value: value)
-                                        showFKPreview = true
+                                        fkPreviewItem = FKPreviewItem(fk: fk, value: value)
                                     }
                                 } label: {
                                     Label("\(fk.column) → \(fk.referencedTable)", systemImage: "arrow.right.circle")
