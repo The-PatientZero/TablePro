@@ -72,7 +72,7 @@ struct ContentView: View {
 
     var body: some View {
         mainContent
-            .frame(minWidth: 1_200, minHeight: 600)
+            .frame(minWidth: 720, minHeight: 480)
             .confirmationDialog(
                 "Delete Connection",
                 isPresented: $showDeleteConfirmation,
