@@ -92,7 +92,7 @@ actor ConnectionHealthMonitor {
 
         Self.logger.trace("Starting health monitoring for connection \(self.connectionId)")
 
-        let (wakeUpStream, continuation) = AsyncStream<Void>.makeStream()
+        let (wakeUpStream, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         self.wakeUpContinuation = continuation
 
         monitoringTask = Task { [weak self] in
@@ -107,6 +107,8 @@ actor ConnectionHealthMonitor {
             var wakeIterator = wakeUpStream.makeAsyncIterator()
 
             while !Task.isCancelled {
+                await Task.yield()
+
                 // Race between the normal ping interval and an early wake-up signal
                 await withTaskGroup(of: Bool.self) { group in
                     group.addTask {
@@ -141,10 +143,10 @@ actor ConnectionHealthMonitor {
         Self.logger.trace("Stopping health monitoring for connection \(self.connectionId)")
         let task = monitoringTask
         monitoringTask = nil
-        wakeUpContinuation?.finish()
-        wakeUpContinuation = nil
         task?.cancel()
         await task?.value
+        wakeUpContinuation?.finish()
+        wakeUpContinuation = nil
     }
 
     /// Triggers an immediate health check, interrupting the normal 30-second sleep.
