@@ -102,6 +102,10 @@ actor ConnectionHealthMonitor {
             try? await Task.sleep(for: .seconds(initialDelay))
             guard !Task.isCancelled else { return }
 
+            // Create the iterator ONCE — reusing it across loop iterations
+            // prevents buffered yields from causing back-to-back instant pings.
+            var wakeIterator = wakeUpStream.makeAsyncIterator()
+
             while !Task.isCancelled {
                 // Race between the normal ping interval and an early wake-up signal
                 await withTaskGroup(of: Bool.self) { group in
@@ -110,8 +114,7 @@ actor ConnectionHealthMonitor {
                         return false // normal timer fired
                     }
                     group.addTask {
-                        var iterator = wakeUpStream.makeAsyncIterator()
-                        _ = await iterator.next()
+                        _ = await wakeIterator.next()
                         return true // woken up early
                     }
 
@@ -131,12 +134,17 @@ actor ConnectionHealthMonitor {
     }
 
     /// Stops periodic health monitoring and cancels any in-flight reconnect attempts.
-    func stopMonitoring() {
+    ///
+    /// Awaits the monitoring task's completion to ensure no orphaned tasks
+    /// continue pinging after a new monitor is started.
+    func stopMonitoring() async {
         Self.logger.trace("Stopping health monitoring for connection \(self.connectionId)")
-        monitoringTask?.cancel()
+        let task = monitoringTask
         monitoringTask = nil
         wakeUpContinuation?.finish()
         wakeUpContinuation = nil
+        task?.cancel()
+        await task?.value
     }
 
     /// Triggers an immediate health check, interrupting the normal 30-second sleep.

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix excessive idle ping traffic (40-50 SELECT 1/sec) caused by AsyncStream iterator recreation and orphaned monitor tasks
 - Fix Cmd+W save not persisting data grid changes
 - Show error feedback when connection fails from Connection Switcher
 - Move theme, AI chat, and SSH config file loading off the main thread
