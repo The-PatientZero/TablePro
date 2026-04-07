@@ -22,7 +22,9 @@ final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
     var supportsSchemas: Bool { false }
     var currentSchema: String? { nil }
     var supportsTransactions: Bool { true }
-    private(set) var serverVersion: String?
+
+    // Set once during connect() before the driver is shared — safe for concurrent reads
+    nonisolated(unsafe) private(set) var serverVersion: String?
 
     init(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool = false) {
         self.host = host
@@ -345,7 +347,7 @@ private actor MySQLActor {
 
 // MARK: - MySQL Field Type Names
 
-private nonisolated func mysqlFieldTypeName(_ typeValue: UInt32) -> String {
+nonisolated private func mysqlFieldTypeName(_ typeValue: UInt32) -> String {
     switch typeValue {
     case 0: return "DECIMAL"
     case 1: return "TINYINT"

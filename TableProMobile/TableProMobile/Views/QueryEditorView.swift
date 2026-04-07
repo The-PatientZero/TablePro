@@ -12,6 +12,7 @@ struct QueryEditorView: View {
     let session: ConnectionSession?
     var tables: [TableInfo] = []
     var initialQuery: String = ""
+    var databaseType: DatabaseType = .sqlite
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
 
@@ -222,7 +223,8 @@ struct QueryEditorView: View {
                     Menu {
                         ForEach(tables) { table in
                             Button(table.name) {
-                                query = "SELECT * FROM \(table.name) LIMIT 100"
+                                let quoted = SQLBuilder.quoteIdentifier(table.name, for: databaseType)
+                                query = "SELECT * FROM \(quoted) LIMIT 100"
                             }
                         }
                     } label: {

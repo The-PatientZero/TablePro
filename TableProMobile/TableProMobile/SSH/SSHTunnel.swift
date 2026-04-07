@@ -307,19 +307,17 @@ actor SSHTunnel {
             socketFD = -1
         }
 
-        // Free session off-actor to avoid blocking
-        let sess = session
-        session = nil
-        let lock = sessionLock
-        if let sess {
-            nonisolated(unsafe) let unsafeSess = sess
-            Thread.detachNewThread {
-                lock.lock()
-                libssh2_session_set_blocking(unsafeSess, 1)
-                tablepro_libssh2_session_disconnect(unsafeSess, "Closing tunnel")
-                libssh2_session_free(unsafeSess)
-                lock.unlock()
-            }
+        // Acquire sessionLock before freeing the session. The relay thread holds
+        // this lock during libssh2 calls, so this blocks until any in-flight
+        // libssh2 operation completes. The relay will see isAlive == false on its
+        // next iteration and exit, preventing use-after-free.
+        if let sess = session {
+            session = nil
+            sessionLock.lock()
+            libssh2_session_set_blocking(sess, 1)
+            tablepro_libssh2_session_disconnect(sess, "Closing tunnel")
+            libssh2_session_free(sess)
+            sessionLock.unlock()
         }
 
         Self.logger.info("Tunnel closed (local port \(self.localPort))")

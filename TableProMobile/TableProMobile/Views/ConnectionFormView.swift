@@ -539,7 +539,7 @@ struct ConnectionFormView: View {
             name: name.isEmpty ? (selectedFileURL?.lastPathComponent ?? host) : name,
             type: type,
             host: host,
-            port: Int(port) ?? 3306,
+            port: Int(port) ?? 3306, // swiftlint:disable:this number_separator
             username: username,
             database: database,
             sshEnabled: sshEnabled,
@@ -605,6 +605,7 @@ struct ConnectionFormView: View {
         if storageFailed {
             credentialError = String(localized: "Some credentials could not be saved to the keychain. You may need to re-enter them later.")
             showCredentialError = true
+            return
         }
 
         onSave(connection)
@@ -616,4 +617,3 @@ private struct TestResult {
     let message: String
     let recovery: String?
 }
-

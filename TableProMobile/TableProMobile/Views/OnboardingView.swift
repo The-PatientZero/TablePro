@@ -10,6 +10,7 @@ struct OnboardingView: View {
     @State private var currentPage = 0
     @State private var showAddConnection = false
     @State private var didAddConnection = false
+    @State private var isSyncing = false
 
     var body: some View {
         TabView(selection: $currentPage) {
@@ -29,6 +30,23 @@ struct OnboardingView: View {
                 showAddConnection = false
             }
         }
+        .overlay {
+            if isSyncing {
+                ZStack {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea()
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .controlSize(.large)
+                        Text("Syncing from iCloud...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(!isSyncing)
     }
 
     // MARK: - Pages
@@ -152,13 +170,15 @@ struct OnboardingView: View {
     // MARK: - Actions
 
     private func syncFromiCloud() {
-        completeOnboarding()
+        isSyncing = true
         Task {
             await appState.syncCoordinator.sync(
                 localConnections: appState.connections,
                 localGroups: appState.groups,
                 localTags: appState.tags
             )
+            isSyncing = false
+            completeOnboarding()
         }
     }
 

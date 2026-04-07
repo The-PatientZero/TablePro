@@ -62,7 +62,7 @@ struct RowDetailView: View {
 
     var body: some View {
         List {
-            ForEach(Array(zip(columns, isEditing ? editedValues : currentRow).enumerated()), id: \.element.0.name) { index, pair in
+            ForEach(Array(zip(columns, isEditing ? editedValues : currentRow).enumerated()), id: \.offset) { index, pair in
                 let (column, value) = pair
                 let isPK = columnDetail(for: column.name)?.isPrimaryKey ?? column.isPrimaryKey
                 Section {

@@ -20,9 +20,11 @@ final class PostgreSQLDriver: DatabaseDriver, @unchecked Sendable {
     private let sslEnabled: Bool
 
     var supportsSchemas: Bool { true }
-    private(set) var currentSchema: String? = "public"
     var supportsTransactions: Bool { true }
-    private(set) var serverVersion: String?
+
+    // Set once during connect()/switchSchema() before the driver is shared — safe for concurrent reads
+    nonisolated(unsafe) private(set) var currentSchema: String? = "public"
+    nonisolated(unsafe) private(set) var serverVersion: String?
 
     init(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool = false) {
         self.host = host
@@ -331,9 +333,14 @@ private actor PostgreSQLActor {
         guard let conn else { return nil }
         let version = PQserverVersion(conn)
         if version == 0 { return nil }
-        let major = version / 10000
+        let major = version / 10_000
         let minor = (version / 100) % 100
         let patch = version % 100
+        // PostgreSQL 10+ uses two-component versioning (major.patch)
+        // PostgreSQL 9.x and earlier uses three-component versioning (major.minor.patch)
+        if major >= 10 {
+            return "\(major).\(patch)"
+        }
         return "\(major).\(minor).\(patch)"
     }
 
@@ -407,7 +414,7 @@ private actor PostgreSQLActor {
 
 // MARK: - PostgreSQL OID Type Names
 
-private nonisolated func pgOidToTypeName(_ oid: UInt32) -> String {
+nonisolated private func pgOidToTypeName(_ oid: UInt32) -> String {
     switch oid {
     case 16: return "boolean"
     case 17: return "bytea"
@@ -423,15 +430,15 @@ private nonisolated func pgOidToTypeName(_ oid: UInt32) -> String {
     case 700: return "real"
     case 701: return "double precision"
     case 869: return "inet"
-    case 1042: return "char"
-    case 1043: return "varchar"
-    case 1082: return "date"
-    case 1083: return "time"
-    case 1114: return "timestamp"
-    case 1184: return "timestamptz"
-    case 1700: return "numeric"
-    case 2950: return "uuid"
-    case 3802: return "jsonb"
+    case 1_042: return "char"
+    case 1_043: return "varchar"
+    case 1_082: return "date"
+    case 1_083: return "time"
+    case 1_114: return "timestamp"
+    case 1_184: return "timestamptz"
+    case 1_700: return "numeric"
+    case 2_950: return "uuid"
+    case 3_802: return "jsonb"
     default: return "unknown"
     }
 }

@@ -11,8 +11,8 @@ struct ConnectionListView: View {
     @Environment(AppState.self) private var appState
     @State private var showingAddConnection = false
     @State private var editingConnection: DatabaseConnection?
-    @State private var selectedConnection: DatabaseConnection?
-    @State private var navigationPath = NavigationPath()
+    @State private var selectedConnectionId: UUID?
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var showingGroupManagement = false
     @State private var showingTagManagement = false
     @State private var filterTagId: UUID?
@@ -30,21 +30,15 @@ struct ConnectionListView: View {
         appState.syncCoordinator.status == .syncing
     }
 
+    private var selectedConnection: DatabaseConnection? {
+        guard let selectedConnectionId else { return nil }
+        return appState.connections.first { $0.id == selectedConnectionId }
+    }
+
     var body: some View {
-        NavigationSplitView {
-            NavigationStack(path: $navigationPath) {
-                sidebar
-                    .navigationTitle("Connections")
-                    .navigationDestination(for: DatabaseConnection.self) { connection in
-                        ConnectedView(connection: connection)
-                    }
-            }
-            .onChange(of: appState.pendingConnectionId) { _, newId in
-                navigateToPendingConnection(newId)
-            }
-            .onAppear {
-                navigateToPendingConnection(appState.pendingConnectionId)
-            }
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            sidebar
+                .navigationTitle("Connections")
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         filterMenu
@@ -74,18 +68,22 @@ struct ConnectionListView: View {
                         .disabled(isSyncing)
                     }
                 }
+            .onChange(of: appState.pendingConnectionId) { _, newId in
+                navigateToPendingConnection(newId)
+            }
+            .onAppear {
+                navigateToPendingConnection(appState.pendingConnectionId)
+            }
         } detail: {
-            NavigationStack {
-                if let connection = selectedConnection {
-                    ConnectedView(connection: connection)
-                        .id(connection.id)
-                } else {
-                    ContentUnavailableView(
-                        "Select a Connection",
-                        systemImage: "server.rack",
-                        description: Text("Choose a connection from the sidebar.")
-                    )
-                }
+            if let connection = selectedConnection {
+                ConnectedView(connection: connection)
+                    .id(connection.id)
+            } else {
+                ContentUnavailableView(
+                    "Select a Connection",
+                    systemImage: "server.rack",
+                    description: Text("Choose a connection from the sidebar.")
+                )
             }
         }
         .sheet(isPresented: $showingAddConnection) {
@@ -125,7 +123,7 @@ struct ConnectionListView: View {
             ProgressView("Syncing from iCloud...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            List {
+            List(selection: $selectedConnectionId) {
                 if groupByGroup {
                     groupedContent
                 } else {
@@ -247,20 +245,19 @@ struct ConnectionListView: View {
 
     private func navigateToPendingConnection(_ id: UUID?) {
         guard let id,
-              let connection = appState.connections.first(where: { $0.id == id }) else { return }
-        navigationPath.append(connection)
-        selectedConnection = connection
+              appState.connections.contains(where: { $0.id == id }) else { return }
+        selectedConnectionId = id
         appState.pendingConnectionId = nil
     }
 
     private func connectionRow(_ connection: DatabaseConnection) -> some View {
-        NavigationLink(value: connection) {
+        NavigationLink(value: connection.id) {
             ConnectionRow(connection: connection, tag: appState.tag(for: connection.tagId))
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
-                if selectedConnection?.id == connection.id {
-                    selectedConnection = nil
+                if selectedConnectionId == connection.id {
+                    selectedConnectionId = nil
                 }
                 appState.removeConnection(connection)
             } label: {
@@ -283,8 +280,8 @@ struct ConnectionListView: View {
             }
             Divider()
             Button(role: .destructive) {
-                if selectedConnection?.id == connection.id {
-                    selectedConnection = nil
+                if selectedConnectionId == connection.id {
+                    selectedConnectionId = nil
                 }
                 appState.removeConnection(connection)
             } label: {

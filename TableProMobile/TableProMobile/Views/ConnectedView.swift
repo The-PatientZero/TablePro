@@ -29,6 +29,7 @@ struct ConnectedView: View {
     @State private var schemas: [String] = []
     @State private var activeSchema: String = "public"
     @State private var isSwitching = false
+    @State private var isReconnecting = false
 
     enum ConnectedTab: String, CaseIterable {
         case tables = "Tables"
@@ -173,6 +174,7 @@ struct ConnectedView: View {
                 QueryEditorView(
                     session: session,
                     tables: tables,
+                    databaseType: connection.type,
                     queryHistory: $queryHistory,
                     connectionId: connection.id,
                     historyStorage: historyStorage
@@ -233,7 +235,9 @@ struct ConnectedView: View {
     }
 
     private func reconnectIfNeeded() async {
-        guard let session, !isSwitching else { return }
+        guard let session, !isSwitching, !isReconnecting else { return }
+        isReconnecting = true
+        defer { isReconnecting = false }
         do {
             _ = try await session.driver.ping()
         } catch {

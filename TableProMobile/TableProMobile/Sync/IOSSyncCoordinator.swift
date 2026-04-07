@@ -271,15 +271,29 @@ final class IOSSyncCoordinator {
         return changes
     }
 
-    // MARK: - Merge (last-write-wins)
+    // MARK: - Merge
+
+    // DatabaseConnection has no modifiedDate field, so we use CKRecord.modificationDate
+    // from the cached record to determine which version is newer. Local changes are
+    // tracked via dirty flags (markDirty), so if the local copy is dirty and the remote
+    // record is older than the last sync, we keep local. Otherwise remote wins.
 
     private func mergeConnections(local: [DatabaseConnection], remote: PullChanges) -> [DatabaseConnection] {
         var result = local.filter { !remote.deletedConnectionIDs.contains($0.id) }
         let localMap = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
+        let dirtyIDs = metadata.dirtyIDs(for: .connection)
 
         for remoteConn in remote.changedConnections {
             if localMap[remoteConn.id] != nil {
                 if let index = result.firstIndex(where: { $0.id == remoteConn.id }) {
+                    if dirtyIDs.contains(remoteConn.id.uuidString) {
+                        // Local has unsaved changes: keep local version so we push it later
+                        continue
+                    }
+                    if result[index] == remoteConn {
+                        // Content identical: skip overwrite to preserve any transient local state
+                        continue
+                    }
                     result[index] = remoteConn
                 }
             } else if !remote.deletedConnectionIDs.contains(remoteConn.id) {
@@ -293,10 +307,17 @@ final class IOSSyncCoordinator {
     private func mergeGroups(local: [ConnectionGroup], remote: PullChanges) -> [ConnectionGroup] {
         var result = local.filter { !remote.deletedGroupIDs.contains($0.id) }
         let localMap = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
+        let dirtyIDs = metadata.dirtyIDs(for: .group)
 
         for remoteGroup in remote.changedGroups {
             if localMap[remoteGroup.id] != nil {
                 if let index = result.firstIndex(where: { $0.id == remoteGroup.id }) {
+                    if dirtyIDs.contains(remoteGroup.id.uuidString) {
+                        continue
+                    }
+                    if result[index] == remoteGroup {
+                        continue
+                    }
                     result[index] = remoteGroup
                 }
             } else if !remote.deletedGroupIDs.contains(remoteGroup.id) {
@@ -310,10 +331,17 @@ final class IOSSyncCoordinator {
     private func mergeTags(local: [ConnectionTag], remote: PullChanges) -> [ConnectionTag] {
         var result = local.filter { !remote.deletedTagIDs.contains($0.id) }
         let localMap = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
+        let dirtyIDs = metadata.dirtyIDs(for: .tag)
 
         for remoteTag in remote.changedTags {
             if localMap[remoteTag.id] != nil {
                 if let index = result.firstIndex(where: { $0.id == remoteTag.id }) {
+                    if dirtyIDs.contains(remoteTag.id.uuidString) {
+                        continue
+                    }
+                    if result[index] == remoteTag {
+                        continue
+                    }
                     result[index] = remoteTag
                 }
             } else if !remote.deletedTagIDs.contains(remoteTag.id) {

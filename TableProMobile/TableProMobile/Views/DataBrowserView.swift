@@ -34,6 +34,8 @@ struct DataBrowserView: View {
     @State private var filterLogicMode: FilterLogicMode = .and
     @State private var showFilterSheet = false
     @State private var sortState = SortState()
+    @State private var rowListGeneration = 0
+    @State private var memoryWarningMessage: String?
 
     private var isView: Bool {
         table.type == .view || table.type == .materializedView
@@ -114,6 +116,27 @@ struct DataBrowserView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(operationError?.message ?? "")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                guard !rows.isEmpty else { return }
+                Self.logger.warning("Memory warning received — clearing \(rows.count) rows")
+                rows = []
+                memoryWarningMessage = String(localized: "Memory pressure — results cleared. Pull to refresh.")
+            }
+            .overlay(alignment: .center) {
+                if let message = memoryWarningMessage, rows.isEmpty, !isLoading, appError == nil {
+                    ContentUnavailableView {
+                        Label("Results Cleared", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(message)
+                    } actions: {
+                        Button("Reload") {
+                            memoryWarningMessage = nil
+                            Task { await loadData() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
             }
             .alert("Go to Page", isPresented: $showGoToPage) {
                 TextField("Page number", text: $goToPageInput)
@@ -206,6 +229,7 @@ struct DataBrowserView: View {
             }
         }
         .listStyle(.plain)
+        .id(rowListGeneration)
         .opacity(isPageLoading ? 0.5 : 1)
         .allowsHitTesting(!isPageLoading)
         .overlay { if isPageLoading { ProgressView() } }
@@ -457,6 +481,7 @@ struct DataBrowserView: View {
     private func navigatePage() async {
         isPageLoading = true
         await loadData()
+        rowListGeneration += 1
         isPageLoading = false
     }
 

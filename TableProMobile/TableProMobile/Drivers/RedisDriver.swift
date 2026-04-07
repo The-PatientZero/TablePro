@@ -23,7 +23,9 @@ final class RedisDriver: DatabaseDriver, @unchecked Sendable {
     var supportsSchemas: Bool { false }
     var currentSchema: String? { nil }
     var supportsTransactions: Bool { false }
-    private(set) var serverVersion: String?
+
+    // Set once during connect() before the driver is shared — safe for concurrent reads
+    nonisolated(unsafe) private(set) var serverVersion: String?
 
     init(host: String, port: Int, password: String?, database: Int = 0, sslEnabled: Bool = false) {
         self.host = host

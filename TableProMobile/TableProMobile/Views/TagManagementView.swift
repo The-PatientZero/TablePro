@@ -66,15 +66,13 @@ struct TagManagementView: View {
             .navigationTitle("Tags")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         showingAddTag = true
                     } label: {
                         Image(systemName: "plus")
                     }
+                    Button("Done") { dismiss() }
                 }
             }
             .sheet(isPresented: $showingAddTag) {

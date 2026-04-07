@@ -57,7 +57,9 @@ enum ClipboardExporter {
             let value = i < row.count ? row[i] : nil
             let key = "  \"\(escapeJsonString(col.name))\""
             if let value {
-                if Int64(value) != nil || Double(value) != nil {
+                if Int64(value) != nil {
+                    pairs.append("\(key): \(value)")
+                } else if let parsed = Double(value), parsed.isFinite {
                     pairs.append("\(key): \(value)")
                 } else if value == "true" || value == "false" {
                     pairs.append("\(key): \(value)")
