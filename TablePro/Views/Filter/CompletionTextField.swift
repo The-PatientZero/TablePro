@@ -96,7 +96,7 @@ struct CompletionTextField: NSViewRepresentable {
             if commandSelector == #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)) {
                 textView.insertNewlineIgnoringFieldEditor(nil)
                 text.wrappedValue = textView.string
-                previousTextLength = textView.string.count
+                previousTextLength = (textView.string as NSString).length
                 return true
             }
             return false

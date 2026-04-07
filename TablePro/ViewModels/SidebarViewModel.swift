@@ -7,6 +7,7 @@
 //
 
 import Observation
+import os
 import SwiftUI
 
 // MARK: - TableFetcher Protocol
@@ -15,6 +16,8 @@ import SwiftUI
 protocol TableFetcher: Sendable {
     func fetchTables(force: Bool) async throws -> [TableInfo]
 }
+
+private let sidebarLogger = Logger(subsystem: "com.TablePro", category: "SidebarViewModel")
 
 /// Production implementation that uses DatabaseManager, with optional schema provider cache
 struct LiveTableFetcher: TableFetcher {
@@ -36,12 +39,12 @@ struct LiveTableFetcher: TableFetcher {
             }
         }
         guard let driver = await DatabaseManager.shared.driver(for: connectionId) else {
-            NSLog("[LiveTableFetcher] driver is nil for connectionId: %@", connectionId.uuidString)
+            sidebarLogger.warning("Driver is nil for connection \(connectionId)")
             return []
         }
         let fetched = try await driver.fetchTables()
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        NSLog("[LiveTableFetcher] fetched %d tables", fetched.count)
+        sidebarLogger.debug("Fetched \(fetched.count) tables")
         if let provider = schemaProvider {
             await provider.updateTables(fetched)
         }
@@ -155,14 +158,14 @@ final class SidebarViewModel {
 
     func onAppear() {
         guard tables.isEmpty else {
-            NSLog("[SidebarVM] onAppear: tables not empty (%d), skipping", tables.count)
+            sidebarLogger.debug("onAppear: tables not empty (\(self.tables.count)), skipping")
             return
         }
         if DatabaseManager.shared.driver(for: connectionId) != nil {
-            NSLog("[SidebarVM] onAppear: driver found, loading tables")
+            sidebarLogger.debug("onAppear: loading tables")
             loadTables()
         } else {
-            NSLog("[SidebarVM] onAppear: driver is nil for %@", connectionId.uuidString)
+            sidebarLogger.warning("onAppear: driver is nil for \(self.connectionId)")
         }
     }
 
