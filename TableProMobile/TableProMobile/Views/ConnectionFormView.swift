@@ -36,6 +36,7 @@ struct ConnectionFormView: View {
     // Organization
     @State private var groupId: UUID?
     @State private var tagId: UUID?
+    @State private var safeModeLevel: SafeModeLevel = .off
 
     // SSH
     @State private var sshEnabled = false
@@ -104,6 +105,7 @@ struct ConnectionFormView: View {
             }
             _groupId = State(initialValue: connection.groupId)
             _tagId = State(initialValue: connection.tagId)
+            _safeModeLevel = State(initialValue: connection.safeModeLevel)
             if connection.type == .sqlite {
                 _selectedFileURL = State(initialValue: URL(fileURLWithPath: connection.database))
             }
@@ -157,6 +159,12 @@ struct ConnectionFormView: View {
                         }
                     }
                     .pickerStyle(.menu)
+
+                    Picker("Safe Mode", selection: $safeModeLevel) {
+                        ForEach(SafeModeLevel.allCases) { level in
+                            Text(level.displayName).tag(level)
+                        }
+                    }
                 }
 
                 if type == .sqlite {
@@ -547,6 +555,7 @@ struct ConnectionFormView: View {
             groupId: groupId,
             tagId: tagId
         )
+        conn.safeModeLevel = safeModeLevel
         if sshEnabled {
             conn.sshConfiguration = SSHConfiguration(
                 host: sshHost,

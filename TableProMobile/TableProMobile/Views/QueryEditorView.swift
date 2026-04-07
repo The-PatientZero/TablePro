@@ -13,6 +13,7 @@ struct QueryEditorView: View {
     var tables: [TableInfo] = []
     var initialQuery: String = ""
     var databaseType: DatabaseType = .sqlite
+    var safeModeLevel: SafeModeLevel = .off
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
 
@@ -27,6 +28,9 @@ struct QueryEditorView: View {
     let historyStorage: QueryHistoryStorage
     @State private var showHistory = false
     @State private var showClearHistoryConfirmation = false
+    @State private var showWriteConfirmation = false
+    @State private var showWriteBlockedAlert = false
+    @State private var pendingWriteQuery = ""
     var body: some View {
         VStack(spacing: 0) {
             editorSection
@@ -36,6 +40,18 @@ struct QueryEditorView: View {
         .toolbar { toolbarContent }
         .onAppear {
             if !initialQuery.isEmpty { query = initialQuery }
+        }
+        .alert("Write Query Blocked", isPresented: $showWriteBlockedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This connection is in read-only mode. Write queries are not allowed.")
+        }
+        .confirmationDialog("Execute Write Query?", isPresented: $showWriteConfirmation, titleVisibility: .visible) {
+            Button("Execute", role: .destructive) {
+                executeTask = Task { await executeQueryDirect(pendingWriteQuery) }
+            }
+        } message: {
+            Text("This query will modify data. Are you sure you want to continue?")
         }
         .sheet(isPresented: $showHistory) { historySheet }
     }
@@ -329,10 +345,33 @@ struct QueryEditorView: View {
 
     // MARK: - Execution
 
+    private func isWriteQuery(_ sql: String) -> Bool {
+        let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let writeKeywords = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "REPLACE"]
+        return writeKeywords.contains(where: { trimmed.hasPrefix($0) })
+    }
+
     private func executeQuery() async {
-        guard let session else { return }
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+
+        if isWriteQuery(trimmed) {
+            if safeModeLevel.blocksWrites {
+                showWriteBlockedAlert = true
+                return
+            }
+            if safeModeLevel.requiresConfirmation {
+                pendingWriteQuery = trimmed
+                showWriteConfirmation = true
+                return
+            }
+        }
+
+        await executeQueryDirect(trimmed)
+    }
+
+    private func executeQueryDirect(_ trimmed: String) async {
+        guard let session else { return }
 
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         isExecuting = true

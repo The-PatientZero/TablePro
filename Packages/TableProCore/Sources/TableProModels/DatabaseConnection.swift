@@ -1,6 +1,6 @@
 import Foundation
 
-public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
+public struct DatabaseConnection: Identifiable, Hashable, Sendable {
     public var id: UUID
     public var name: String
     public var type: DatabaseType
@@ -10,6 +10,7 @@ public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
     public var database: String
     public var colorTag: String?
     public var isReadOnly: Bool
+    public var safeModeLevel: SafeModeLevel
     public var queryTimeoutSeconds: Int?
     public var additionalFields: [String: String]
 
@@ -33,6 +34,7 @@ public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
         database: String = "",
         colorTag: String? = nil,
         isReadOnly: Bool = false,
+        safeModeLevel: SafeModeLevel = .off,
         queryTimeoutSeconds: Int? = nil,
         additionalFields: [String: String] = [:],
         sshEnabled: Bool = false,
@@ -52,6 +54,7 @@ public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
         self.database = database
         self.colorTag = colorTag
         self.isReadOnly = isReadOnly
+        self.safeModeLevel = safeModeLevel
         self.queryTimeoutSeconds = queryTimeoutSeconds
         self.additionalFields = additionalFields
         self.sshEnabled = sshEnabled
@@ -61,5 +64,64 @@ public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
         self.groupId = groupId
         self.tagId = tagId
         self.sortOrder = sortOrder
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, type, host, port, username, database, colorTag
+        case isReadOnly, safeModeLevel, queryTimeoutSeconds, additionalFields
+        case sshEnabled, sshConfiguration, sslEnabled, sslConfiguration
+        case groupId, tagId, sortOrder
+    }
+}
+
+extension DatabaseConnection: Codable {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        type = try container.decode(DatabaseType.self, forKey: .type)
+        host = try container.decode(String.self, forKey: .host)
+        port = try container.decode(Int.self, forKey: .port)
+        username = try container.decode(String.self, forKey: .username)
+        database = try container.decode(String.self, forKey: .database)
+        colorTag = try container.decodeIfPresent(String.self, forKey: .colorTag)
+        isReadOnly = try container.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
+        if let level = try container.decodeIfPresent(SafeModeLevel.self, forKey: .safeModeLevel) {
+            safeModeLevel = level
+        } else {
+            safeModeLevel = isReadOnly ? .readOnly : .off
+        }
+        queryTimeoutSeconds = try container.decodeIfPresent(Int.self, forKey: .queryTimeoutSeconds)
+        additionalFields = try container.decodeIfPresent([String: String].self, forKey: .additionalFields) ?? [:]
+        sshEnabled = try container.decodeIfPresent(Bool.self, forKey: .sshEnabled) ?? false
+        sshConfiguration = try container.decodeIfPresent(SSHConfiguration.self, forKey: .sshConfiguration)
+        sslEnabled = try container.decodeIfPresent(Bool.self, forKey: .sslEnabled) ?? false
+        sslConfiguration = try container.decodeIfPresent(SSLConfiguration.self, forKey: .sslConfiguration)
+        groupId = try container.decodeIfPresent(UUID.self, forKey: .groupId)
+        tagId = try container.decodeIfPresent(UUID.self, forKey: .tagId)
+        sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(type, forKey: .type)
+        try container.encode(host, forKey: .host)
+        try container.encode(port, forKey: .port)
+        try container.encode(username, forKey: .username)
+        try container.encode(database, forKey: .database)
+        try container.encodeIfPresent(colorTag, forKey: .colorTag)
+        try container.encode(isReadOnly, forKey: .isReadOnly)
+        try container.encode(safeModeLevel, forKey: .safeModeLevel)
+        try container.encodeIfPresent(queryTimeoutSeconds, forKey: .queryTimeoutSeconds)
+        try container.encode(additionalFields, forKey: .additionalFields)
+        try container.encode(sshEnabled, forKey: .sshEnabled)
+        try container.encodeIfPresent(sshConfiguration, forKey: .sshConfiguration)
+        try container.encode(sslEnabled, forKey: .sslEnabled)
+        try container.encodeIfPresent(sslConfiguration, forKey: .sslConfiguration)
+        try container.encodeIfPresent(groupId, forKey: .groupId)
+        try container.encodeIfPresent(tagId, forKey: .tagId)
+        try container.encode(sortOrder, forKey: .sortOrder)
     }
 }

@@ -96,6 +96,13 @@ struct ConnectedView: View {
             .background(.bar)
         }
         .toolbar {
+            if connection.safeModeLevel != .off {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Image(systemName: connection.safeModeLevel == .readOnly ? "lock.fill" : "shield.fill")
+                        .foregroundStyle(connection.safeModeLevel == .readOnly ? .red : .orange)
+                        .font(.caption)
+                }
+            }
             if supportsDatabaseSwitching && databases.count > 1 {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
@@ -175,6 +182,7 @@ struct ConnectedView: View {
                     session: session,
                     tables: tables,
                     databaseType: connection.type,
+                    safeModeLevel: connection.safeModeLevel,
                     queryHistory: $queryHistory,
                     connectionId: connection.id,
                     historyStorage: historyStorage

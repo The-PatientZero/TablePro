@@ -168,7 +168,7 @@ struct DataBrowserView: View {
             } description: {
                 Text("This table is empty.")
             } actions: {
-                if !isView {
+                if !isView && !connection.safeModeLevel.blocksWrites {
                     Button("Insert Row") { showInsertSheet = true }
                         .buttonStyle(.borderedProminent)
                 }
@@ -194,6 +194,7 @@ struct DataBrowserView: View {
                         session: session,
                         columnDetails: columnDetails,
                         databaseType: connection.type,
+                        safeModeLevel: connection.safeModeLevel,
                         onSaved: { Task { await loadData() } }
                     )
                 } label: {
@@ -217,7 +218,7 @@ struct DataBrowserView: View {
                     }
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    if !isView && hasPrimaryKeys {
+                    if !isView && hasPrimaryKeys && !connection.safeModeLevel.blocksWrites {
                         Button(role: .destructive) {
                             deleteTarget = primaryKeyValues(for: rows[index])
                             showDeleteConfirmation = true
@@ -298,7 +299,7 @@ struct DataBrowserView: View {
                 Image(systemName: "info.circle")
             }
         }
-        if !isView {
+        if !isView && !connection.safeModeLevel.blocksWrites {
             ToolbarItem(placement: .primaryAction) {
                 Button { showInsertSheet = true } label: {
                     Image(systemName: "plus")

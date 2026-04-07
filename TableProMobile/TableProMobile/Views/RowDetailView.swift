@@ -15,6 +15,7 @@ struct RowDetailView: View {
     let session: ConnectionSession?
     let columnDetails: [ColumnInfo]
     let databaseType: DatabaseType
+    let safeModeLevel: SafeModeLevel
     var onSaved: (() -> Void)?
 
     @State private var currentIndex: Int
@@ -33,6 +34,7 @@ struct RowDetailView: View {
         session: ConnectionSession? = nil,
         columnDetails: [ColumnInfo] = [],
         databaseType: DatabaseType = .sqlite,
+        safeModeLevel: SafeModeLevel = .off,
         onSaved: (() -> Void)? = nil
     ) {
         self.columns = columns
@@ -41,6 +43,7 @@ struct RowDetailView: View {
         self.session = session
         self.columnDetails = columnDetails
         self.databaseType = databaseType
+        self.safeModeLevel = safeModeLevel
         self.onSaved = onSaved
         _currentIndex = State(initialValue: initialIndex)
     }
@@ -57,6 +60,7 @@ struct RowDetailView: View {
 
     private var canEdit: Bool {
         table != nil && session != nil && !columnDetails.isEmpty && !isView
+            && !safeModeLevel.blocksWrites
             && columnDetails.contains(where: { $0.isPrimaryKey })
     }
 
