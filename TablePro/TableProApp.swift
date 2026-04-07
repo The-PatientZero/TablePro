@@ -216,7 +216,7 @@ struct AppMenuCommands: Commands {
                 actions?.previewSQL()
             } label: {
                 if let dbType = actions?.currentDatabaseType {
-                    Text("Preview \(PluginManager.shared.queryLanguageName(for: dbType))")
+                    Text(String(format: String(localized: "Preview %@"), PluginManager.shared.queryLanguageName(for: dbType)))
                 } else {
                     Text("Preview SQL")
                 }

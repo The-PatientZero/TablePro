@@ -74,7 +74,7 @@ struct TableStructureView: View {
         .onAppear {
             AppState.shared.isCurrentTabEditable = (selectedTab != .ddl)
             AppState.shared.hasRowSelection = !selectedRows.isEmpty
-            AppState.shared.hasStructureChanges = structureChangeManager.hasChanges
+            coordinator?.toolbarState.hasStructureChanges = structureChangeManager.hasChanges
 
             // Wire action handler for direct coordinator calls
             actionHandler.saveChanges = {
@@ -92,11 +92,11 @@ struct TableStructureView: View {
         .onDisappear {
             AppState.shared.isCurrentTabEditable = false
             AppState.shared.hasRowSelection = false
-            AppState.shared.hasStructureChanges = false
+            coordinator?.toolbarState.hasStructureChanges = false
             coordinator?.structureActions = nil
         }
         .onChange(of: structureChangeManager.hasChanges) { _, newValue in
-            AppState.shared.hasStructureChanges = newValue
+            coordinator?.toolbarState.hasStructureChanges = newValue
         }
         .onReceive(NotificationCenter.default.publisher(for: .refreshData), perform: onRefreshData)
     }

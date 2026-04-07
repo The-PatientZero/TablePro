@@ -382,9 +382,7 @@ final class MainContentCommandActions {
             }
             coordinator?.tabManager.tabs.removeAll()
             coordinator?.tabManager.selectedTabId = nil
-            AppState.shared.isCurrentTabEditable = false
             coordinator?.toolbarState.isTableTab = false
-            AppState.shared.isTableTab = false
         }
     }
 
