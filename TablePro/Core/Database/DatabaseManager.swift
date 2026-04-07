@@ -616,6 +616,7 @@ final class DatabaseManager {
                     _ = try await mainDriver.execute(query: "SELECT 1")
                     return true
                 } catch {
+                    Self.logger.debug("Ping failed: \(error.localizedDescription)")
                     return false
                 }
             },
@@ -632,6 +633,7 @@ final class DatabaseManager {
                     }
                     return true
                 } catch {
+                    Self.logger.debug("Reconnect failed: \(error.localizedDescription)")
                     return false
                 }
             },

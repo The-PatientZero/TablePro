@@ -272,7 +272,8 @@ extension DatabaseDriver {
                 let columns = try await fetchColumns(table: table.name)
                 result[table.name] = columns
             } catch {
-                // Skip tables whose columns can't be fetched
+                Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
+                    .debug("Skipping columns for table '\(table.name)': \(error.localizedDescription)")
             }
         }
         return result

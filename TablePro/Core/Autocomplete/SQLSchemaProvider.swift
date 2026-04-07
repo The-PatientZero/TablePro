@@ -6,10 +6,12 @@
 //
 
 import Foundation
+import os
 import TableProPluginKit
 
 /// Provides cached database schema information for autocomplete
 actor SQLSchemaProvider {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "SQLSchemaProvider")
     // MARK: - Properties
 
     private var tables: [TableInfo] = []
@@ -74,6 +76,7 @@ actor SQLSchemaProvider {
             evictIfNeeded()
             return columns
         } catch {
+            Self.logger.debug("Column fetch failed for autocomplete: \(error.localizedDescription)")
             return []
         }
     }
