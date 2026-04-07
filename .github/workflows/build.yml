@@ -33,7 +33,6 @@ jobs:
   build-arm64:
     name: Build ARM64
     runs-on: macos-15
-    needs: lint
     timeout-minutes: 20
 
     steps:
@@ -64,6 +63,13 @@ jobs:
 
           # Link packages with --force and --overwrite (needed for keg-only formulas)
           brew link --force --overwrite mariadb-connector-c 2>/dev/null || true
+
+          if ! brew list create-dmg &>/dev/null; then
+            echo "📦 Installing create-dmg..."
+            brew install create-dmg
+          else
+            echo "✅ create-dmg already installed"
+          fi
 
           echo "✅ ARM64 dependencies installed"
 
@@ -141,8 +147,7 @@ jobs:
   build-x86_64:
     name: Build x86_64
     runs-on: macos-15
-    needs: lint
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout code
@@ -182,6 +187,14 @@ jobs:
 
           # Link packages with --force (needed for keg-only formulas)
           arch -x86_64 /usr/local/bin/brew link --force --overwrite mariadb-connector-c 2>/dev/null || true
+
+          # create-dmg is architecture-independent, use native brew
+          if ! brew list create-dmg &>/dev/null; then
+            echo "📦 Installing create-dmg..."
+            brew install create-dmg
+          else
+            echo "✅ create-dmg already installed"
+          fi
 
           echo "✅ x86_64 dependencies installed"
 
@@ -259,7 +272,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: macos-15
-    needs: [build-arm64, build-x86_64]
+    needs: [lint, build-arm64, build-x86_64]
     if: startsWith(github.ref, 'refs/tags/v')
     timeout-minutes: 10
     permissions:

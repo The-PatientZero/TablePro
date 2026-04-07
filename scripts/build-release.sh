@@ -264,7 +264,7 @@ bundle_dylibs() {
     # (e.g. strchrnul) that don't exist on earlier OS versions → launch crash.
     echo "   Verifying deployment target compatibility..."
     local deploy_target
-    deploy_target=$(grep -m 1 '^\s*MACOSX_DEPLOYMENT_TARGET = ' <<< "$build_settings" | awk '{print $3}')
+    deploy_target=$(grep -m 1 'MACOSX_DEPLOYMENT_TARGET' "$PROJECT/project.pbxproj" | awk -F'= ' '{print $2}' | tr -d ' ;')
     if [ -n "$deploy_target" ]; then
         local deploy_major
         deploy_major=$(echo "$deploy_target" | cut -d. -f1)
@@ -308,14 +308,6 @@ build_for_arch() {
     local arch=$1
     echo ""
     echo "🔨 Building for $arch..."
-
-    # Fetch build settings once for this arch (used by build_for_arch and bundle_dylibs)
-    echo "Fetching build settings..."
-    if ! build_settings=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIG" -arch "$arch" -skipPackagePluginValidation -showBuildSettings 2>&1); then
-        echo "❌ FATAL: xcodebuild -showBuildSettings failed"
-        echo "$build_settings"
-        exit 1
-    fi
 
     # Prepare architecture-specific libraries
     prepare_mariadb "$arch"
@@ -363,6 +355,7 @@ build_for_arch() {
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
+        -derivedDataPath build/DerivedData \
         build 2>&1 | tee "build-${arch}.log"; then
         echo "❌ FATAL: xcodebuild failed for $arch"
         echo "Check build-${arch}.log for details"
@@ -370,20 +363,8 @@ build_for_arch() {
     fi
     echo "✅ Build succeeded for $arch"
 
-    # Get binary path with validation
-    DERIVED_DATA=$(grep -m 1 "BUILD_DIR" <<< "$build_settings" | awk '{print $3}')
-
-    if [ -z "$DERIVED_DATA" ]; then
-        echo "❌ FATAL: Failed to determine build directory from xcodebuild settings"
-        echo "This usually indicates:"
-        echo "  1. The Xcode project is corrupted"
-        echo "  2. The scheme '$SCHEME' doesn't exist"
-        echo "  3. Xcode changed its output format"
-        echo ""
-        echo "Run this command to debug:"
-        echo "  xcodebuild -project '$PROJECT' -scheme '$SCHEME' -showBuildSettings | grep BUILD_DIR"
-        exit 1
-    fi
+    # Deterministic path via -derivedDataPath (no -showBuildSettings needed)
+    DERIVED_DATA="build/DerivedData/Build/Products"
 
     APP_PATH="${DERIVED_DATA}/${CONFIG}/TablePro.app"
     echo "📂 Expected app path: $APP_PATH"
