@@ -253,9 +253,23 @@ extension MainContentCoordinator {
             guard let mainDriver = DatabaseManager.shared.driver(for: connectionId) else { return }
 
             let count: Int?
+            let isApproximate: Bool
             if isNonSQL {
                 count = try? await mainDriver.fetchApproximateRowCount(table: tableName)
+                isApproximate = true
             } else {
+                // Skip exact COUNT(*) if the approximate count exceeds the threshold.
+                // PostgreSQL COUNT(*) requires a full sequential scan (MVCC) and can take
+                // 10-20+ seconds on multi-million-row tables. Industry standard (TablePlus,
+                // pgAdmin, DBeaver) is to use estimates for large tables.
+                let threshold = await AppSettingsManager.shared.dataGrid.countRowsIfEstimateLessThan
+                let approxCount = await MainActor.run {
+                    self.tabManager.tabs.first { $0.id == tabId }?.pagination.totalRowCount
+                }
+                if let approx = approxCount, approx >= threshold {
+                    return // Keep approximate count — skip expensive COUNT(*)
+                }
+
                 let quotedTable = mainDriver.quoteIdentifier(tableName)
                 let countResult = try? await mainDriver.execute(
                     query: "SELECT COUNT(*) FROM \(quotedTable)"
@@ -266,6 +280,7 @@ extension MainContentCoordinator {
                 } else {
                     count = nil
                 }
+                isApproximate = false
             }
 
             if let count {
@@ -274,7 +289,7 @@ extension MainContentCoordinator {
                     guard capturedGeneration == queryGeneration else { return }
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                         tabManager.tabs[idx].pagination.totalRowCount = count
-                        tabManager.tabs[idx].pagination.isApproximateRowCount = isNonSQL
+                        tabManager.tabs[idx].pagination.isApproximateRowCount = isApproximate
                     }
                 }
             }
@@ -346,9 +361,19 @@ extension MainContentCoordinator {
             guard let mainDriver = DatabaseManager.shared.driver(for: connectionId) else { return }
 
             let count: Int?
+            let isApproximate: Bool
             if isNonSQL {
                 count = try? await mainDriver.fetchApproximateRowCount(table: tableName)
+                isApproximate = true
             } else {
+                let threshold = await AppSettingsManager.shared.dataGrid.countRowsIfEstimateLessThan
+                let approxCount = await MainActor.run {
+                    self.tabManager.tabs.first { $0.id == tabId }?.pagination.totalRowCount
+                }
+                if let approx = approxCount, approx >= threshold {
+                    return
+                }
+
                 let quotedTable = mainDriver.quoteIdentifier(tableName)
                 let countResult = try? await mainDriver.execute(
                     query: "SELECT COUNT(*) FROM \(quotedTable)"
@@ -359,6 +384,7 @@ extension MainContentCoordinator {
                 } else {
                     count = nil
                 }
+                isApproximate = false
             }
 
             if let count {
@@ -366,7 +392,7 @@ extension MainContentCoordinator {
                     guard let self else { return }
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                         tabManager.tabs[idx].pagination.totalRowCount = count
-                        tabManager.tabs[idx].pagination.isApproximateRowCount = isNonSQL
+                        tabManager.tabs[idx].pagination.isApproximateRowCount = isApproximate
                     }
                 }
             }

@@ -56,6 +56,15 @@ struct DataGridSettingsView: View {
                     Text("5,000 rows").tag(5_000)
                     Text("10,000 rows").tag(10_000)
                 }
+
+                Picker(String(localized: "Count rows if estimate less than:"), selection: $settings.countRowsIfEstimateLessThan) {
+                    Text("1,000").tag(1_000)
+                    Text("10,000").tag(10_000)
+                    Text("100,000").tag(100_000)
+                    Text("1,000,000").tag(1_000_000)
+                    Text(String(localized: "Always count")).tag(Int.max)
+                }
+                .help(String(localized: "Tables with more estimated rows use approximate counts to avoid slow COUNT(*) queries"))
             }
         }
         .formStyle(.grouped)
