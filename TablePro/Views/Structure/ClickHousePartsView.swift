@@ -28,6 +28,7 @@ struct ClickHousePartsView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
                         .foregroundStyle(Color(nsColor: .systemOrange))
+                        .accessibilityHidden(true)
                     Text(error)
                         .foregroundStyle(.secondary)
                 }
@@ -37,6 +38,7 @@ struct ClickHousePartsView: View {
                     Image(systemName: "tray")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                     Text("No parts found")
                         .foregroundStyle(.secondary)
                 }

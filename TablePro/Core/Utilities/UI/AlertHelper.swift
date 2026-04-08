@@ -11,6 +11,11 @@ import AppKit
 /// Provides consistent styling and behavior across the application
 @MainActor
 final class AlertHelper {
+    /// Tries multiple sources to find a presentable window, minimizing runModal() fallback usage.
+    private static func resolveWindow(_ window: NSWindow?) -> NSWindow? {
+        window ?? NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first { $0.isVisible }
+    }
+
     // MARK: - Destructive Confirmations
 
     /// Shows a destructive confirmation dialog (warning style)
@@ -37,7 +42,7 @@ final class AlertHelper {
         alert.addButton(withTitle: cancelButton)
 
         // Use sheet presentation when window is available (non-blocking, Swift 6 friendly)
-        if let window = window {
+        if let window = resolveWindow(window) {
             return await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for: window) { response in
                     continuation.resume(returning: response == .alertFirstButtonReturn)
@@ -77,7 +82,7 @@ final class AlertHelper {
         alert.addButton(withTitle: cancelButton)
 
         // Use sheet presentation when window is available (non-blocking, Swift 6 friendly)
-        if let window = window {
+        if let window = resolveWindow(window) {
             return await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for: window) { response in
                     continuation.resume(returning: response == .alertFirstButtonReturn)
@@ -123,7 +128,7 @@ final class AlertHelper {
 
         let response: NSApplication.ModalResponse
 
-        if let window = window {
+        if let window = resolveWindow(window) {
             response = await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for: window) { resp in
                     continuation.resume(returning: resp)
@@ -174,7 +179,7 @@ final class AlertHelper {
         let response: NSApplication.ModalResponse
 
         // Use sheet presentation when window is available (non-blocking, Swift 6 friendly)
-        if let window = window {
+        if let window = resolveWindow(window) {
             response = await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for: window) { resp in
                     continuation.resume(returning: resp)
@@ -215,7 +220,7 @@ final class AlertHelper {
         alert.alertStyle = .critical
         alert.addButton(withTitle: String(localized: "OK"))
 
-        if let window = window {
+        if let window = resolveWindow(window) {
             alert.beginSheetModal(for: window) { _ in
                 // Sheet dismissed, no action needed
             }
@@ -243,7 +248,7 @@ final class AlertHelper {
         alert.alertStyle = .informational
         alert.addButton(withTitle: String(localized: "OK"))
 
-        if let window = window {
+        if let window = resolveWindow(window) {
             alert.beginSheetModal(for: window) { _ in
                 // Sheet dismissed, no action needed
             }
@@ -273,7 +278,7 @@ final class AlertHelper {
         alert.addButton(withTitle: String(localized: "OK"))
         alert.addButton(withTitle: String(localized: "Ask AI to Fix"))
 
-        if let window = window {
+        if let window = resolveWindow(window) {
             return await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for: window) { response in
                     continuation.resume(returning: response == .alertSecondButtonReturn)

@@ -32,7 +32,7 @@ enum PasswordPromptHelper {
         alert.accessoryView = input
         alert.window.initialFirstResponder = input
 
-        if let window {
+        if let window = window ?? NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
             let response = await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for: window) { response in
                     continuation.resume(returning: response)

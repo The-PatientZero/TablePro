@@ -111,7 +111,7 @@ internal enum HostKeyVerifier {
         alert.addButton(withTitle: String(localized: "Trust"))
         alert.addButton(withTitle: String(localized: "Cancel"))
 
-        if let window = NSApp.keyWindow {
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
             return await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for: window) { response in
                     continuation.resume(returning: response == .alertFirstButtonReturn)
@@ -155,7 +155,7 @@ internal enum HostKeyVerifier {
         alert.buttons[1].keyEquivalent = "\r"
         alert.buttons[0].keyEquivalent = ""
 
-        if let window = NSApp.keyWindow {
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
             return await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for: window) { response in
                     continuation.resume(returning: response == .alertFirstButtonReturn)

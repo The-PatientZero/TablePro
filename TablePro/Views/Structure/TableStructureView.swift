@@ -236,6 +236,7 @@ struct TableStructureView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
                 .foregroundStyle(Color(nsColor: .systemOrange))
+                .accessibilityHidden(true)
             Text(message)
                 .foregroundStyle(.secondary)
         }
@@ -247,6 +248,7 @@ struct TableStructureView: View {
             Image(systemName: "tray")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             Text(message)
                 .foregroundStyle(.secondary)
         }

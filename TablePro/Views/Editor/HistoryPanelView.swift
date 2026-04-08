@@ -108,13 +108,6 @@ private extension HistoryPanelView {
                     HistoryRowSwiftUI(entry: entry)
                         .tag(entry.id)
                         .contextMenu { contextMenu(for: entry) }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deleteEntry(entry)
-                            } label: {
-                                Label(String(localized: "Delete"), systemImage: "trash")
-                            }
-                        }
                 }
                 .listStyle(.plain)
                 .environment(\.defaultMinListRowHeight, ThemeEngine.shared.activeTheme.rowHeights.comfortable)
@@ -159,6 +152,7 @@ private extension HistoryPanelView {
                 Image(systemName: "magnifyingglass")
                     .font(.largeTitle)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
                 Text("No Matching Queries")
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -170,6 +164,7 @@ private extension HistoryPanelView {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.largeTitle)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
                 Text("No Query History Yet")
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -272,6 +267,7 @@ private extension HistoryPanelView {
             Image(systemName: "doc.text")
                 .font(.largeTitle)
                 .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
             Text("Select a Query")
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.title3, weight: .medium))
                 .foregroundStyle(.secondary)

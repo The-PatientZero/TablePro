@@ -252,6 +252,7 @@ struct CreateTableView: View {
                     Image(systemName: "doc.plaintext")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                     Text("Add columns to see the CREATE TABLE statement")
                         .foregroundStyle(.secondary)
                 }

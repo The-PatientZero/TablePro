@@ -29,6 +29,8 @@ internal final class PromptTOTPProvider: TOTPProvider, @unchecked Sendable {
         return try handleResult(code)
     }
 
+    // Note: runModal() is intentional here. This method runs on the main thread
+    // (via DispatchQueue.main.sync from provideCode), so beginSheetModal + semaphore would deadlock.
     private func showAlert() -> String? {
         let alert = NSAlert()
         alert.messageText = String(localized: "Verification Code Required")

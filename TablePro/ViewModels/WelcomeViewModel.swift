@@ -383,7 +383,8 @@ final class WelcomeViewModel {
         panel.allowedContentTypes = [.tableproConnectionShare]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        guard let window = NSApp.keyWindow else { return }
+        guard let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible })
+        else { return }
         panel.beginSheetModal(for: window) { response in
             guard response == .OK, let url = panel.url else { return }
             self.activeSheet = .importFile(url)
@@ -406,7 +407,7 @@ final class WelcomeViewModel {
             alert.informativeText = String(localized: "All selected connections were skipped.")
         }
         alert.addButton(withTitle: String(localized: "OK"))
-        if let window = NSApp.keyWindow {
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
             alert.beginSheetModal(for: window)
         } else {
             alert.runModal()

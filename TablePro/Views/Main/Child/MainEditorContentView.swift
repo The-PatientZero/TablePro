@@ -396,6 +396,7 @@ struct MainEditorContentView: View {
             Image(systemName: "tray")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             Text("No rows returned")
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
             if let time = executionTime {
