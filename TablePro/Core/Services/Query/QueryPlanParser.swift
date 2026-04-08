@@ -258,6 +258,84 @@ struct SQLitePlanParser: QueryPlanParser {
     }
 }
 
+// MARK: - Indented Text Parser (ClickHouse, DuckDB)
+
+/// Parses indented text EXPLAIN output into a tree based on leading whitespace depth.
+/// Works for ClickHouse EXPLAIN, DuckDB EXPLAIN, and any text plan with indentation hierarchy.
+struct IndentedTextPlanParser: QueryPlanParser {
+    func parse(rawText: String) -> QueryPlan? {
+        let lines = rawText.components(separatedBy: "\n").filter { !$0.isEmpty }
+        guard !lines.isEmpty else { return nil }
+
+        // Parse each line's indent level and content
+        struct ParsedLine {
+            let indent: Int
+            let text: String
+        }
+        let parsed: [ParsedLine] = lines.map { line in
+            let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
+            let indent = line.count - trimmed.count
+            return ParsedLine(indent: indent, text: String(trimmed))
+        }
+
+        // Build tree from indentation
+        func buildNodes(from startIndex: Int, parentIndent: Int) -> (nodes: [QueryPlanNode], nextIndex: Int) {
+            var nodes: [QueryPlanNode] = []
+            var i = startIndex
+
+            while i < parsed.count {
+                let line = parsed[i]
+                if line.indent <= parentIndent && i > startIndex {
+                    break
+                }
+
+                let children: [QueryPlanNode]
+                let nextI: Int
+                if i + 1 < parsed.count && parsed[i + 1].indent > line.indent {
+                    let result = buildNodes(from: i + 1, parentIndent: line.indent)
+                    children = result.nodes
+                    nextI = result.nextIndex
+                } else {
+                    children = []
+                    nextI = i + 1
+                }
+
+                nodes.append(QueryPlanNode(
+                    operation: line.text,
+                    relation: nil, schema: nil, alias: nil,
+                    estimatedStartupCost: nil, estimatedTotalCost: nil,
+                    estimatedRows: nil, estimatedWidth: nil,
+                    actualStartupTime: nil, actualTotalTime: nil,
+                    actualRows: nil, actualLoops: nil,
+                    properties: [:],
+                    children: children
+                ))
+                i = nextI
+            }
+            return (nodes, i)
+        }
+
+        let result = buildNodes(from: 0, parentIndent: -1)
+        let rootNode: QueryPlanNode
+        if result.nodes.count == 1 {
+            rootNode = result.nodes[0]
+        } else {
+            rootNode = QueryPlanNode(
+                operation: "Query Plan",
+                relation: nil, schema: nil, alias: nil,
+                estimatedStartupCost: nil, estimatedTotalCost: nil,
+                estimatedRows: nil, estimatedWidth: nil,
+                actualStartupTime: nil, actualTotalTime: nil,
+                actualRows: nil, actualLoops: nil,
+                properties: [:],
+                children: result.nodes
+            )
+        }
+
+        return QueryPlan(rootNode: rootNode, planningTime: nil, executionTime: nil, rawText: rawText)
+    }
+}
+
 // MARK: - Factory
 
 enum QueryPlanParserFactory {
@@ -269,6 +347,8 @@ enum QueryPlanParserFactory {
             return MySQLPlanParser()
         case .sqlite:
             return SQLitePlanParser()
+        case .clickhouse, .duckdb:
+            return IndentedTextPlanParser()
         default:
             return nil
         }

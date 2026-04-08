@@ -766,7 +766,11 @@ extension PluginMetadataRegistry {
                 displayName: "DuckDB", iconName: "duckdb-icon", defaultPort: 0,
                 requiresAuthentication: false, supportsForeignKeys: true, supportsSchemaEditing: true,
                 isDownloadable: true, primaryUrlScheme: "duckdb", parameterStyle: .dollar,
-                navigationModel: .standard, explainVariants: [], pathFieldRole: .filePath,
+                navigationModel: .standard,
+                explainVariants: [
+                    ExplainVariant(id: "explain", label: "EXPLAIN", sqlPrefix: "EXPLAIN"),
+                ],
+                pathFieldRole: .filePath,
                 supportsHealthMonitor: false, urlSchemes: ["duckdb"], postConnectActions: [],
                 brandColorHex: "#FFD900",
                 queryLanguageName: "SQL", editorLanguage: .sql,
