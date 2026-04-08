@@ -17,6 +17,7 @@ struct AIChatPanelView: View {
 
     @Bindable var viewModel: AIChatViewModel
     private let settingsManager = AppSettingsManager.shared
+    @State private var isUserScrolledUp = false
 
     private var hasConfiguredProvider: Bool {
         settingsManager.ai.providers.contains(where: { $0.isEnabled })
@@ -183,6 +184,11 @@ struct AIChatPanelView: View {
                         }
                     }
 
+                    Color.clear
+                        .frame(height: 1)
+                        .id("bottomAnchor")
+                        .onAppear { isUserScrolledUp = false }
+                        .onDisappear { isUserScrolledUp = true }
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
@@ -192,9 +198,12 @@ struct AIChatPanelView: View {
                 scrollToBottom(proxy: proxy)
             }
             .onChange(of: viewModel.messages.last?.content) {
-                scrollToBottom(proxy: proxy)
+                if !isUserScrolledUp {
+                    scrollToBottom(proxy: proxy)
+                }
             }
             .onChange(of: viewModel.messages.count) {
+                isUserScrolledUp = false
                 scrollToBottom(proxy: proxy)
             }
             .onChange(of: viewModel.activeConversationID) {
