@@ -19,11 +19,9 @@ struct SafeModeBadgeView: View {
         Button {
             showPopover.toggle()
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: safeModeLevel.iconName)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(safeModeLevel.badgeColor)
-            }
+            Image(systemName: safeModeLevel.iconName)
+                .fontWeight(.medium)
+                .foregroundStyle(safeModeLevel.badgeColor)
         }
         .buttonStyle(.plain)
         .help(String(format: String(localized: "Safe Mode: %@"), safeModeLevel.displayName))

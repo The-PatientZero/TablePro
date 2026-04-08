@@ -82,7 +82,7 @@ struct AISettingsView: View {
                         removeSelectedProvider()
                     } label: {
                         Image(systemName: "minus")
-                            .frame(width: 24, height: 20)
+                            .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.borderless)
                     .disabled(selectedProviderID == nil)
@@ -94,7 +94,7 @@ struct AISettingsView: View {
                         addProvider()
                     } label: {
                         Image(systemName: "plus")
-                            .frame(width: 24, height: 20)
+                            .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.borderless)
 
@@ -107,7 +107,7 @@ struct AISettingsView: View {
                         }
                     } label: {
                         Image(systemName: "pencil")
-                            .frame(width: 24, height: 20)
+                            .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.borderless)
                     .disabled(selectedProviderID == nil)

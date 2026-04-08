@@ -168,7 +168,7 @@ struct DatabaseSwitcherSheet: View {
                 Task { await viewModel.refreshDatabases() }
             }) {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 14))
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .help("Refresh database list")
@@ -177,7 +177,7 @@ struct DatabaseSwitcherSheet: View {
             if databaseType != .sqlite && !isSchemaMode {
                 Button(action: { showCreateDialog = true }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 14))
+                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.borderless)
                 .help("Create new database")

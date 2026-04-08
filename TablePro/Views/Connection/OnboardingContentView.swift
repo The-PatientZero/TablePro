@@ -194,6 +194,8 @@ struct OnboardingContentView: View {
                         .fill(i == currentPage ? Color.accentColor : Color(nsColor: .tertiaryLabelColor))
                         .frame(width: 8, height: 8)
                         .scaleEffect(i == currentPage ? 1.2 : 1.0)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Circle())
                         .onTapGesture { goToPage(i) }
                 }
             }

@@ -207,7 +207,7 @@ internal struct FavoritesTabView: View {
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "star")
-                .font(.system(size: 28, weight: .thin))
+                .font(.title.weight(.thin))
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
 
             Text("No Favorites")
@@ -223,9 +223,9 @@ internal struct FavoritesTabView: View {
                 viewModel.createFavorite()
             } label: {
                 Label(String(localized: "New Favorite"), systemImage: "plus")
-                    .font(.system(size: 12))
             }
             .buttonStyle(.borderless)
+            .controlSize(.small)
             .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -234,7 +234,7 @@ internal struct FavoritesTabView: View {
     private var noMatchState: some View {
         VStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 28, weight: .thin))
+                .font(.title.weight(.thin))
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
 
             Text("No Matching Favorites")
@@ -252,9 +252,9 @@ internal struct FavoritesTabView: View {
                 viewModel.createFavorite()
             } label: {
                 Label(String(localized: "New Favorite"), systemImage: "plus")
-                    .font(.system(size: 11))
             }
             .buttonStyle(.borderless)
+            .controlSize(.small)
             .foregroundStyle(Color(nsColor: .secondaryLabelColor))
 
             Spacer()
@@ -263,7 +263,7 @@ internal struct FavoritesTabView: View {
                 viewModel.createFolder()
             } label: {
                 Image(systemName: "folder.badge.plus")
-                    .font(.system(size: 11))
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .foregroundStyle(Color(nsColor: .secondaryLabelColor))

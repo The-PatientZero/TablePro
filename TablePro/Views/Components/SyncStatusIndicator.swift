@@ -86,7 +86,7 @@ struct SyncStatusIndicator: View {
         case .syncing:
             return AnyShapeStyle(.secondary)
         case .error:
-            return AnyShapeStyle(Color.orange)
+            return AnyShapeStyle(Color(nsColor: .systemOrange))
         case .disabled:
             return AnyShapeStyle(.tertiary)
         }

@@ -28,6 +28,7 @@ struct ExplainResultView: View {
             HStack(spacing: 4) {
                 Button(action: { fontSize = max(10, fontSize - 1) }) {
                     Image(systemName: "textformat.size.smaller")
+                        .frame(width: 24, height: 24)
                 }
                 Text("\(Int(fontSize))")
                     .font(.caption)
@@ -35,6 +36,7 @@ struct ExplainResultView: View {
                     .frame(width: 24)
                 Button(action: { fontSize = min(24, fontSize + 1) }) {
                     Image(systemName: "textformat.size.larger")
+                        .frame(width: 24, height: 24)
                 }
             }
             .buttonStyle(.borderless)

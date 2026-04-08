@@ -119,6 +119,7 @@ extension TableStructureView {
                 HStack(spacing: 4) {
                     Button(action: { ddlFontSize = max(10, ddlFontSize - 1) }) {
                         Image(systemName: "textformat.size.smaller")
+                            .frame(width: 24, height: 24)
                     }
                     Text("\(Int(ddlFontSize))")
                         .font(.caption)
@@ -126,6 +127,7 @@ extension TableStructureView {
                         .frame(width: 24)
                     Button(action: { ddlFontSize = min(24, ddlFontSize + 1) }) {
                         Image(systemName: "textformat.size.larger")
+                            .frame(width: 24, height: 24)
                     }
                 }
                 .buttonStyle(.borderless)

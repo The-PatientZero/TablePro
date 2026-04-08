@@ -32,7 +32,7 @@ struct PaginationControlsView: View {
             // Settings button (gear icon) - opens popover
             Button(action: { showSettings.toggle() }) {
                 Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 12))
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .help("Pagination Settings")
@@ -59,7 +59,8 @@ struct PaginationControlsView: View {
             // Previous page button
             Button(action: onPrevious) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 11))
+                    .imageScale(.small)
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .disabled(!pagination.hasPreviousPage || pagination.isLoading)
@@ -80,7 +81,8 @@ struct PaginationControlsView: View {
             // Next page button
             Button(action: onNext) {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11))
+                    .imageScale(.small)
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .disabled(!pagination.hasNextPage || pagination.isLoading)

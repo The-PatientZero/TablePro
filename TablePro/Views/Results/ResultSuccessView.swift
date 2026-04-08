@@ -17,7 +17,7 @@ struct ResultSuccessView: View {
         VStack(spacing: 16) {
             Spacer()
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 36))
+                .font(.largeTitle)
                 .foregroundStyle(.green)
             Text(String(format: String(localized: "%lld row(s) affected"), Int64(rowsAffected)))
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))

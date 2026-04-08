@@ -73,7 +73,7 @@ struct ConnectionStatusView: View {
     private var databaseNameLabel: some View {
         HStack(spacing: 4) {
             Image(systemName: "cylinder")
-                .font(.system(size: 13))
+                .imageScale(.small)
                 .foregroundStyle(ThemeEngine.shared.colors.toolbar.secondaryTextSwiftUI)
 
             Text(databaseName)

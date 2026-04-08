@@ -24,7 +24,8 @@ struct SQLPreviewSheet: View {
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.default))
+                        .imageScale(.large)
+                        .frame(width: 24, height: 24)
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.borderless)

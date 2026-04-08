@@ -394,7 +394,7 @@ struct MainEditorContentView: View {
         VStack(spacing: 12) {
             Spacer()
             Image(systemName: "tray")
-                .font(.system(size: 36))
+                .font(.largeTitle)
                 .foregroundStyle(.secondary)
             Text("No rows returned")
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))

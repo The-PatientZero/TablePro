@@ -140,6 +140,7 @@ struct FilterRowView: View {
         HStack(spacing: 4) {
             Button(action: onAdd) {
                 Image(systemName: "plus")
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .controlSize(.small)
@@ -148,6 +149,7 @@ struct FilterRowView: View {
 
             Button(action: onRemove) {
                 Image(systemName: "minus")
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .controlSize(.small)

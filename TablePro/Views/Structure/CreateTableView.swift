@@ -149,14 +149,14 @@ struct CreateTableView: View {
         HStack(spacing: 8) {
             Button(action: addNewRow) {
                 Image(systemName: "plus")
-                    .frame(width: 16, height: 16)
+                    .frame(width: 24, height: 24)
             }
             .help(String(localized: "Add Row"))
             .disabled(!isGridTab)
 
             Button(action: { handleDeleteRows(selectedRows) }) {
                 Image(systemName: "minus")
-                    .frame(width: 16, height: 16)
+                    .frame(width: 24, height: 24)
             }
             .help(String(localized: "Delete Selected"))
             .disabled(!isGridTab || selectedRows.isEmpty)

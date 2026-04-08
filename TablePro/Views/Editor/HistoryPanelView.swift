@@ -76,6 +76,7 @@ private extension HistoryPanelView {
                         showClearAllAlert = true
                     } label: {
                         Image(systemName: "trash")
+                            .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.borderless)
                     .disabled(entries.isEmpty)
@@ -155,7 +156,7 @@ private extension HistoryPanelView {
         VStack(spacing: 8) {
             if !searchText.isEmpty || dateFilter != .all {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.huge))
+                    .font(.largeTitle)
                     .foregroundStyle(.tertiary)
                 Text("No Matching Queries")
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
@@ -166,7 +167,7 @@ private extension HistoryPanelView {
                     .multilineTextAlignment(.center)
             } else {
                 Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.huge))
+                    .font(.largeTitle)
                     .foregroundStyle(.tertiary)
                 Text("No Query History Yet")
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
@@ -268,7 +269,7 @@ private extension HistoryPanelView {
     var previewEmptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "doc.text")
-                .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.huge))
+                .font(.largeTitle)
                 .foregroundStyle(.tertiary)
             Text("Select a Query")
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.title3, weight: .medium))

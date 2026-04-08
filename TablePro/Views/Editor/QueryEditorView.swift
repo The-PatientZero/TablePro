@@ -81,6 +81,7 @@ struct QueryEditorView: View {
             // Clear button
             Button(action: { queryText = "" }) {
                 Image(systemName: "trash")
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .help("Clear Query")
@@ -88,6 +89,7 @@ struct QueryEditorView: View {
             // Format button
             Button(action: formatQuery) {
                 Image(systemName: "text.alignleft")
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
             .help("Format Query (⌥⌘F)")

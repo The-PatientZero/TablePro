@@ -225,7 +225,7 @@ struct AIChatPanelView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color.yellow.opacity(0.1))
+        .background(Color(nsColor: .systemYellow).opacity(0.1))
     }
 
     // MARK: - Input Area

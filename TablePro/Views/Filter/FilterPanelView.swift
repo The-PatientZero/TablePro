@@ -173,7 +173,6 @@ struct FilterPanelView: View {
             }
         } label: {
             Image(systemName: "ellipsis.circle")
-                .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.small))
         }
         .menuStyle(.borderlessButton)
         .foregroundStyle(.secondary)

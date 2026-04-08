@@ -26,6 +26,7 @@ struct InlineErrorBanner: View {
                 NSPasteboard.general.setString(message, forType: .string)
             } label: {
                 Image(systemName: "doc.on.doc")
+                    .frame(width: 24, height: 24)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -33,6 +34,7 @@ struct InlineErrorBanner: View {
             if let onDismiss {
                 Button { onDismiss() } label: {
                     Image(systemName: "xmark")
+                        .frame(width: 24, height: 24)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -40,7 +42,7 @@ struct InlineErrorBanner: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color.red.opacity(0.08))
+        .background(Color(nsColor: .systemRed).opacity(0.08))
     }
 }
 
