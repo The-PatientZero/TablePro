@@ -2,6 +2,7 @@ import Foundation
 
 /// Persists user-arranged table node positions for ER diagrams.
 /// Keyed by connection + schema so positions survive across sessions.
+@MainActor
 final class ERDiagramPositionStorage {
     static let shared = ERDiagramPositionStorage()
     private let defaults = UserDefaults.standard

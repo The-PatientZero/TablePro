@@ -1,7 +1,7 @@
-import CoreGraphics
+import AppKit
 import Foundation
 import os
-import Observation
+import SwiftUI
 
 @MainActor
 @Observable
@@ -30,20 +30,43 @@ final class ERDiagramViewModel {
     }
 
     var loadState: LoadState = .loading
+    var needsInitialFit = true
     var graph: ERDiagramGraph = .empty
     var magnification: CGFloat = 1.0
     var isCompactMode = false {
         didSet { rebuildDisplayColumns() }
     }
 
+    // MARK: - Canvas Viewport
+
+    var canvasOffset: CGPoint = .zero
+    var viewportSize: CGSize = .zero
+
+    // MARK: - Drag State
+
+    private(set) var isDragging = false
+    private(set) var draggingNodeId: UUID?
+    @ObservationIgnored private var dragNodeStart: CGPoint?
+    @ObservationIgnored private var panStart: CGPoint?
+    @ObservationIgnored private var lastDragTranslation: CGSize = .zero
+
+    // MARK: - Auto-Pan
+
+    @ObservationIgnored nonisolated(unsafe) private var autoPanTimer: Timer?
+    @ObservationIgnored private var autoPanVelocity: CGPoint = .zero
+    @ObservationIgnored private var autoPanAccum: CGPoint = .zero
+
+    private static let edgeThreshold: CGFloat = 40
+    private static let maxPanSpeed: CGFloat = 8
+
     // MARK: - Positions
 
     private(set) var computedLayout: [UUID: CGPoint] = [:]
     private(set) var positionOverrides: [UUID: CGPoint] = [:]
-    var nodeHeights: [UUID: CGFloat] = [:]
-    private var layoutTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var layoutTask: Task<Void, Never>?
     private(set) var cachedNodeRects: [UUID: CGRect] = [:]
-    private var columnCountByNodeId: [UUID: Int] = [:]
+    @ObservationIgnored private var columnCountByNodeId: [UUID: Int] = [:]
+    @ObservationIgnored private var nodeIdToName: [UUID: String] = [:]
 
     // MARK: - Initialization
 
@@ -52,12 +75,27 @@ final class ERDiagramViewModel {
         self.schemaKey = schemaKey
     }
 
+    deinit {
+        autoPanTimer?.invalidate()
+        autoPanTimer = nil
+        layoutTask?.cancel()
+    }
+
     // MARK: - Loading
 
     func loadDiagram() async {
+        guard loadState != .loaded else { return }
         loadState = .loading
 
-        guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
+        // Wait for connection to be established (handles app restore race condition)
+        var driver: DatabaseDriver?
+        for _ in 0..<20 {
+            driver = DatabaseManager.shared.driver(for: connectionId)
+            if driver != nil { break }
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+
+        guard let driver else {
             loadState = .failed(String(localized: "No database connection"))
             return
         }
@@ -72,14 +110,16 @@ final class ERDiagramViewModel {
                 allForeignKeys: allFKs
             )
             graph = builtGraph
+            nodeIdToName = Dictionary(uniqueKeysWithValues: builtGraph.nodes.map { ($0.id, $0.tableName) })
 
             let layout = await Task.detached {
                 ERDiagramLayout.compute(graph: builtGraph)
             }.value
             computedLayout = layout
-            invalidateCachedRects()
             loadPersistedPositions()
+            invalidateCachedRects()
             loadState = .loaded
+            needsInitialFit = true
 
             Self.logger.debug("ER diagram loaded: \(self.graph.nodes.count) tables, \(self.graph.edges.count) edges")
         } catch {
@@ -96,8 +136,7 @@ final class ERDiagramViewModel {
 
     func setPositionOverride(nodeId: UUID, position: CGPoint) {
         positionOverrides[nodeId] = position
-        let height = nodeHeights[nodeId]
-            ?? ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[nodeId] ?? 1)
+        let height = ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[nodeId] ?? 1)
         cachedNodeRects[nodeId] = CGRect(
             x: position.x - ERDiagramLayout.nodeWidth / 2,
             y: position.y - height / 2,
@@ -108,8 +147,8 @@ final class ERDiagramViewModel {
 
     func persistPositions() {
         let namedPositions = positionOverrides.reduce(into: [String: CGPoint]()) { result, pair in
-            if let node = graph.nodes.first(where: { $0.id == pair.key }) {
-                result[node.tableName] = pair.value
+            if let name = nodeIdToName[pair.key] {
+                result[name] = pair.value
             }
         }
         ERDiagramPositionStorage.shared.save(namedPositions, connectionId: connectionId, schemaKey: schemaKey)
@@ -120,11 +159,10 @@ final class ERDiagramViewModel {
         ERDiagramPositionStorage.shared.clear(connectionId: connectionId, schemaKey: schemaKey)
         invalidateCachedRects()
         let currentGraph = graph
-        let heights = nodeHeights
         layoutTask?.cancel()
         layoutTask = Task {
             let layout = await Task.detached {
-                ERDiagramLayout.compute(graph: currentGraph, nodeHeights: heights)
+                ERDiagramLayout.compute(graph: currentGraph)
             }.value
             guard !Task.isCancelled else { return }
             computedLayout = layout
@@ -147,11 +185,10 @@ final class ERDiagramViewModel {
         }
         invalidateCachedRects()
         let currentGraph = graph
-        let heights = nodeHeights
         layoutTask?.cancel()
         layoutTask = Task {
             let layout = await Task.detached {
-                ERDiagramLayout.compute(graph: currentGraph, nodeHeights: heights)
+                ERDiagramLayout.compute(graph: currentGraph)
             }.value
             guard !Task.isCancelled else { return }
             computedLayout = layout
@@ -161,24 +198,14 @@ final class ERDiagramViewModel {
 
     // MARK: - Canvas Size
 
-    var canvasSize: CGSize {
-        guard !graph.nodes.isEmpty else { return CGSize(width: 800, height: 600) }
-        var maxX: CGFloat = 0
-        var maxY: CGFloat = 0
-        for (_, rect) in cachedNodeRects {
-            maxX = max(maxX, rect.maxX)
-            maxY = max(maxY, rect.maxY)
-        }
-        return CGSize(width: maxX + 80, height: maxY + 80)
-    }
+    private(set) var cachedCanvasSize: CGSize = CGSize(width: 800, height: 600)
 
     // MARK: - Node Rect (for edge rendering)
 
     func nodeRect(for nodeId: UUID) -> CGRect {
         if let cached = cachedNodeRects[nodeId] { return cached }
         let center = position(for: nodeId)
-        let height = nodeHeights[nodeId]
-            ?? ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[nodeId] ?? 1)
+        let height = ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[nodeId] ?? 1)
         return CGRect(
             x: center.x - ERDiagramLayout.nodeWidth / 2,
             y: center.y - height / 2,
@@ -194,8 +221,7 @@ final class ERDiagramViewModel {
         var rects: [UUID: CGRect] = [:]
         for node in graph.nodes {
             let center = position(for: node.id)
-            let height = nodeHeights[node.id]
-                ?? ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[node.id] ?? 1)
+            let height = ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[node.id] ?? 1)
             rects[node.id] = CGRect(
                 x: center.x - ERDiagramLayout.nodeWidth / 2,
                 y: center.y - height / 2,
@@ -204,6 +230,170 @@ final class ERDiagramViewModel {
             )
         }
         cachedNodeRects = rects
+
+        if graph.nodes.isEmpty {
+            cachedCanvasSize = CGSize(width: 800, height: 600)
+        } else {
+            var csMaxX: CGFloat = 0
+            var csMaxY: CGFloat = 0
+            for (_, rect) in rects {
+                csMaxX = max(csMaxX, rect.maxX)
+                csMaxY = max(csMaxY, rect.maxY)
+            }
+            cachedCanvasSize = CGSize(width: csMaxX + 80, height: csMaxY + 80)
+        }
+    }
+
+    // MARK: - Drag & Auto-Pan
+
+    func beginDrag(at startLocation: CGPoint) {
+        isDragging = true
+        let canvasPoint = CGPoint(
+            x: (startLocation.x - canvasOffset.x) / magnification,
+            y: (startLocation.y - canvasOffset.y) / magnification
+        )
+        var hitNodeId: UUID?
+        for (id, rect) in cachedNodeRects where rect.contains(canvasPoint) {
+            hitNodeId = id
+            break
+        }
+        draggingNodeId = hitNodeId
+        if let nodeId = hitNodeId {
+            dragNodeStart = position(for: nodeId)
+        } else {
+            panStart = canvasOffset
+        }
+    }
+
+    func updateDrag(translation: CGSize, currentPoint: CGPoint) {
+        lastDragTranslation = translation
+
+        if let nodeId = draggingNodeId, let nodeStart = dragNodeStart {
+            let totalDelta = CGSize(
+                width: (translation.width + autoPanAccum.x) / magnification,
+                height: (translation.height + autoPanAccum.y) / magnification
+            )
+            setPositionOverride(
+                nodeId: nodeId,
+                position: CGPoint(x: nodeStart.x + totalDelta.width, y: nodeStart.y + totalDelta.height)
+            )
+            updateAutoPanVelocity(for: currentPoint)
+        } else if let start = panStart {
+            canvasOffset = CGPoint(
+                x: start.x + translation.width,
+                y: start.y + translation.height
+            )
+        }
+    }
+
+    func endDrag() {
+        if draggingNodeId != nil {
+            persistPositions()
+        }
+        isDragging = false
+        draggingNodeId = nil
+        dragNodeStart = nil
+        panStart = nil
+        lastDragTranslation = .zero
+        stopAutoPan()
+    }
+
+    private func updateAutoPanVelocity(for point: CGPoint) {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            stopAutoPan()
+            return
+        }
+        let t = Self.edgeThreshold
+        let s = Self.maxPanSpeed
+        var v = CGPoint.zero
+
+        if point.x > viewportSize.width - t {
+            v.x = -s * min(1, max(0, 1 - (viewportSize.width - point.x) / t))
+        } else if point.x < t {
+            v.x = s * min(1, max(0, 1 - point.x / t))
+        }
+        if point.y > viewportSize.height - t {
+            v.y = -s * min(1, max(0, 1 - (viewportSize.height - point.y) / t))
+        } else if point.y < t {
+            v.y = s * min(1, max(0, 1 - point.y / t))
+        }
+
+        autoPanVelocity = v
+        if v != .zero && autoPanTimer == nil {
+            autoPanTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.autoPanTick()
+                }
+            }
+        } else if v == .zero && autoPanTimer != nil {
+            autoPanTimer?.invalidate()
+            autoPanTimer = nil
+        }
+    }
+
+    private func autoPanTick() {
+        guard autoPanVelocity != .zero, draggingNodeId != nil else {
+            stopAutoPan()
+            return
+        }
+
+        canvasOffset.x += autoPanVelocity.x
+        canvasOffset.y += autoPanVelocity.y
+        autoPanAccum.x -= autoPanVelocity.x
+        autoPanAccum.y -= autoPanVelocity.y
+
+        if let nodeId = draggingNodeId, let nodeStart = dragNodeStart {
+            let totalDelta = CGSize(
+                width: (lastDragTranslation.width + autoPanAccum.x) / magnification,
+                height: (lastDragTranslation.height + autoPanAccum.y) / magnification
+            )
+            setPositionOverride(
+                nodeId: nodeId,
+                position: CGPoint(x: nodeStart.x + totalDelta.width, y: nodeStart.y + totalDelta.height)
+            )
+        }
+    }
+
+    private func stopAutoPan() {
+        autoPanTimer?.invalidate()
+        autoPanTimer = nil
+        autoPanVelocity = .zero
+        autoPanAccum = .zero
+    }
+
+    // MARK: - Zoom
+
+    func zoom(to newMag: CGFloat, anchor: CGPoint? = nil) {
+        let clamped = max(0.25, min(3.0, newMag))
+        let center = anchor ?? CGPoint(x: viewportSize.width / 2, y: viewportSize.height / 2)
+        let canvasPoint = CGPoint(
+            x: (center.x - canvasOffset.x) / magnification,
+            y: (center.y - canvasOffset.y) / magnification
+        )
+        withAnimation(.easeOut(duration: 0.2)) {
+            canvasOffset = CGPoint(
+                x: center.x - canvasPoint.x * clamped,
+                y: center.y - canvasPoint.y * clamped
+            )
+            magnification = clamped
+        }
+    }
+
+    func fitToWindow() {
+        guard !graph.nodes.isEmpty, viewportSize.width > 0, viewportSize.height > 0 else { return }
+        let diagramSize = cachedCanvasSize
+        let padding: CGFloat = 40
+        let scaleX = (viewportSize.width - padding * 2) / diagramSize.width
+        let scaleY = (viewportSize.height - padding * 2) / diagramSize.height
+        let fitScale = max(0.25, min(1.0, min(scaleX, scaleY)))
+
+        withAnimation(.easeOut(duration: 0.3)) {
+            magnification = fitScale
+            canvasOffset = CGPoint(
+                x: (viewportSize.width - diagramSize.width * fitScale) / 2,
+                y: (viewportSize.height - diagramSize.height * fitScale) / 2
+            )
+        }
     }
 
     // MARK: - Private

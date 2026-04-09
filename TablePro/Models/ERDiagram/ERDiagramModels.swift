@@ -3,14 +3,14 @@ import Foundation
 
 // MARK: - Table Node
 
-struct ERTableNode: Identifiable {
+struct ERTableNode: Identifiable, Sendable {
     let id: UUID
     let tableName: String
     let columns: [ERColumnDisplay]
     var displayColumns: [ERColumnDisplay]
 }
 
-struct ERColumnDisplay: Identifiable {
+struct ERColumnDisplay: Identifiable, Sendable {
     let id: String
     let name: String
     let dataType: String
@@ -21,11 +21,11 @@ struct ERColumnDisplay: Identifiable {
 
 // MARK: - Edge
 
-enum ERCardinality {
+enum ERCardinality: Sendable {
     case manyToOne
 }
 
-struct EREdge: Identifiable {
+struct EREdge: Identifiable, Sendable {
     let id: UUID
     let fkName: String
     let fromTable: String
@@ -37,7 +37,7 @@ struct EREdge: Identifiable {
 
 // MARK: - Graph
 
-struct ERDiagramGraph {
+struct ERDiagramGraph: Sendable {
     var nodes: [ERTableNode]
     var edges: [EREdge]
     var nodeIndex: [String: UUID]
@@ -114,8 +114,8 @@ enum ERDiagramGraphBuilder {
     private static func stableId(for name: String) -> UUID {
         let hash = SHA256.hash(data: Data(name.utf8))
         var bytes = [UInt8](hash.prefix(16))
-        // Set UUID version 5 and variant bits for RFC 4122 compliance
-        bytes[6] = (bytes[6] & 0x0F) | 0x50
+        // Set UUID version 8 (custom, SHA-256) and variant bits for RFC 4122 compliance
+        bytes[6] = (bytes[6] & 0x0F) | 0x80
         bytes[8] = (bytes[8] & 0x3F) | 0x80
         return UUID(uuid: (
             bytes[0], bytes[1], bytes[2], bytes[3],

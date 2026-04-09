@@ -89,9 +89,6 @@
         }
       }
     },
-    "?" : {
-
-    },
     ".%@" : {
       "localizations" : {
         "tr" : {
@@ -1690,6 +1687,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld 个表"
+          }
+        }
+      }
+    },
+    "%lld tables, %lld relationships" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld tables, %2$lld relationships"
           }
         }
       }
@@ -6316,6 +6323,9 @@
           }
         }
       }
+    },
+    "Choose a location to save the diagram as PNG." : {
+
     },
     "Choose a query from the list\nto see its full content here." : {
       "localizations" : {
@@ -13902,6 +13912,9 @@
         }
       }
     },
+    "Export ER Diagram" : {
+
+    },
     "Export Error" : {
       "localizations" : {
         "tr" : {
@@ -14916,6 +14929,9 @@
         }
       }
     },
+    "Failed to render the diagram image." : {
+
+    },
     "Failed to Save Changes" : {
       "localizations" : {
         "tr" : {
@@ -15609,6 +15625,9 @@
           }
         }
       }
+    },
+    "Fit to Window" : {
+
     },
     "Fix Error" : {
       "localizations" : {
@@ -21656,9 +21675,6 @@
         }
       }
     },
-    "No columns" : {
-
-    },
     "No Columns Defined" : {
       "localizations" : {
         "tr" : {
@@ -22699,6 +22715,9 @@
           }
         }
       }
+    },
+    "No tables found" : {
+
     },
     "No tables selected for export" : {
       "localizations" : {
@@ -27969,6 +27988,9 @@
           }
         }
       }
+    },
+    "Reset Zoom" : {
+
     },
     "Restart TablePro for the language change to take full effect." : {
       "localizations" : {

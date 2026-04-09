@@ -12,8 +12,7 @@ enum ERDiagramLayout {
     static let columnRowHeight: CGFloat = 22
 
     static func compute(
-        graph: ERDiagramGraph,
-        nodeHeights: [UUID: CGFloat]? = nil
+        graph: ERDiagramGraph
     ) -> [UUID: CGPoint] {
         guard !graph.nodes.isEmpty else { return [:] }
 
@@ -21,7 +20,7 @@ enum ERDiagramLayout {
         let dagEdges = breakCycles(adjacency: adjacency, nodeIds: graph.nodes.map(\.id))
         let layers = assignLayers(dagEdges: dagEdges, nodeIds: graph.nodes.map(\.id), graph: graph)
         let orderedLayers = minimizeCrossings(layers: layers, dagEdges: dagEdges)
-        return assignCoordinates(orderedLayers: orderedLayers, graph: graph, nodeHeights: nodeHeights)
+        return assignCoordinates(orderedLayers: orderedLayers, graph: graph)
     }
 
     static func estimateHeight(columnCount: Int) -> CGFloat {
@@ -148,7 +147,6 @@ enum ERDiagramLayout {
     private static func minimizeCrossings(layers: [[UUID]], dagEdges: [UUID: [UUID]]) -> [[UUID]] {
         guard layers.count > 1 else { return layers }
 
-        // Build reverse edges for barycenter computation
         var reverseEdges: [UUID: [UUID]] = [:]
         for (from, neighbors) in dagEdges {
             for to in neighbors {
@@ -157,25 +155,39 @@ enum ERDiagramLayout {
         }
 
         var result = layers
+        let sweepCount = min(layers.count * 2, 8)
 
-        // One top-down sweep
-        for layerIdx in 1..<result.count {
-            let upperLayer = result[layerIdx - 1]
-            let upperPositions: [UUID: Int] = Dictionary(
-                uniqueKeysWithValues: upperLayer.enumerated().map { ($1, $0) }
-            )
-
-            var barycenters: [UUID: Double] = [:]
-            for node in result[layerIdx] {
-                let neighbors = reverseEdges[node] ?? []
-                let positions = neighbors.compactMap { upperPositions[$0] }
-                if !positions.isEmpty {
-                    barycenters[node] = Double(positions.reduce(0, +)) / Double(positions.count)
+        for sweep in 0..<sweepCount {
+            if sweep.isMultiple(of: 2) {
+                // Top-down sweep
+                for layerIdx in 1..<result.count {
+                    let upperPositions: [UUID: Int] = Dictionary(
+                        uniqueKeysWithValues: result[layerIdx - 1].enumerated().map { ($1, $0) }
+                    )
+                    var barycenters: [UUID: Double] = [:]
+                    for node in result[layerIdx] {
+                        let positions = (reverseEdges[node] ?? []).compactMap { upperPositions[$0] }
+                        if !positions.isEmpty {
+                            barycenters[node] = Double(positions.reduce(0, +)) / Double(positions.count)
+                        }
+                    }
+                    result[layerIdx].sort { (barycenters[$0] ?? .infinity) < (barycenters[$1] ?? .infinity) }
                 }
-            }
-
-            result[layerIdx].sort { a, b in
-                (barycenters[a] ?? Double.infinity) < (barycenters[b] ?? Double.infinity)
+            } else {
+                // Bottom-up sweep
+                for layerIdx in stride(from: result.count - 2, through: 0, by: -1) {
+                    let lowerPositions: [UUID: Int] = Dictionary(
+                        uniqueKeysWithValues: result[layerIdx + 1].enumerated().map { ($1, $0) }
+                    )
+                    var barycenters: [UUID: Double] = [:]
+                    for node in result[layerIdx] {
+                        let positions = (dagEdges[node] ?? []).compactMap { lowerPositions[$0] }
+                        if !positions.isEmpty {
+                            barycenters[node] = Double(positions.reduce(0, +)) / Double(positions.count)
+                        }
+                    }
+                    result[layerIdx].sort { (barycenters[$0] ?? .infinity) < (barycenters[$1] ?? .infinity) }
+                }
             }
         }
 
@@ -186,8 +198,7 @@ enum ERDiagramLayout {
 
     private static func assignCoordinates(
         orderedLayers: [[UUID]],
-        graph: ERDiagramGraph,
-        nodeHeights: [UUID: CGFloat]?
+        graph: ERDiagramGraph
     ) -> [UUID: CGPoint] {
         var positions: [UUID: CGPoint] = [:]
         let nodeById: [UUID: ERTableNode] = Dictionary(
@@ -231,7 +242,7 @@ enum ERDiagramLayout {
 
             for nodeId in layer {
                 let colCount = nodeColumnCounts[nodeId] ?? 1
-                let height = nodeHeights?[nodeId] ?? estimateHeight(columnCount: colCount)
+                let height = estimateHeight(columnCount: colCount)
 
                 positions[nodeId] = CGPoint(x: currentX, y: currentY + height / 2)
                 currentX += nodeWidth + horizontalGap
@@ -250,7 +261,7 @@ enum ERDiagramLayout {
 
             for nodeId in isolatedNodes {
                 let colCount = nodeColumnCounts[nodeId] ?? 1
-                let height = nodeHeights?[nodeId] ?? estimateHeight(columnCount: colCount)
+                let height = estimateHeight(columnCount: colCount)
                 let x = padding + nodeWidth / 2 + CGFloat(col) * (nodeWidth + horizontalGap)
 
                 positions[nodeId] = CGPoint(x: x, y: currentY + height / 2)
