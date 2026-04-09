@@ -6,52 +6,58 @@
 import AppKit
 import Foundation
 
-/// Available monospace fonts for the SQL editor
-enum EditorFont: String, Codable, CaseIterable, Identifiable {
-    case systemMono = "System Mono"
-    case sfMono = "SF Mono"
-    case menlo = "Menlo"
-    case monaco = "Monaco"
-    case courierNew = "Courier New"
+internal struct FontFamilyOption: Equatable, Identifiable, Sendable {
+    let id: String
+    let displayName: String
+}
 
-    var id: String { rawValue }
+internal enum EditorFontResolver {
+    static let systemMonoId = "System Mono"
 
-    var displayName: String { rawValue }
+    static let availableMonospacedFamilies: [FontFamilyOption] = {
+        var options: [FontFamilyOption] = [
+            FontFamilyOption(id: systemMonoId, displayName: systemMonoId)
+        ]
 
-    /// Get the actual NSFont for this option
-    func font(size: CGFloat) -> NSFont {
-        switch self {
-        case .systemMono:
-            return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
-        case .sfMono:
-            return NSFont(name: "SFMono-Regular", size: size)
-                ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
-        case .menlo:
-            return NSFont(name: "Menlo", size: size)
-                ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
-        case .monaco:
-            return NSFont(name: "Monaco", size: size)
-                ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
-        case .courierNew:
-            return NSFont(name: "Courier New", size: size)
-                ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+        let familyNames = NSFontManager.shared.availableFontFamilies
+            .filter { $0 != systemMonoId }
+            .filter(isMonospacedFamily)
+            .sorted { lhs, rhs in
+                lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending
+            }
+
+        var seen: Set<String> = [systemMonoId]
+        for family in familyNames where !seen.contains(family) {
+            seen.insert(family)
+            options.append(FontFamilyOption(id: family, displayName: family))
         }
+
+        return options
+    }()
+
+    static func resolve(familyId: String, size: CGFloat) -> NSFont {
+        guard familyId != systemMonoId else {
+            return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+        }
+
+        let descriptor = NSFontDescriptor(fontAttributes: [.family: familyId])
+        if let font = NSFont(descriptor: descriptor, size: size),
+           font.fontDescriptor.symbolicTraits.contains(.monoSpace) {
+            return font
+        }
+
+        return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
     }
 
-    /// Check if this font is available on the system
-    var isAvailable: Bool {
-        switch self {
-        case .systemMono:
-            return true
-        case .sfMono:
-            return NSFont(name: "SFMono-Regular", size: 12) != nil
-        case .menlo:
-            return NSFont(name: "Menlo", size: 12) != nil
-        case .monaco:
-            return NSFont(name: "Monaco", size: 12) != nil
-        case .courierNew:
-            return NSFont(name: "Courier New", size: 12) != nil
-        }
+    static func isAvailable(familyId: String) -> Bool {
+        guard familyId != systemMonoId else { return true }
+        return isMonospacedFamily(familyId)
+    }
+
+    private static func isMonospacedFamily(_ familyId: String) -> Bool {
+        let descriptor = NSFontDescriptor(fontAttributes: [.family: familyId])
+        guard let font = NSFont(descriptor: descriptor, size: 12) else { return false }
+        return font.fontDescriptor.symbolicTraits.contains(.monoSpace)
     }
 }
 

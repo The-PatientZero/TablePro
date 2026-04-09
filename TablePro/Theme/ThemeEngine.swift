@@ -32,8 +32,7 @@ internal struct EditorFontCache {
         let scale = Self.computeAccessibilityScale()
         scaleFactor = scale
         let scaledSize = round(CGFloat(min(max(fonts.editorFontSize, 11), 18)) * scale)
-        font = EditorFont(rawValue: fonts.editorFontFamily)?.font(size: scaledSize)
-            ?? NSFont.monospacedSystemFont(ofSize: scaledSize, weight: .regular)
+        font = EditorFontResolver.resolve(familyId: fonts.editorFontFamily, size: scaledSize)
         let lineNumSize = max(round((scaledSize - 2)), 9)
         lineNumberFont = NSFont.monospacedSystemFont(ofSize: lineNumSize, weight: .regular)
     }
@@ -55,8 +54,7 @@ internal struct DataGridFontCacheResolved {
     init(from fonts: ThemeFonts) {
         let scale = EditorFontCache.computeAccessibilityScale()
         let scaledSize = round(CGFloat(min(max(fonts.dataGridFontSize, 10), 18)) * scale)
-        regular = EditorFont(rawValue: fonts.dataGridFontFamily)?.font(size: scaledSize)
-            ?? NSFont.monospacedSystemFont(ofSize: scaledSize, weight: .regular)
+        regular = EditorFontResolver.resolve(familyId: fonts.dataGridFontFamily, size: scaledSize)
         italic = regular.withTraits(.italic)
         medium = NSFontManager.shared.convert(regular, toHaveTrait: .boldFontMask)
         let rowNumSize = max(round(scaledSize - 1), 9)

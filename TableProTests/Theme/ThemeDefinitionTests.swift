@@ -6,13 +6,13 @@
 //  currentStatementHighlight field and Codable backward compatibility.
 //
 
+import AppKit
 import Foundation
 import Testing
 @testable import TablePro
 
 @Suite("Theme Definition")
 struct ThemeDefinitionTests {
-
     // MARK: - Default light theme
 
     @Test("Default light editor colors include currentStatementHighlight")
@@ -133,5 +133,72 @@ struct ThemeDefinitionTests {
         let decoded = try JSONDecoder().decode(EditorThemeColors.self, from: data)
 
         #expect(decoded.currentStatementHighlight == "#AABBCC")
+    }
+
+    // MARK: - Editor font resolver
+
+    @Test("Font resolver always exposes System Mono")
+    func resolverExposesSystemMono() {
+        let families = EditorFontResolver.availableMonospacedFamilies
+        #expect(families.contains { $0.id == EditorFontResolver.systemMonoId })
+    }
+
+    @Test("System Mono is first in picker list")
+    func systemMonoFirst() {
+        let families = EditorFontResolver.availableMonospacedFamilies
+        #expect(families.first?.id == EditorFontResolver.systemMonoId)
+    }
+
+    @Test("Editor font cache falls back for unknown font family")
+    func editorCacheFallsBackForUnknownFamily() {
+        let fonts = ThemeFonts(
+            editorFontFamily: "NoSuchFamily-XYZ",
+            editorFontSize: 13,
+            dataGridFontFamily: "System Mono",
+            dataGridFontSize: 13
+        )
+        let cache = EditorFontCache(from: fonts)
+        #expect(cache.font.pointSize > 0)
+    }
+
+    @Test("Data grid cache falls back for unknown font family")
+    func dataGridCacheFallsBackForUnknownFamily() {
+        let fonts = ThemeFonts(
+            editorFontFamily: "System Mono",
+            editorFontSize: 13,
+            dataGridFontFamily: "NoSuchFamily-XYZ",
+            dataGridFontSize: 13
+        )
+        let cache = DataGridFontCacheResolved(from: fonts)
+        #expect(cache.regular.pointSize > 0)
+        #expect(cache.monoCharWidth > 0)
+    }
+
+    @Test("Resolver list has unique IDs")
+    func resolverListHasUniqueIds() {
+        let ids = EditorFontResolver.availableMonospacedFamilies.map(\.id)
+        #expect(Set(ids).count == ids.count)
+    }
+
+    @Test("Unknown family reports unavailable")
+    func unknownFamilyUnavailable() {
+        #expect(EditorFontResolver.isAvailable(familyId: "NoSuchFamily-XYZ") == false)
+    }
+
+    @Test("ThemeFonts decode keeps legacy family strings")
+    func themeFontsDecodeKeepsLegacyStrings() throws {
+        let json = #"{"editorFontFamily":"Menlo","editorFontSize":13,"dataGridFontFamily":"Monaco","dataGridFontSize":13}"#
+        let decoded = try JSONDecoder().decode(ThemeFonts.self, from: Data(json.utf8))
+        #expect(decoded.editorFontFamily == "Menlo")
+        #expect(decoded.dataGridFontFamily == "Monaco")
+    }
+
+    @Test("All resolver font families are monospaced")
+    func allResolverFamiliesAreMonospaced() {
+        let families = EditorFontResolver.availableMonospacedFamilies
+        for family in families where family.id != EditorFontResolver.systemMonoId {
+            let font = EditorFontResolver.resolve(familyId: family.id, size: 12)
+            #expect(font.fontDescriptor.symbolicTraits.contains(.monoSpace))
+        }
     }
 }

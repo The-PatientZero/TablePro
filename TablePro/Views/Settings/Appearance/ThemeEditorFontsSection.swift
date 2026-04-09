@@ -76,9 +76,10 @@ struct ThemeEditorFontsSection: View {
     private var previewSection: some View {
         Section(String(localized: "Preview")) {
             let fonts = currentThemeFonts
-            let editorFont = EditorFont(rawValue: fonts.editorFontFamily)?
-                .font(size: CGFloat(fonts.editorFontSize))
-                ?? NSFont.monospacedSystemFont(ofSize: CGFloat(fonts.editorFontSize), weight: .regular)
+            let editorFont = EditorFontResolver.resolve(
+                familyId: fonts.editorFontFamily,
+                size: CGFloat(fonts.editorFontSize)
+            )
 
             Text("SELECT * FROM users WHERE id = 42;")
                 .font(Font(editorFont))
@@ -97,8 +98,8 @@ struct ThemeEditorFontsSection: View {
             get: { selection },
             set: { onChange($0) }
         )) {
-            ForEach(EditorFont.allCases.filter(\.isAvailable)) { font in
-                Text(font.displayName).tag(font.rawValue)
+            ForEach(EditorFontResolver.availableMonospacedFamilies) { font in
+                Text(font.displayName).tag(font.id)
             }
         }
     }

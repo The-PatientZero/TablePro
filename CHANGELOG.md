@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix idle ping spin loop caused by exhausted AsyncStream iterator (#618)
 - Skip exact row count for large tables — use database statistics estimate (#519)
 
+### Changed
+
+- Theme font pickers now list installed monospaced fonts dynamically instead of a fixed built-in list
+
 ## [0.28.0] - 2026-04-07
 
 ### Added
