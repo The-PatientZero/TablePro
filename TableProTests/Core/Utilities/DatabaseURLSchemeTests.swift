@@ -246,4 +246,54 @@ struct DatabaseURLSchemeTests {
         }
         #expect(parsed.type == .postgresql)
     }
+
+    // MARK: - Driver Hint Stripping
+
+    @Test("PostgreSQL+psycopg scheme strips driver hint")
+    func postgresqlPsycopgScheme() {
+        let result = ConnectionURLParser.parse("postgresql+psycopg://user:pass@localhost:5432/mydb")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .postgresql)
+        #expect(parsed.host == "localhost")
+        #expect(parsed.database == "mydb")
+    }
+
+    @Test("PostgreSQL+asyncpg scheme strips driver hint")
+    func postgresqlAsyncpgScheme() {
+        let result = ConnectionURLParser.parse("postgresql+asyncpg://user:pass@localhost/mydb")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .postgresql)
+    }
+
+    @Test("MySQL+pymysql scheme strips driver hint")
+    func mysqlPymysqlScheme() {
+        let result = ConnectionURLParser.parse("mysql+pymysql://user:pass@localhost:3306/mydb")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .mysql)
+    }
+
+    @Test("MongoDB+srv scheme preserved (not stripped)")
+    func mongodbSrvPreserved() {
+        let result = ConnectionURLParser.parse("mongodb+srv://user:pass@cluster.example.com/mydb")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .mongodb)
+    }
+
+    @Test("PostgreSQL+ssh still enables SSH mode")
+    func postgresqlSshStillWorks() {
+        let result = ConnectionURLParser.parse("postgresql+ssh://user:pass@localhost/mydb")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .postgresql)
+        #expect(parsed.isSSH == true)
+    }
 }

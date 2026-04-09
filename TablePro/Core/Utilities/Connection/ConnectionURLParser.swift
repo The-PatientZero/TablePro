@@ -88,6 +88,9 @@ struct ConnectionURLParser {
         if scheme.hasSuffix("+ssh") {
             isSSH = true
             scheme = String(scheme.dropLast(4))
+        } else if let plusIdx = scheme.lastIndex(of: "+"),
+                  !scheme.hasSuffix("+srv") {
+            scheme = String(scheme[scheme.startIndex..<plusIdx])
         }
 
         let dbType: DatabaseType
