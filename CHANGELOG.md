@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- ER diagram visualization with Sugiyama layered layout, crow's foot notation, drag-to-reposition, position persistence, compact mode, and PNG export (#186)
+- ER diagram with interactive layout, crow's foot notation, and PNG export (#186)
+- Space key toggles FK preview popover (#648)
+
+### Fixed
+
+- Accept SQLAlchemy-style connection URLs with driver hints (#642)
 
 ## [0.29.0] - 2026-04-09
 

@@ -567,6 +567,10 @@ final class MainContentCommandActions {
         coordinator?.runExplainQuery()
     }
 
+    func previewFKReference() {
+        coordinator?.toggleFKPreviewForFocusedCell()
+    }
+
     func exportTables() {
         coordinator?.openExportDialog()
     }

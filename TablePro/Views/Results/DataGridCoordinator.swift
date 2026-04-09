@@ -35,6 +35,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var rowViewProvider: ((NSTableView, Int, TableViewCoordinator) -> NSTableRowView)?
     var emptySpaceMenu: (() -> NSMenu?)?
     var onNavigateFK: ((String, ForeignKeyInfo) -> Void)?
+    weak var activeFKPreviewPopover: NSPopover?
     var getVisualState: ((Int) -> RowVisualState)?
     var dropdownColumns: Set<Int>?
     var typePickerColumns: Set<Int>?
@@ -254,6 +255,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         onHideColumn = nil
         onShowAllColumns = nil
         onNavigateFK = nil
+        activeFKPreviewPopover?.close()
+        activeFKPreviewPopover = nil
         rowViewProvider = nil
         emptySpaceMenu = nil
         getVisualState = nil

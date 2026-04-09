@@ -74,6 +74,15 @@ extension TableViewCoordinator {
         }
     }
 
+    func toggleForeignKeyPreview(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
+        if let popover = activeFKPreviewPopover, popover.isShown {
+            popover.close()
+            activeFKPreviewPopover = nil
+            return
+        }
+        showForeignKeyPreview(tableView: tableView, row: row, column: column, columnIndex: columnIndex)
+    }
+
     func showForeignKeyPreview(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
         guard columnIndex >= 0, columnIndex < rowProvider.columns.count else { return }
         let columnName = rowProvider.columns[columnIndex]
@@ -83,7 +92,7 @@ extension TableViewCoordinator {
         guard tableView.view(atColumn: column, row: row, makeIfNecessary: false) != nil else { return }
 
         let cellRect = tableView.rect(ofRow: row).intersection(tableView.rect(ofColumn: column))
-        PopoverPresenter.show(
+        let popover = PopoverPresenter.show(
             relativeTo: cellRect,
             of: tableView,
             contentSize: NSSize(width: 380, height: 400)
@@ -101,6 +110,7 @@ extension TableViewCoordinator {
                 onDismiss: dismiss
             )
         }
+        activeFKPreviewPopover = popover
     }
 
     func showJSONEditorPopover(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {

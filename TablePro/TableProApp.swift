@@ -226,6 +226,12 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .explainQuery))
             .disabled(!(actions?.isConnected ?? false) || !(actions?.hasQueryText ?? false))
 
+            Button(String(localized: "Preview FK Reference")) {
+                actions?.previewFKReference()
+            }
+            .optionalKeyboardShortcut(shortcut(for: .previewFKReference))
+            .disabled(!(actions?.isConnected ?? false))
+
             Button(String(localized: "View ER Diagram")) {
                 actions?.showERDiagram()
             }

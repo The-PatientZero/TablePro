@@ -125,6 +125,22 @@ extension MainContentCoordinator {
         }
     }
 
+    /// Toggle FK preview for the currently focused cell in the data grid.
+    /// Called from the menu command system (Settings > Keyboard rebindable).
+    func toggleFKPreviewForFocusedCell() {
+        guard let tableView = NSApp.keyWindow?.firstResponder as? KeyHandlingTableView,
+              let coordinator = tableView.coordinator,
+              tableView.selectedRow >= 0,
+              tableView.focusedColumn >= 1
+        else { return }
+        coordinator.toggleForeignKeyPreview(
+            tableView: tableView,
+            row: tableView.selectedRow,
+            column: tableView.focusedColumn,
+            columnIndex: tableView.focusedColumn - 1
+        )
+    }
+
     private func applyFKFilter(_ filter: TableFilter, for tableName: String) {
         applyFilters([filter])
         updateFilterState(filter, for: tableName)

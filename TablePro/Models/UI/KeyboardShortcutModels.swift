@@ -65,6 +65,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case addRow
     case duplicateRow
     case truncateTable
+    case previewFKReference
 
     // View
     case toggleTableBrowser
@@ -96,7 +97,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
             return .file
         case .undo, .redo, .cut, .copy, .copyWithHeaders, .copyAsJson, .paste,
              .delete, .selectAll, .clearSelection, .addRow,
-             .duplicateRow, .truncateTable:
+             .duplicateRow, .truncateTable, .previewFKReference:
             return .edit
         case .toggleTableBrowser, .toggleInspector, .toggleFilters, .toggleHistory,
              .toggleResults, .previousResultTab, .nextResultTab, .closeResultTab:
@@ -138,6 +139,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         case .addRow: return String(localized: "Add Row")
         case .duplicateRow: return String(localized: "Duplicate Row")
         case .truncateTable: return String(localized: "Truncate Table")
+        case .previewFKReference: return String(localized: "Preview FK Reference")
         case .toggleTableBrowser: return String(localized: "Toggle Table Browser")
         case .toggleInspector: return String(localized: "Toggle Inspector")
         case .toggleFilters: return String(localized: "Toggle Filters")
@@ -202,11 +204,12 @@ struct KeyCombo: Codable, Equatable, Hashable {
         let hasOption = flags.contains(.option)
         let hasControl = flags.contains(.control)
 
-        // Require at least Cmd or Control (or escape/delete which work without modifiers)
+        // Require at least Cmd or Control (or special bare keys: escape, delete, space)
         let specialKeyCode = Self.specialKeyName(for: event.keyCode)
-        let isEscapeOrDelete = event.keyCode == 53 || event.keyCode == 51 || event.keyCode == 117
+        let isAllowedBareKey = event.keyCode == 53 || event.keyCode == 51
+            || event.keyCode == 117 || event.keyCode == 49
 
-        if !hasCommand && !hasControl && !isEscapeOrDelete {
+        if !hasCommand && !hasControl && !isAllowedBareKey {
             return nil
         }
 
@@ -320,6 +323,22 @@ struct KeyCombo: Codable, Equatable, Hashable {
         case 121: return "pageDown"
         default: return nil
         }
+    }
+
+    // MARK: - Event Matching
+
+    /// Check if this combo matches a given NSEvent (for runtime key dispatch)
+    func matches(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard command == flags.contains(.command),
+              shift == flags.contains(.shift),
+              option == flags.contains(.option),
+              control == flags.contains(.control)
+        else { return false }
+        if isSpecialKey {
+            return Self.specialKeyName(for: event.keyCode) == key
+        }
+        return event.charactersIgnoringModifiers?.lowercased() == key
     }
 
     // MARK: - System Reserved Check
@@ -443,6 +462,7 @@ struct KeyboardSettings: Codable, Equatable {
         .addRow: KeyCombo(key: "i", command: true),
         .duplicateRow: KeyCombo(key: "d", command: true),
         .truncateTable: KeyCombo(key: "delete", option: true, isSpecialKey: true),
+        .previewFKReference: KeyCombo(key: "space", isSpecialKey: true),
 
         // View
         .toggleTableBrowser: KeyCombo(key: "b", command: true),

@@ -243,9 +243,12 @@ final class KeyHandlingTableView: NSTableView {
             break
         }
 
-        // Cmd+Return: preview referenced FK row
-        if key == .return && modifiers.contains(.command) && selectedRow >= 0 && focusedColumn >= 1 {
-            coordinator?.showForeignKeyPreview(
+        // FK preview: dispatch from user-configurable shortcut (default: Space)
+        if let fkCombo = AppSettingsManager.shared.keyboard.shortcut(for: .previewFKReference),
+           !fkCombo.isCleared,
+           fkCombo.matches(event),
+           selectedRow >= 0, focusedColumn >= 1 {
+            coordinator?.toggleForeignKeyPreview(
                 tableView: self, row: selectedRow, column: focusedColumn, columnIndex: focusedColumn - 1
             )
             return
