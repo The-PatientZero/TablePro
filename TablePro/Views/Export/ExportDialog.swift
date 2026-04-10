@@ -16,6 +16,7 @@ import UniformTypeIdentifiers
 struct ExportDialog: View {
     @Binding var isPresented: Bool
     let mode: ExportMode
+    var sidebarTables: [TableInfo] = []
 
     // MARK: - State
 
@@ -118,6 +119,7 @@ struct ExportDialog: View {
                 }
                 isLoading = false
             } else {
+                populateFromSidebarTables()
                 await loadDatabaseItems()
             }
         }
@@ -511,6 +513,38 @@ struct ExportDialog: View {
 
     // MARK: - Actions
 
+    /// Instantly populate the current database from sidebar tables (no network).
+    private func populateFromSidebarTables() {
+        guard !sidebarTables.isEmpty else { return }
+        let dbName = connection.database
+        let tableItems = sidebarTables.map { table in
+            ExportTableItem(
+                name: table.name,
+                databaseName: dbName,
+                type: table.type,
+                isSelected: preselectedTables.contains(table.name)
+            )
+        }
+        let item = ExportDatabaseItem(
+            name: dbName.isEmpty ? "Tables" : dbName,
+            tables: tableItems,
+            isExpanded: true
+        )
+        databaseItems = [item]
+        isLoading = false
+    }
+
+    /// Build a lookup of user-toggled selection state from current `databaseItems`.
+    private func currentSelectionState() -> [String: Bool] {
+        var state: [String: Bool] = [:]
+        for db in databaseItems {
+            for table in db.tables {
+                state["\(db.name).\(table.name)"] = table.isSelected
+            }
+        }
+        return state
+    }
+
     @MainActor
     private func loadDatabaseItems() async {
         guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
@@ -523,6 +557,9 @@ struct ExportDialog: View {
             return
         }
 
+        // Snapshot user-toggled selections before replacing items
+        let priorSelections = currentSelectionState()
+
         do {
             var items: [ExportDatabaseItem] = []
 
@@ -534,20 +571,23 @@ struct ExportDialog: View {
                 let defaultSchema = PluginManager.shared.defaultSchemaName(for: dbType)
                 for schema in schemas {
                     let tables = try await fetchTablesForSchema(schema, driver: driver)
+                    let isDefaultSchema = schema.caseInsensitiveCompare(defaultSchema) == .orderedSame
                     let tableItems = tables.map { table in
-                        ExportTableItem(
+                        let key = "\(schema).\(table.name)"
+                        let selected = priorSelections[key]
+                            ?? (isDefaultSchema && preselectedTables.contains(table.name))
+                        return ExportTableItem(
                             name: table.name,
                             databaseName: schema,
                             type: table.type,
-                            isSelected: schema.caseInsensitiveCompare(defaultSchema) == .orderedSame
-                                && preselectedTables.contains(table.name)
+                            isSelected: selected
                         )
                     }
                     if !tableItems.isEmpty {
                         items.append(ExportDatabaseItem(
                             name: schema,
                             tables: tableItems,
-                            isExpanded: schema.caseInsensitiveCompare(defaultSchema) == .orderedSame
+                            isExpanded: isDefaultSchema
                         ))
                     }
                 }
@@ -560,26 +600,31 @@ struct ExportDialog: View {
                 let fallbackName = PluginManager.shared.defaultGroupName(for: dbType)
                 let dbItem = try await buildFlatDatabaseItem(
                     driver: driver,
-                    name: connection.database.isEmpty ? fallbackName : connection.database
+                    name: connection.database.isEmpty ? fallbackName : connection.database,
+                    priorSelections: priorSelections
                 )
                 if let dbItem { items.append(dbItem) }
             case .byDatabase:
                 let databases = try await driver.fetchDatabases()
                 for dbName in databases {
                     let tables = try await fetchTablesForDatabase(dbName, driver: driver)
+                    let isCurrentDB = dbName == connection.database
                     let tableItems = tables.map { table in
-                        ExportTableItem(
+                        let key = "\(dbName).\(table.name)"
+                        let selected = priorSelections[key]
+                            ?? (isCurrentDB && preselectedTables.contains(table.name))
+                        return ExportTableItem(
                             name: table.name,
                             databaseName: dbName,
                             type: table.type,
-                            isSelected: dbName == connection.database && preselectedTables.contains(table.name)
+                            isSelected: selected
                         )
                     }
                     if !tableItems.isEmpty {
                         items.append(ExportDatabaseItem(
                             name: dbName,
                             tables: tableItems,
-                            isExpanded: dbName == connection.database
+                            isExpanded: isCurrentDB
                         ))
                     }
                 }
@@ -611,15 +656,18 @@ struct ExportDialog: View {
 
     private func buildFlatDatabaseItem(
         driver: DatabaseDriver,
-        name: String
+        name: String,
+        priorSelections: [String: Bool] = [:]
     ) async throws -> ExportDatabaseItem? {
         let tables = try await driver.fetchTables()
         let tableItems = tables.map { table in
-            ExportTableItem(
+            let key = "\(name).\(table.name)"
+            let selected = priorSelections[key] ?? preselectedTables.contains(table.name)
+            return ExportTableItem(
                 name: table.name,
                 databaseName: "",
                 type: table.type,
-                isSelected: preselectedTables.contains(table.name)
+                isSelected: selected
             )
         }
         guard !tableItems.isEmpty else { return nil }
@@ -714,17 +762,14 @@ struct ExportDialog: View {
             savePanel.message = String(format: String(localized: "Export %d table(s) to %@"), exportableCount, formatName)
         }
 
-        guard let keyWindow = NSApp.keyWindow else { return }
-        let window = keyWindow.sheetParent ?? keyWindow
-        savePanel.beginSheetModal(for: window) { response in
-            guard response == .OK, let url = savePanel.url else { return }
+        let response = savePanel.runModal()
+        guard response == .OK, let url = savePanel.url else { return }
 
-            Task {
-                if self.isQueryResultsMode {
-                    await self.startQueryResultsExport(to: url)
-                } else {
-                    await self.startExport(to: url)
-                }
+        Task {
+            if self.isQueryResultsMode {
+                await self.startQueryResultsExport(to: url)
+            } else {
+                await self.startExport(to: url)
             }
         }
     }

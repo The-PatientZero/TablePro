@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix export dialog doing nothing on macOS Tahoe due to incorrect window reference for save panel (#654)
 - Fix column visibility popover and hex editor alignment — left-align per macOS HIG (#653)
 - Accept SQLAlchemy-style connection URLs with driver hints (#642)
 
