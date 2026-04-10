@@ -36,7 +36,7 @@ struct QueryPlanDiagramView: View {
     @State private var magnification: CGFloat = 1.0
     @State private var selectedNode: SelectedNodeID?
     @State private var positioned: [PositionedNode] = []
-    @State private var canvasSize: CGSize = CGSize(width: 400, height: 300)
+    @State private var canvasSize = CGSize(width: 400, height: 300)
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {

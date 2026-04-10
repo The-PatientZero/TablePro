@@ -103,7 +103,6 @@ enum ERDiagramNodeRenderer {
                 at: CGPoint(x: rect.maxX - typeRightMargin, y: rowY),
                 anchor: .trailing
             )
-
         }
     }
 }

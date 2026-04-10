@@ -199,7 +199,7 @@ final class ERDiagramViewModel {
 
     // MARK: - Canvas Size
 
-    private(set) var cachedCanvasSize: CGSize = CGSize(width: 800, height: 600)
+    private(set) var cachedCanvasSize = CGSize(width: 800, height: 600)
 
     // MARK: - Node Rect (for edge rendering)
 
