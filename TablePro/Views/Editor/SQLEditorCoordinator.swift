@@ -402,7 +402,7 @@ final class SQLEditorCoordinator: TextViewCoordinator, TextViewDelegate {
     }
 
     private func isInsideProtectedContext(_ text: NSString, at position: Int) -> Bool {
-        let scanStart = max(0, position - 2000)
+        let scanStart = max(0, position - 2_000)
         var inSingleQuote = false
         var inDoubleQuote = false
         var inBacktick = false
