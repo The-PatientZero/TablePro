@@ -51,11 +51,10 @@ struct HexEditorContentView: View {
 
             Divider()
 
-            VStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Editable Hex")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 HexInputTextView(text: $editableHex)
                     .frame(height: 80)

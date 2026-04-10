@@ -73,7 +73,7 @@ struct ColumnVisibilityPopover: View {
 
     private var columnList: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(filteredColumns, id: \.self) { column in
                     columnRow(column)
                 }

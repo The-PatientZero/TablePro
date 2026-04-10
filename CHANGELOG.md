@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix column visibility popover and hex editor alignment — left-align per macOS HIG (#653)
 - Accept SQLAlchemy-style connection URLs with driver hints (#642)
 
 ## [0.29.0] - 2026-04-09
