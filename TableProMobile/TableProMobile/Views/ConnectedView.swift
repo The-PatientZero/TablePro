@@ -30,6 +30,10 @@ struct ConnectedView: View {
     @State private var activeSchema: String = "public"
     @State private var isSwitching = false
     @State private var isReconnecting = false
+    @State private var hapticSuccess = false
+    @State private var hapticError = false
+
+    @Environment(\.dismiss) private var dismiss
 
     enum ConnectedTab: String, CaseIterable {
         case tables = "Tables"
@@ -52,8 +56,14 @@ struct ConnectedView: View {
     var body: some View {
         Group {
             if isConnecting {
-                ProgressView {
-                    Text(String(format: String(localized: "Connecting to %@..."), displayName))
+                VStack(spacing: 16) {
+                    ProgressView {
+                        Text(String(format: String(localized: "Connecting to %@..."), displayName))
+                    }
+                    Button(String(localized: "Cancel")) {
+                        dismiss()
+                    }
+                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let appError {
@@ -78,6 +88,8 @@ struct ConnectedView: View {
                     .animation(.default, value: isSwitching)
             }
         }
+        .sensoryFeedback(.success, trigger: hapticSuccess)
+        .sensoryFeedback(.error, trigger: hapticError)
         .alert("Error", isPresented: $showFailureAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -158,7 +170,9 @@ struct ConnectedView: View {
         }
         .task {
             await connect()
-            queryHistory = historyStorage.load(for: connection.id)
+            if !Task.isCancelled {
+                queryHistory = historyStorage.load(for: connection.id)
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, session != nil {
@@ -205,6 +219,7 @@ struct ConnectedView: View {
             self.session = existing
             do {
                 self.tables = try await existing.driver.fetchTables(schema: nil)
+                guard !Task.isCancelled else { return }
                 await loadDatabases()
                 await loadSchemas()
             } catch {
@@ -225,12 +240,18 @@ struct ConnectedView: View {
 
         do {
             let session = try await appState.connectionManager.connect(connection)
+            guard !Task.isCancelled else {
+                await appState.connectionManager.disconnect(connection.id)
+                return
+            }
             self.session = session
             self.tables = try await session.driver.fetchTables(schema: nil)
             isConnecting = false
+            hapticSuccess.toggle()
             await loadDatabases()
             await loadSchemas()
         } catch {
+            guard !Task.isCancelled else { return }
             let context = ErrorContext(
                 operation: "connect",
                 databaseType: connection.type,
@@ -239,6 +260,7 @@ struct ConnectedView: View {
             )
             appError = ErrorClassifier.classify(error, context: context)
             isConnecting = false
+            hapticError.toggle()
         }
     }
 
