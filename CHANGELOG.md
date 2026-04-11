@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-04-12
+
 ### Added
 
 - Server Dashboard: active sessions, metrics, slow queries (PostgreSQL, MySQL, MSSQL, ClickHouse, DuckDB, SQLite)
@@ -1254,7 +1256,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.30.1...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/TableProApp/TablePro/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/TableProApp/TablePro/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/TableProApp/TablePro/compare/v0.29.0...v0.30.0
 [0.29.0]: https://github.com/TableProApp/TablePro/compare/v0.28.0...v0.29.0

@@ -3,7 +3,6 @@ import Foundation
 /// Pure helper functions for SQL keyword auto-uppercase.
 /// Extracted from SQLEditorCoordinator for testability.
 enum KeywordUppercaseHelper {
-
     /// Checks if a typed string is a word boundary character (triggers keyword check).
     static func isWordBoundary(_ string: String) -> Bool {
         guard (string as NSString).length == 1, let ch = string.unicodeScalars.first else { return false }
