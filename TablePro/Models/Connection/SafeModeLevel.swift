@@ -62,7 +62,7 @@ internal extension SafeModeLevel {
 
     var iconName: String {
         switch self {
-        case .silent: return "lock.open"
+        case .silent: return "lock.open.fill"
         case .alert: return "exclamationmark.triangle"
         case .alertFull: return "exclamationmark.triangle.fill"
         case .safeMode: return "lock.shield"

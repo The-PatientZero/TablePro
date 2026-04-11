@@ -87,7 +87,7 @@ extension EmptyStateView {
     /// Empty state for indexes
     static func indexes(onAdd: @escaping () -> Void) -> EmptyStateView {
         EmptyStateView(
-            icon: "list.bullet.indent",
+            icon: "list.bullet",
             title: String(localized: "No Indexes Defined"),
             description: String(localized: "Add indexes to improve query performance on frequently searched columns"),
             actionTitle: String(localized: "Add Index"),

@@ -292,11 +292,11 @@ struct AISettingsView: View {
 
     private func iconForProviderType(_ type: AIProviderType) -> String {
         switch type {
-        case .claude: return "brain"
+        case .claude: return "cpu"
         case .openAI: return "cpu"
         case .openRouter: return "arrow.triangle.branch"
         case .ollama: return "desktopcomputer"
-        case .gemini: return "sparkle"
+        case .gemini: return "sparkles"
         case .custom: return "gearshape"
         }
     }

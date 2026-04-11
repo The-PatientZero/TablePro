@@ -26,7 +26,7 @@ enum ConnectionEnvironment: String, CaseIterable {
         case .local: return "house.fill"
         case .ssh: return "lock.fill"
         case .production: return "exclamationmark.triangle.fill"
-        case .staging: return "flask.fill"
+        case .staging: return "testtube.2"
         }
     }
 

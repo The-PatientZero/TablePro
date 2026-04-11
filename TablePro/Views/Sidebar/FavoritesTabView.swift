@@ -300,7 +300,7 @@ private struct FavoriteItemContextMenu: View {
         Button {
             coordinator?.insertFavorite(favorite)
         } label: {
-            Label(String(localized: "Insert in Editor"), systemImage: "text.insert")
+            Label(String(localized: "Insert in Editor"), systemImage: "square.and.pencil")
         }
 
         Button {

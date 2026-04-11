@@ -27,7 +27,7 @@ enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
         case .password: return "key.fill"
         case .privateKey: return "doc.text.fill"
         case .sshAgent: return "person.badge.key.fill"
-        case .keyboardInteractive: return "lock.rotation"
+        case .keyboardInteractive: return "keyboard"
         }
     }
 }
