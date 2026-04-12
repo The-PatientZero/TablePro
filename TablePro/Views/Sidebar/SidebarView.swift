@@ -115,6 +115,9 @@ struct SidebarView: View {
         }
         .onAppear {
             coordinator?.sidebarViewModel = viewModel
+            if coordinator?.sidebarLoadingState == .idle && !tables.isEmpty {
+                coordinator?.sidebarLoadingState = .loaded
+            }
         }
         .sheet(isPresented: $viewModel.showOperationDialog) {
             if let operationType = viewModel.pendingOperationType {
@@ -138,7 +141,7 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var tablesContent: some View {
-        switch coordinator?.sidebarLoadingState ?? .idle {
+        switch coordinator?.sidebarLoadingState ?? (tables.isEmpty ? .idle : .loaded) {
         case .loading:
             loadingState
         case .error(let message):
