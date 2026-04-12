@@ -5,13 +5,11 @@
 <h1 align="center">TablePro</h1>
 
 <p align="center">
-  A fast, native macOS database client with built-in AI assistant.
+  一款快速、原生的 macOS 数据库客户端，内置 AI 助手。
 </p>
 
 <p align="center">
-  <a href="https://docs.tablepro.app">Documentation</a> ·
-  <a href="https://github.com/TableProApp/TablePro/releases">Download</a> ·
-  <a href="https://github.com/TableProApp/TablePro/issues">Report Bug</a>
+  <a href="https://docs.tablepro.app">文档</a> · <a href="https://github.com/TableProApp/TablePro/releases">下载</a> · <a href="https://github.com/TableProApp/TablePro/issues">报告 Bug</a>
 </p>
 
 <p align="center">
@@ -20,7 +18,7 @@
 
 <p align="center">
   <a href="README.vi.md">Tiếng Việt</a>
-  <a href="README.zh.md">简体中文</a>
+  <a href="README.md">English</a>
 </p>
 
 ---
@@ -29,29 +27,29 @@
   <img src=".github/assets/hero-dark.png" alt="TablePro Screenshot" width="800">
 </p>
 
-## About
+## 关于
 
-TablePro is a native macOS database client. Connects to MySQL, MariaDB, PostgreSQL, SQLite, MongoDB, Redis, SQL Server, and Redshift. Includes a SQL editor with autocomplete, inline editing, and AI assistance.
+TablePro 是一款原生 macOS 数据库客户端。支持连接 MySQL、MariaDB、PostgreSQL、SQLite、MongoDB、Redis、SQL Server 和 Redshift。包含支持自动补全、行内编辑和 AI 辅助的 SQL 编辑器。
 
-## Install
+## 安装
 
 ```bash
 brew install --cask tablepro
 ```
 
-Or download the DMG from [GitHub Releases](https://github.com/TableProApp/TablePro/releases).
+或者从 [GitHub Releases](https://github.com/TableProApp/TablePro/releases) 下载 DMG 文件。
 
-## Documentation
+## 文档
 
-Full documentation is available at [docs.tablepro.app](https://docs.tablepro.app).
+完整文档请访问 [docs.tablepro.app](https://docs.tablepro.app)。
 
-## Support Development
+## 支持开发
 
-TablePro is free and open source. If you find it useful, consider [purchasing a license](https://tablepro.app) to support ongoing development and get access to premium features.
+TablePro 是免费开源的。如果您觉得它有用，请考虑[购买许可证](https://tablepro.app)以支持持续开发，并获得高级功能访问权限。
 
-## Sponsors
+## 赞助商
 
-Thanks to these amazing people for supporting TablePro:
+感谢这些优秀的人对 TablePro 的支持：
 
 **[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)** · **[Nimbus](https://getnimbus.io?ref=tablepro)** · **[Visnalize](https://visnalize.com?ref=tablepro)** · **[Huy TQ](https://github.com/imhuytq)** · **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
@@ -65,8 +63,6 @@ Thanks to these amazing people for supporting TablePro:
  </picture>
 </a>
 
-## License
+## 许可证
 
-This project is licensed under the [GNU Affero General Public License v3.0 (AGPLv3)](LICENSE).
-
-Contributions require signing a Contributor License Agreement (CLA). See [CLA.md](CLA.md) for details.
+本项目基于 [GNU Affero General Public License v3.0 (AGPLv3)](LICENSE) 许可证授权。贡献代码需要签署贡献者许可协议 (CLA)。详情请参阅 [CLA.md](CLA.md)。
