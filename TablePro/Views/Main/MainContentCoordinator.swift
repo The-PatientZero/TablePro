@@ -214,10 +214,12 @@ final class MainContentCoordinator {
         let orderedCoordinators: [MainContentCoordinator]
         if let firstWindow = coordinators.compactMap({ $0.contentWindow }).first,
            let tabbedWindows = firstWindow.tabbedWindows {
-            let windowOrder = tabbedWindows.map { ObjectIdentifier($0) }
+            let windowOrder = Dictionary(uniqueKeysWithValues:
+                tabbedWindows.enumerated().map { (ObjectIdentifier($0.element), $0.offset) }
+            )
             orderedCoordinators = coordinators.sorted { a, b in
-                let aIdx = a.contentWindow.flatMap { w in windowOrder.firstIndex(of: ObjectIdentifier(w)) } ?? Int.max
-                let bIdx = b.contentWindow.flatMap { w in windowOrder.firstIndex(of: ObjectIdentifier(w)) } ?? Int.max
+                let aIdx = a.contentWindow.flatMap { windowOrder[ObjectIdentifier($0)] } ?? Int.max
+                let bIdx = b.contentWindow.flatMap { windowOrder[ObjectIdentifier($0)] } ?? Int.max
                 return aIdx < bIdx
             }
         } else {

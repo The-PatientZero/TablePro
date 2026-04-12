@@ -122,7 +122,7 @@ struct SidebarView: View {
             let tableCount = tables.count
             sidebarLogger.debug("onAppear: loadingState=\(String(describing: state)), tables=\(tableCount), coordinator=\(coordinator != nil)")
             if state == .idle && !tables.isEmpty {
-                sidebarLogger.debug("onAppear: healing .idle → .loaded (tables=\(tableCount))")
+                sidebarLogger.debug("onAppear: healing .idle -> .loaded (tables=\(tableCount))")
                 coordinator?.sidebarLoadingState = .loaded
             }
             // Update toolbar version if driver connected before this window's observer was set up
@@ -132,9 +132,12 @@ struct SidebarView: View {
             }
         }
         .onChange(of: tables) { _, newTables in
-            // Heal sidebar state when tables arrive from another window's refreshTables()
+            // Heal sidebar state when tables arrive from another window's refreshTables().
+            // Safe unlike the old onChange that was removed in PR #690: this only transitions
+            // .idle -> .loaded (no fetching, no cache reads). The old version called
+            // loadTables() which fetched from stale schema provider cache.
             if !newTables.isEmpty && coordinator?.sidebarLoadingState == .idle {
-                sidebarLogger.debug("onChange(tables): healing .idle → .loaded (tables=\(newTables.count))")
+                sidebarLogger.debug("onChange(tables): healing .idle -> .loaded (tables=\(newTables.count))")
                 coordinator?.sidebarLoadingState = .loaded
             }
         }

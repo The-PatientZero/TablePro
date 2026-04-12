@@ -113,6 +113,7 @@ extension MainContentView {
 
             if !remainingTabs.isEmpty {
                 setupLogger.debug("handleRestoreOrDefault: opening \(remainingTabs.count) remaining tabs as native windows")
+                let selectedWasFirst = firstTab.id == selectedId
                 Task { @MainActor in
                     for tab in remainingTabs {
                         setupLogger.debug("  opening native tab: \(tab.title)")
@@ -120,7 +121,11 @@ extension MainContentView {
                             from: tab, connectionId: connection.id, skipAutoExecute: true)
                         WindowOpener.shared.openNativeTab(restorePayload)
                     }
-                    viewWindow?.makeKeyAndOrderFront(nil)
+                    // Bring the first window to front only if it had the selected tab.
+                    // Otherwise let the last restored window stay focused.
+                    if selectedWasFirst {
+                        viewWindow?.makeKeyAndOrderFront(nil)
+                    }
                 }
             }
 
