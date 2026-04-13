@@ -521,11 +521,15 @@ struct ConnectionFormView: View {
         if sshEnabled && !sshKeyPassphrase.isEmpty {
             try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(tempId.uuidString)")
         }
+        if sshEnabled && !sshKeyContent.isEmpty {
+            try? secureStore.store(sshKeyContent, forKey: "com.TablePro.sshkeydata.\(tempId.uuidString)")
+        }
 
         defer {
             try? appState.connectionManager.deletePassword(for: tempId)
             try? secureStore.delete(forKey: "com.TablePro.sshpassword.\(tempId.uuidString)")
             try? secureStore.delete(forKey: "com.TablePro.keypassphrase.\(tempId.uuidString)")
+            try? secureStore.delete(forKey: "com.TablePro.sshkeydata.\(tempId.uuidString)")
             isTesting = false
         }
 
