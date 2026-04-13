@@ -5914,6 +5914,9 @@
         }
       }
     },
+    "Bring All to Front" : {
+
+    },
     "Browse" : {
       "localizations" : {
         "tr" : {
@@ -10931,6 +10934,9 @@
           }
         }
       }
+    },
+    "Decrease Text Size" : {
+
     },
     "Decrypt" : {
       "localizations" : {
@@ -18266,6 +18272,9 @@
         }
       }
     },
+    "Increase Text Size" : {
+
+    },
     "INDEX" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -20770,6 +20779,9 @@
         }
       }
     },
+    "Manage Connections" : {
+
+    },
     "Manage Connections..." : {
       "localizations" : {
         "tr" : {
@@ -22295,6 +22307,7 @@
       }
     },
     "Next Tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -22317,6 +22330,7 @@
       }
     },
     "Next Tab (Alt)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -26803,6 +26817,7 @@
       }
     },
     "Previous Tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -26825,6 +26840,7 @@
       }
     },
     "Previous Tab (Alt)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
