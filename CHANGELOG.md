@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix AI chat hanging the app during streaming, schema fetch, and conversation loading (#735)
 - SSH Agent auth: fall back to key file from `~/.ssh/config` or default paths when agent has no loaded identities (#729)
+- Wire AI Explain (⌘L), Optimize (⌘⌥L), and Toggle Sidebar (⌘0) shortcuts to menu bar commands
+- Keyboard shortcuts follow macOS HIG — remap Quick Switcher to ⌘⇧O, Format Query to ⌘⇧L, fix stale tooltip hints
 - SSH-tunneled connections failing to reconnect after idle/sleep — health monitor now rebuilds the tunnel, OS-level TCP keepalive detects dead NAT mappings, and wake-from-sleep triggers immediate validation (#736)
 - Composite primary key tables: editing or deleting a row affects all rows sharing the first PK value instead of just the target row
 - Structure view saves bypass safe mode on read-only connections
