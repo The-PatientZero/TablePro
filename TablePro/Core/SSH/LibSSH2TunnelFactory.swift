@@ -385,6 +385,19 @@ internal enum LibSSH2TunnelFactory {
             // Restore blocking mode for handshake/auth
             fcntl(fd, F_SETFL, flags)
 
+            // Enable OS-level TCP keepalive so the kernel detects dead connections
+            // (e.g., silent NAT gateway timeout on AWS) independently of libssh2's
+            // application-level keepalive. macOS uses TCP_KEEPALIVE for the idle
+            // interval (seconds before the first keepalive probe).
+            var yes: Int32 = 1
+            if setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, socklen_t(MemoryLayout<Int32>.size)) != 0 {
+                logger.warning("Failed to set SO_KEEPALIVE: \(String(cString: strerror(errno)))")
+            }
+            var keepIdle: Int32 = 60
+            if setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &keepIdle, socklen_t(MemoryLayout<Int32>.size)) != 0 {
+                logger.warning("Failed to set TCP_KEEPALIVE: \(String(cString: strerror(errno)))")
+            }
+
             logger.debug("TCP connected to \(host):\(port)")
             return fd
         }
@@ -446,15 +459,23 @@ internal enum LibSSH2TunnelFactory {
     ) throws -> any SSHAuthenticator {
         switch config.authMethod {
         case .password where config.totpMode != .none:
-            // Server requires password + keyboard-interactive for TOTP
+            // Guard: nil password means the Keychain lookup failed
+            guard let sshPassword = credentials.sshPassword else {
+                logger.error("SSH password is nil (Keychain lookup may have failed) for \(config.host)")
+                throw SSHTunnelError.authenticationFailed
+            }
             let totpProvider = buildTOTPProvider(config: config, credentials: credentials)
             return CompositeAuthenticator(authenticators: [
-                PasswordAuthenticator(password: credentials.sshPassword ?? ""),
+                PasswordAuthenticator(password: sshPassword),
                 KeyboardInteractiveAuthenticator(password: nil, totpProvider: totpProvider),
             ])
 
         case .password:
-            return PasswordAuthenticator(password: credentials.sshPassword ?? "")
+            guard let sshPassword = credentials.sshPassword else {
+                logger.error("SSH password is nil (Keychain lookup may have failed) for \(config.host)")
+                throw SSHTunnelError.authenticationFailed
+            }
+            return PasswordAuthenticator(password: sshPassword)
 
         case .privateKey:
             let primary = PublicKeyAuthenticator(
