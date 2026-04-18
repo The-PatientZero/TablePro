@@ -43,7 +43,6 @@ enum ExportError: LocalizedError {
 
 struct ExportState {
     var isExporting: Bool = false
-    var progress: Double = 0.0
     var currentTable: String = ""
     var currentTableIndex: Int = 0
     var totalTables: Int = 0
@@ -58,7 +57,7 @@ struct ExportState {
 
 @MainActor @Observable
 final class ExportService {
-    static let logger = Logger(subsystem: "com.TablePro", category: "ExportService")
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ExportService")
 
     var state = ExportState()
 
@@ -78,20 +77,7 @@ final class ExportService {
 
     // MARK: - Cancellation
 
-    private let isCancelledLock = NSLock()
-    private var _isCancelled: Bool = false
-    var isCancelled: Bool {
-        get {
-            isCancelledLock.lock()
-            defer { isCancelledLock.unlock() }
-            return _isCancelled
-        }
-        set {
-            isCancelledLock.lock()
-            _isCancelled = newValue
-            isCancelledLock.unlock()
-        }
-    }
+    var isCancelled: Bool = false
 
     func cancelExport() {
         isCancelled = true
@@ -137,30 +123,30 @@ final class ExportService {
         let dataSource = ExportDataSourceAdapter(driver: driver, databaseType: databaseType)
 
         // Create progress tracker
-        let progress = PluginExportProgress()
+        let nsProgress = Progress(totalUnitCount: Int64(state.totalRows))
+        let progress = PluginExportProgress(progress: nsProgress)
         currentProgress = progress
-        progress.setTotalRows(state.totalRows)
 
-        // Wire progress updates to UI state (coalesced to avoid main actor flooding)
-        let pendingUpdate = ProgressUpdateCoalescer()
-        progress.onUpdate = { [weak self] table, index, rows, total, status in
-            let shouldDispatch = pendingUpdate.markPending()
-            if shouldDispatch {
-                Task { @MainActor [weak self] in
-                    pendingUpdate.clearPending()
-                    guard let self else { return }
-                    self.state.currentTable = table
-                    self.state.currentTableIndex = index
-                    self.state.processedRows = rows
-                    if total > 0 {
-                        self.state.progress = Double(rows) / Double(total)
-                    }
-                    if !status.isEmpty {
-                        self.state.statusMessage = status
-                    }
-                }
+        // Observe NSProgress for UI updates
+        let observation = nsProgress.observe(\.completedUnitCount) { [weak self] observed, _ in
+            let count = Int(observed.completedUnitCount)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.state.processedRows = count
             }
         }
+        defer { observation.invalidate() }
+
+        let descObservation = nsProgress.observe(\.localizedDescription) { [weak self] observed, _ in
+            let tableName = observed.localizedDescription ?? ""
+            let tableIndex = progress.currentTableIndex
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.state.currentTable = tableName
+                self.state.currentTableIndex = tableIndex
+            }
+        }
+        defer { descObservation.invalidate() }
 
         // Convert ExportTableItems to PluginExportTables
         let pluginTables = tables.map { table in
@@ -172,8 +158,9 @@ final class ExportService {
             )
         }
 
+        let result: ExportFormatResult
         do {
-            try await plugin.export(
+            result = try await plugin.export(
                 tables: pluginTables,
                 dataSource: dataSource,
                 destination: url,
@@ -189,12 +176,11 @@ final class ExportService {
             throw error
         }
 
-        let pluginWarnings = plugin.warnings
-        if !pluginWarnings.isEmpty {
-            state.warningMessage = pluginWarnings.joined(separator: "\n")
-        }
+        state.processedRows = progress.processedRows
 
-        state.progress = 1.0
+        if !result.warnings.isEmpty {
+            state.warningMessage = result.warnings.joined(separator: "\n")
+        }
     }
 
     // MARK: - Query Results Export
@@ -225,29 +211,28 @@ final class ExportService {
             driver: driver
         )
 
-        let progress = PluginExportProgress()
+        let nsProgress = Progress(totalUnitCount: Int64(totalRows))
+        let progress = PluginExportProgress(progress: nsProgress)
         currentProgress = progress
-        progress.setTotalRows(totalRows)
 
-        let pendingUpdate = ProgressUpdateCoalescer()
-        progress.onUpdate = { [weak self] table, index, rows, total, status in
-            let shouldDispatch = pendingUpdate.markPending()
-            if shouldDispatch {
-                Task { @MainActor [weak self] in
-                    pendingUpdate.clearPending()
-                    guard let self else { return }
-                    self.state.currentTable = table
-                    self.state.currentTableIndex = index
-                    self.state.processedRows = rows
-                    if total > 0 {
-                        self.state.progress = Double(rows) / Double(total)
-                    }
-                    if !status.isEmpty {
-                        self.state.statusMessage = status
-                    }
-                }
+        let observation = nsProgress.observe(\.completedUnitCount) { [weak self] observed, _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.state.processedRows = Int(observed.completedUnitCount)
             }
         }
+        defer { observation.invalidate() }
+
+        let descObservation = nsProgress.observe(\.localizedDescription) { [weak self] observed, _ in
+            let tableName = observed.localizedDescription ?? ""
+            let tableIndex = progress.currentTableIndex
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.state.currentTable = tableName
+                self.state.currentTableIndex = tableIndex
+            }
+        }
+        defer { descObservation.invalidate() }
 
         let exportTable = PluginExportTable(
             name: config.fileName,
@@ -256,8 +241,9 @@ final class ExportService {
             optionValues: plugin.defaultTableOptionValues()
         )
 
+        let result: ExportFormatResult
         do {
-            try await plugin.export(
+            result = try await plugin.export(
                 tables: [exportTable],
                 dataSource: dataSource,
                 destination: url,
@@ -273,15 +259,23 @@ final class ExportService {
             throw error
         }
 
-        let pluginWarnings = plugin.warnings
-        if !pluginWarnings.isEmpty {
-            state.warningMessage = pluginWarnings.joined(separator: "\n")
-        }
+        state.processedRows = progress.processedRows
 
-        state.progress = 1.0
+        if !result.warnings.isEmpty {
+            state.warningMessage = result.warnings.joined(separator: "\n")
+        }
     }
 
     // MARK: - Row Count Fetching
+
+    private func qualifiedTableRef(for table: ExportTableItem, driver: DatabaseDriver) -> String {
+        if table.databaseName.isEmpty {
+            return driver.quoteIdentifier(table.name)
+        }
+        let quotedDb = driver.quoteIdentifier(table.databaseName)
+        let quotedTable = driver.quoteIdentifier(table.name)
+        return "\(quotedDb).\(quotedTable)"
+    }
 
     private func fetchTotalRowCount(for tables: [ExportTableItem], driver: DatabaseDriver) async -> Int {
         guard !tables.isEmpty else { return 0 }
@@ -302,7 +296,7 @@ final class ExportService {
             }
             if failedCount > 0 {
                 Self.logger.warning("\(failedCount) table(s) failed row count - progress indicator may be inaccurate")
-                state.statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
+                state.statusMessage = String(format: String(localized: "Progress estimated (%d table(s) could not be counted)"), failedCount)
             }
             return total
         }
@@ -314,14 +308,7 @@ final class ExportService {
             let batch = tables[chunkStart ..< end]
 
             let unionParts = batch.map { table -> String in
-                let tableRef: String
-                if table.databaseName.isEmpty {
-                    tableRef = driver.quoteIdentifier(table.name)
-                } else {
-                    let quotedDb = driver.quoteIdentifier(table.databaseName)
-                    let quotedTable = driver.quoteIdentifier(table.name)
-                    tableRef = "\(quotedDb).\(quotedTable)"
-                }
+                let tableRef = qualifiedTableRef(for: table, driver: driver)
                 return "SELECT COUNT(*) AS c FROM \(tableRef)"
             }
             let batchQuery = unionParts.joined(separator: " UNION ALL ")
@@ -336,14 +323,7 @@ final class ExportService {
             } catch {
                 for table in batch {
                     do {
-                        let tableRef: String
-                        if table.databaseName.isEmpty {
-                            tableRef = driver.quoteIdentifier(table.name)
-                        } else {
-                            let quotedDb = driver.quoteIdentifier(table.databaseName)
-                            let quotedTable = driver.quoteIdentifier(table.name)
-                            tableRef = "\(quotedDb).\(quotedTable)"
-                        }
+                        let tableRef = qualifiedTableRef(for: table, driver: driver)
                         let result = try await driver.execute(query: "SELECT COUNT(*) FROM \(tableRef)")
                         if let countStr = result.rows.first?.first, let count = Int(countStr ?? "0") {
                             total += count
@@ -358,7 +338,7 @@ final class ExportService {
 
         if failedCount > 0 {
             Self.logger.warning("\(failedCount) table(s) failed row count - progress indicator may be inaccurate")
-            state.statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
+            state.statusMessage = String(format: String(localized: "Progress estimated (%d table(s) could not be counted)"), failedCount)
         }
         return total
     }

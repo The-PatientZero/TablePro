@@ -35,9 +35,14 @@ final class JSONExportPlugin: ExportFormatPlugin, SettablePlugin {
         dataSource: any PluginExportDataSource,
         destination: URL,
         progress: PluginExportProgress
-    ) async throws {
-        let fileHandle = try PluginExportUtilities.createFileHandle(at: destination)
-        defer { try? fileHandle.close() }
+    ) async throws -> ExportFormatResult {
+        let (fileHandle, tempURL) = try PluginExportUtilities.beginAtomicWrite(for: destination)
+        var committed = false
+        defer {
+            if !committed {
+                PluginExportUtilities.rollbackAtomicWrite(at: tempURL)
+            }
+        }
 
         let prettyPrint = settings.prettyPrint
         let indent = prettyPrint ? "  " : ""
@@ -53,70 +58,63 @@ final class JSONExportPlugin: ExportFormatPlugin, SettablePlugin {
             let escapedTableName = PluginExportUtilities.escapeJSONString(table.qualifiedName)
             try fileHandle.write(contentsOf: "\(indent)\"\(escapedTableName)\": [\(newline)".toUTF8Data())
 
-            let batchSize = 1_000
-            var offset = 0
             var hasWrittenRow = false
             var columns: [String]?
+            var columnTypeNames: [String]?
 
-            batchLoop: while true {
+            let stream = dataSource.streamRows(table: table.name, databaseName: table.databaseName)
+            for try await element in stream {
                 try progress.checkCancellation()
 
-                let result = try await dataSource.fetchRows(
-                    table: table.name,
-                    databaseName: table.databaseName,
-                    offset: offset,
-                    limit: batchSize
-                )
+                switch element {
+                case .header(let header):
+                    columns = header.columns
+                    columnTypeNames = header.columnTypeNames
+                case .rows(let rows):
+                    for row in rows {
+                        let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
+                        var rowString = ""
 
-                if result.rows.isEmpty { break batchLoop }
+                        if hasWrittenRow {
+                            rowString += ",\(newline)"
+                        }
 
-                if columns == nil {
-                    columns = result.columns
-                }
+                        rowString += rowPrefix
+                        rowString += "{"
 
-                for row in result.rows {
-                    try progress.checkCancellation()
+                        if let columns {
+                            var isFirstField = true
+                            for (colIndex, column) in columns.enumerated() {
+                                if colIndex < row.count {
+                                    let value = row[colIndex]
+                                    if settings.includeNullValues || value != nil {
+                                        if !isFirstField {
+                                            rowString += ", "
+                                        }
+                                        isFirstField = false
 
-                    let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
-                    var rowString = ""
-
-                    if hasWrittenRow {
-                        rowString += ",\(newline)"
-                    }
-
-                    rowString += rowPrefix
-                    rowString += "{"
-
-                    if let columns {
-                        var isFirstField = true
-                        for (colIndex, column) in columns.enumerated() {
-                            if colIndex < row.count {
-                                let value = row[colIndex]
-                                if settings.includeNullValues || value != nil {
-                                    if !isFirstField {
-                                        rowString += ", "
+                                        let escapedKey = PluginExportUtilities.escapeJSONString(column)
+                                        let colTypeName = colIndex < (columnTypeNames ?? []).count
+                                            ? (columnTypeNames ?? [])[colIndex]
+                                            : ""
+                                        let jsonValue = formatJSONValue(
+                                            value,
+                                            columnTypeName: colTypeName,
+                                            preserveAsString: settings.preserveAllAsStrings
+                                        )
+                                        rowString += "\"\(escapedKey)\": \(jsonValue)"
                                     }
-                                    isFirstField = false
-
-                                    let escapedKey = PluginExportUtilities.escapeJSONString(column)
-                                    let jsonValue = formatJSONValue(
-                                        value,
-                                        preserveAsString: settings.preserveAllAsStrings
-                                    )
-                                    rowString += "\"\(escapedKey)\": \(jsonValue)"
                                 }
                             }
                         }
+
+                        rowString += "}"
+
+                        try fileHandle.write(contentsOf: rowString.toUTF8Data())
+                        hasWrittenRow = true
+                        progress.incrementRow()
                     }
-
-                    rowString += "}"
-
-                    try fileHandle.write(contentsOf: rowString.toUTF8Data())
-                    hasWrittenRow = true
-                    progress.incrementRow()
                 }
-
-                offset += result.rows.count
             }
 
             if hasWrittenRow {
@@ -129,22 +127,35 @@ final class JSONExportPlugin: ExportFormatPlugin, SettablePlugin {
         try fileHandle.write(contentsOf: "}".toUTF8Data())
 
         try progress.checkCancellation()
+        try fileHandle.close()
+        try PluginExportUtilities.commitAtomicWrite(from: tempURL, to: destination)
+        committed = true
         progress.finalizeTable()
+        return ExportFormatResult()
     }
 
     // MARK: - Private
 
-    private func formatJSONValue(_ value: String?, preserveAsString: Bool) -> String {
+    private func formatJSONValue(_ value: String?, columnTypeName: String, preserveAsString: Bool) -> String {
         guard let val = value else { return "null" }
 
         if preserveAsString {
             return "\"\(PluginExportUtilities.escapeJSONString(val))\""
         }
 
-        if let intVal = Int(val) {
-            return String(intVal)
+        if val.lowercased() == "true" || val.lowercased() == "false" {
+            return val.lowercased()
         }
-        if let doubleVal = Double(val), !val.contains("e") && !val.contains("E") {
+
+        let isNumericCol = isNumericColumnType(columnTypeName)
+
+        if isNumericCol && isValidIntegerLiteral(val) {
+            if let intVal = Int(val) {
+                return String(intVal)
+            }
+            return val
+        }
+        if isNumericCol, let doubleVal = Double(val), !val.contains("e"), !val.contains("E") {
             let jsMaxSafeInteger = 9_007_199_254_740_991.0
 
             if doubleVal.truncatingRemainder(dividingBy: 1) == 0 && !val.contains(".") {
@@ -158,10 +169,24 @@ final class JSONExportPlugin: ExportFormatPlugin, SettablePlugin {
             }
             return String(doubleVal)
         }
-        if val.lowercased() == "true" || val.lowercased() == "false" {
-            return val.lowercased()
-        }
 
         return "\"\(PluginExportUtilities.escapeJSONString(val))\""
+    }
+
+    private func isNumericColumnType(_ typeName: String) -> Bool {
+        let numericPrefixes = [
+            "int", "bigint", "decimal", "float", "double", "numeric",
+            "real", "smallint", "tinyint", "mediumint", "integer", "number"
+        ]
+        let lower = typeName.lowercased()
+        return numericPrefixes.contains { lower.hasPrefix($0) }
+    }
+
+    private func isValidIntegerLiteral(_ val: String) -> Bool {
+        guard !val.isEmpty else { return false }
+        let digits = val.hasPrefix("-") || val.hasPrefix("+") ? String(val.dropFirst()) : val
+        guard !digits.isEmpty else { return false }
+        if digits.count > 1 && digits.hasPrefix("0") { return false }
+        return digits.allSatisfy(\.isNumber)
     }
 }

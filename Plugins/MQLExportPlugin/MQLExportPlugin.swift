@@ -50,9 +50,14 @@ final class MQLExportPlugin: ExportFormatPlugin, SettablePlugin {
         dataSource: any PluginExportDataSource,
         destination: URL,
         progress: PluginExportProgress
-    ) async throws {
-        let fileHandle = try PluginExportUtilities.createFileHandle(at: destination)
-        defer { try? fileHandle.close() }
+    ) async throws -> ExportFormatResult {
+        let (fileHandle, tempURL) = try PluginExportUtilities.beginAtomicWrite(for: destination)
+        var committed = false
+        defer {
+            if !committed {
+                PluginExportUtilities.rollbackAtomicWrite(at: tempURL)
+            }
+        }
 
         let dateFormatter = ISO8601DateFormatter()
         try fileHandle.write(contentsOf: "// TablePro MQL Export\n".toUTF8Data())
@@ -84,52 +89,39 @@ final class MQLExportPlugin: ExportFormatPlugin, SettablePlugin {
             }
 
             if includeData {
-                let fetchBatchSize = 5_000
-                var offset = 0
                 var columns: [String] = []
                 var documentBatch: [String] = []
 
-                while true {
+                let stream = dataSource.streamRows(table: table.name, databaseName: table.databaseName)
+                for try await element in stream {
                     try progress.checkCancellation()
 
-                    let result = try await dataSource.fetchRows(
-                        table: table.name,
-                        databaseName: table.databaseName,
-                        offset: offset,
-                        limit: fetchBatchSize
-                    )
+                    switch element {
+                    case .header(let header):
+                        columns = header.columns
+                    case .rows(let rows):
+                        for row in rows {
+                            var fields: [String] = []
+                            for (colIndex, column) in columns.enumerated() {
+                                guard colIndex < row.count else { continue }
+                                guard let value = row[colIndex] else { continue }
+                                let jsonValue = MQLExportHelpers.mqlJsonValue(for: value)
+                                fields.append("\"\(PluginExportUtilities.escapeJSONString(column))\": \(jsonValue)")
+                            }
+                            documentBatch.append("  {\(fields.joined(separator: ", "))}")
 
-                    if result.rows.isEmpty { break }
+                            if documentBatch.count >= batchSize {
+                                try writeMQLInsertMany(
+                                    collection: table.name,
+                                    documents: documentBatch,
+                                    to: fileHandle
+                                )
+                                documentBatch.removeAll(keepingCapacity: true)
+                            }
 
-                    if columns.isEmpty {
-                        columns = result.columns
-                    }
-
-                    for row in result.rows {
-                        try progress.checkCancellation()
-
-                        var fields: [String] = []
-                        for (colIndex, column) in columns.enumerated() {
-                            guard colIndex < row.count else { continue }
-                            guard let value = row[colIndex] else { continue }
-                            let jsonValue = MQLExportHelpers.mqlJsonValue(for: value)
-                            fields.append("\"\(PluginExportUtilities.escapeJSONString(column))\": \(jsonValue)")
+                            progress.incrementRow()
                         }
-                        documentBatch.append("  {\(fields.joined(separator: ", "))}")
-
-                        if documentBatch.count >= batchSize {
-                            try writeMQLInsertMany(
-                                collection: table.name,
-                                documents: documentBatch,
-                                to: fileHandle
-                            )
-                            documentBatch.removeAll(keepingCapacity: true)
-                        }
-
-                        progress.incrementRow()
                     }
-
-                    offset += fetchBatchSize
                 }
 
                 if !documentBatch.isEmpty {
@@ -157,7 +149,11 @@ final class MQLExportPlugin: ExportFormatPlugin, SettablePlugin {
         }
 
         try progress.checkCancellation()
+        try fileHandle.close()
+        try PluginExportUtilities.commitAtomicWrite(from: tempURL, to: destination)
+        committed = true
         progress.finalizeTable()
+        return ExportFormatResult()
     }
 
     // MARK: - Private

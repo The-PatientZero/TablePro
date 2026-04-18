@@ -38,9 +38,14 @@ final class CSVExportPlugin: ExportFormatPlugin, SettablePlugin {
         dataSource: any PluginExportDataSource,
         destination: URL,
         progress: PluginExportProgress
-    ) async throws {
-        let fileHandle = try PluginExportUtilities.createFileHandle(at: destination)
-        defer { try? fileHandle.close() }
+    ) async throws -> ExportFormatResult {
+        let (fileHandle, tempURL) = try PluginExportUtilities.beginAtomicWrite(for: destination)
+        var committed = false
+        defer {
+            if !committed {
+                PluginExportUtilities.rollbackAtomicWrite(at: tempURL)
+            }
+        }
 
         let lineBreak = settings.lineBreak.value
 
@@ -54,37 +59,29 @@ final class CSVExportPlugin: ExportFormatPlugin, SettablePlugin {
                 try fileHandle.write(contentsOf: "# Table: \(sanitizedName)\n".toUTF8Data())
             }
 
-            let batchSize = 10_000
-            var offset = 0
             var isFirstBatch = true
+            var columns: [String] = []
 
-            while true {
+            let stream = dataSource.streamRows(table: table.name, databaseName: table.databaseName)
+            for try await element in stream {
                 try progress.checkCancellation()
 
-                let result = try await dataSource.fetchRows(
-                    table: table.name,
-                    databaseName: table.databaseName,
-                    offset: offset,
-                    limit: batchSize
-                )
-
-                if result.rows.isEmpty { break }
-
-                var batchSettings = settings
-                if !isFirstBatch {
-                    batchSettings.includeFieldNames = false
+                switch element {
+                case .header(let header):
+                    columns = header.columns
+                    if isFirstBatch && settings.includeFieldNames {
+                        let headerLine = columns
+                            .map { escapeCSVField($0, options: settings) }
+                            .joined(separator: settings.delimiter.actualValue)
+                        try fileHandle.write(contentsOf: (headerLine + lineBreak).toUTF8Data())
+                    }
+                    isFirstBatch = false
+                case .rows(let rows):
+                    for row in rows {
+                        try writeCSVRow(row, options: settings, to: fileHandle)
+                        progress.incrementRow()
+                    }
                 }
-
-                try writeCSVContent(
-                    columns: result.columns,
-                    rows: result.rows,
-                    options: batchSettings,
-                    to: fileHandle,
-                    progress: progress
-                )
-
-                isFirstBatch = false
-                offset += batchSize
             }
 
             if index < tables.count - 1 {
@@ -93,66 +90,56 @@ final class CSVExportPlugin: ExportFormatPlugin, SettablePlugin {
         }
 
         try progress.checkCancellation()
+        try fileHandle.close()
+        try PluginExportUtilities.commitAtomicWrite(from: tempURL, to: destination)
+        committed = true
         progress.finalizeTable()
+        return ExportFormatResult()
     }
 
     // MARK: - Private
 
-    private func writeCSVContent(
-        columns: [String],
-        rows: [[String?]],
+    private func writeCSVRow(
+        _ row: [String?],
         options: CSVExportOptions,
-        to fileHandle: FileHandle,
-        progress: PluginExportProgress
+        to fileHandle: FileHandle
     ) throws {
         let delimiter = options.delimiter.actualValue
         let lineBreak = options.lineBreak.value
 
-        if options.includeFieldNames {
-            let headerLine = columns
-                .map { escapeCSVField($0, options: options) }
-                .joined(separator: delimiter)
-            try fileHandle.write(contentsOf: (headerLine + lineBreak).toUTF8Data())
-        }
+        let rowLine = row.map { value -> String in
+            guard let val = value else {
+                return options.convertNullToEmpty ? "" : "NULL"
+            }
 
-        for row in rows {
-            try progress.checkCancellation()
+            var processed = val
+            let hadLineBreaks = val.contains("\n") || val.contains("\r")
 
-            let rowLine = row.map { value -> String in
-                guard let val = value else {
-                    return options.convertNullToEmpty ? "" : "NULL"
+            if options.convertLineBreakToSpace {
+                processed = processed
+                    .replacingOccurrences(of: "\r\n", with: " ")
+                    .replacingOccurrences(of: "\r", with: " ")
+                    .replacingOccurrences(of: "\n", with: " ")
+            }
+
+            if options.decimalFormat == .comma {
+                let range = NSRange(processed.startIndex..., in: processed)
+                if Self.decimalFormatRegex.firstMatch(in: processed, range: range) != nil {
+                    processed = processed.replacingOccurrences(of: ".", with: ",")
                 }
+            }
 
-                var processed = val
-                let hadLineBreaks = val.contains("\n") || val.contains("\r")
+            return escapeCSVField(processed, options: options, originalHadLineBreaks: hadLineBreaks)
+        }.joined(separator: delimiter)
 
-                if options.convertLineBreakToSpace {
-                    processed = processed
-                        .replacingOccurrences(of: "\r\n", with: " ")
-                        .replacingOccurrences(of: "\r", with: " ")
-                        .replacingOccurrences(of: "\n", with: " ")
-                }
-
-                if options.decimalFormat == .comma {
-                    let range = NSRange(processed.startIndex..., in: processed)
-                    if Self.decimalFormatRegex.firstMatch(in: processed, range: range) != nil {
-                        processed = processed.replacingOccurrences(of: ".", with: ",")
-                    }
-                }
-
-                return escapeCSVField(processed, options: options, originalHadLineBreaks: hadLineBreaks)
-            }.joined(separator: delimiter)
-
-            try fileHandle.write(contentsOf: (rowLine + lineBreak).toUTF8Data())
-            progress.incrementRow()
-        }
+        try fileHandle.write(contentsOf: (rowLine + lineBreak).toUTF8Data())
     }
 
     private func escapeCSVField(_ field: String, options: CSVExportOptions, originalHadLineBreaks: Bool = false) -> String {
         var processed = field
 
         if options.sanitizeFormulas {
-            let dangerousPrefixes: [Character] = ["=", "+", "-", "@", "\t", "\r"]
+            let dangerousPrefixes: [Character] = ["=", "+", "-", "@"]
             if let first = processed.first, dangerousPrefixes.contains(first) {
                 processed = "'" + processed
             }

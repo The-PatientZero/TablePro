@@ -583,6 +583,56 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
         )
     }
 
+    // MARK: - Streaming
+
+    func streamRows(query: String) -> AsyncThrowingStream<PluginStreamElement, Error> {
+        guard let conn = mongoConnection else {
+            return AsyncThrowingStream { $0.finish(throwing: MongoDBPluginError.notConnected) }
+        }
+
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let db = currentDb
+
+        let operation: MongoOperation
+        do {
+            operation = try MongoShellParser.parse(trimmed)
+        } catch {
+            return AsyncThrowingStream { $0.finish(throwing: error) }
+        }
+
+        switch operation {
+        case .find(let collection, let filter, let options):
+            return conn.streamFind(
+                database: db, collection: collection, filter: filter,
+                sort: options.sort, projection: options.projection
+            )
+        case .aggregate(let collection, let pipeline):
+            return conn.streamAggregate(
+                database: db, collection: collection, pipeline: pipeline
+            )
+        default:
+            return AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
+                Task {
+                    do {
+                        let result = try await self.execute(query: query)
+                        if !result.columns.isEmpty {
+                            continuation.yield(.header(PluginStreamHeader(
+                                columns: result.columns,
+                                columnTypeNames: result.columnTypeNames
+                            )))
+                        }
+                        if !result.rows.isEmpty {
+                            continuation.yield(.rows(result.rows))
+                        }
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Operation Dispatch
 
     private func executeOperation(

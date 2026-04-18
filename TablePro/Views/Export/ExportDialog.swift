@@ -7,7 +7,6 @@
 //
 
 import AppKit
-import Observation
 import SwiftUI
 import TableProPluginKit
 import UniformTypeIdentifiers
@@ -27,7 +26,6 @@ struct ExportDialog: View {
     @State private var showProgressDialog = false
     @State private var showSuccessDialog = false
     @State private var exportedFileURL: URL?
-    @State private var currentExportTable = ""
     @State private var showActivationSheet = false
 
     // MARK: - User Preferences
@@ -36,7 +34,7 @@ struct ExportDialog: View {
 
     // MARK: - Export Service
 
-    @State private var exportServiceState = ExportServiceState()
+    @State private var exportService: ExportService?
 
     // MARK: - Mode Helpers
 
@@ -125,14 +123,14 @@ struct ExportDialog: View {
         }
         .sheet(isPresented: $showProgressDialog) {
             ExportProgressView(
-                tableName: exportServiceState.currentTable,
-                tableIndex: exportServiceState.currentTableIndex,
-                totalTables: exportServiceState.totalTables,
-                processedRows: exportServiceState.processedRows,
-                totalRows: exportServiceState.totalRows,
-                statusMessage: exportServiceState.statusMessage
+                tableName: exportService?.state.currentTable ?? "",
+                tableIndex: exportService?.state.currentTableIndex ?? 0,
+                totalTables: exportService?.state.totalTables ?? 0,
+                processedRows: exportService?.state.processedRows ?? 0,
+                totalRows: exportService?.state.totalRows ?? 0,
+                statusMessage: exportService?.state.statusMessage ?? ""
             ) {
-                exportServiceState.service?.cancelExport()
+                exportService?.cancelExport()
             }
             .interactiveDismissDisabled()
         }
@@ -381,7 +379,7 @@ struct ExportDialog: View {
                     ProgressView()
                         .scaleEffect(0.7)
 
-                    Text(currentExportTable)
+                    Text(exportService?.state.currentTable ?? "")
                         .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -391,7 +389,9 @@ struct ExportDialog: View {
             }
 
             Button("Export...") {
-                performExport()
+                Task {
+                    await performExport()
+                }
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.return, modifiers: [])
@@ -466,13 +466,13 @@ struct ExportDialog: View {
         let name = config.fileName.trimmingCharacters(in: .whitespaces)
 
         if name.isEmpty {
-            return "Filename cannot be empty"
+            return String(localized: "Filename cannot be empty")
         }
 
         // Invalid filesystem characters (covers macOS, Windows, and Linux)
         let invalidChars = CharacterSet(charactersIn: "/\\:*?\"<>|")
         if name.rangeOfCharacter(from: invalidChars) != nil {
-            return "Filename contains invalid characters: / \\ : * ? \" < > |"
+            return String(localized: "Filename contains invalid characters: / \\ : * ? \" < > |")
         }
 
         // Prevent path traversal attempts and special directory names
@@ -480,18 +480,18 @@ struct ExportDialog: View {
             name.hasPrefix("../") || name.hasPrefix("..\\") ||
             name.hasSuffix("/..") || name.hasSuffix("\\..") ||
             name.contains("/../") || name.contains("\\..\\") {
-            return "Filename cannot be '.' or '..' or contain path traversal"
+            return String(localized: "Filename cannot be '.' or '..' or contain path traversal")
         }
 
         // Check for Windows reserved device names (case-insensitive)
         let baseName = name.components(separatedBy: ".").first ?? name
         if Self.windowsReservedNames.contains(baseName.uppercased()) {
-            return "'\(baseName)' is a reserved Windows device name"
+            return String(format: String(localized: "'%@' is a reserved Windows device name"), baseName)
         }
 
         // Check filename length (255 bytes is common limit on most filesystems)
         if name.utf8.count > 255 {
-            return "Filename is too long (max 255 bytes)"
+            return String(localized: "Filename is too long (max 255 bytes)")
         }
 
         return nil
@@ -738,14 +738,16 @@ struct ExportDialog: View {
         }
     }
 
-    private func performExport() {
+    @MainActor
+    private func performExport() async {
+        guard let window = NSApp.keyWindow ?? NSApp.mainWindow else { return }
+
         let savePanel = NSSavePanel()
         savePanel.canCreateDirectories = true
         savePanel.showsTagField = false
 
         let ext = fileExtension
         if ext.contains(".") {
-            // Compound extension like "sql.gz"
             let lastComponent = ext.components(separatedBy: ".").last ?? ext
             savePanel.allowedContentTypes = [UTType(filenameExtension: lastComponent) ?? .data]
             savePanel.nameFieldStringValue = "\(config.fileName).\(ext)"
@@ -762,15 +764,13 @@ struct ExportDialog: View {
             savePanel.message = String(format: String(localized: "Export %d table(s) to %@"), exportableCount, formatName)
         }
 
-        let response = savePanel.runModal()
+        let response = await savePanel.presentAsSheet(for: window)
         guard response == .OK, let url = savePanel.url else { return }
 
-        Task {
-            if self.isQueryResultsMode {
-                await self.startQueryResultsExport(to: url)
-            } else {
-                await self.startExport(to: url)
-            }
+        if isQueryResultsMode {
+            await startQueryResultsExport(to: url)
+        } else {
+            await startExport(to: url)
         }
     }
 
@@ -792,7 +792,7 @@ struct ExportDialog: View {
             driver: driver,
             databaseType: connection.type
         )
-        exportServiceState.setService(service)
+        exportService = service
 
         // Show progress dialog
         showProgressDialog = true
@@ -804,16 +804,17 @@ struct ExportDialog: View {
                 to: url
             )
 
-            // Export completed successfully
             showProgressDialog = false
             isExporting = false
 
-            // Show success dialog or close directly based on preference
             if hideSuccessDialog {
                 isPresented = false
             } else {
                 showSuccessDialog = true
             }
+        } catch is PluginExportCancellationError {
+            showProgressDialog = false
+            isExporting = false
         } catch {
             showProgressDialog = false
             isExporting = false
@@ -833,7 +834,7 @@ struct ExportDialog: View {
         exportedFileURL = url
 
         let service = ExportService(databaseType: connection.type)
-        exportServiceState.setService(service)
+        exportService = service
         showProgressDialog = true
 
         do {
@@ -851,6 +852,9 @@ struct ExportDialog: View {
             } else {
                 showSuccessDialog = true
             }
+        } catch is PluginExportCancellationError {
+            showProgressDialog = false
+            isExporting = false
         } catch {
             showProgressDialog = false
             isExporting = false
@@ -866,27 +870,6 @@ struct ExportDialog: View {
         guard let url = exportedFileURL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
-}
-
-// MARK: - Export Service State
-
-/// Observable wrapper that forwards ExportService updates to SwiftUI.
-/// Since ExportService is @Observable, computed properties track through to service.state automatically.
-@Observable
-@MainActor
-final class ExportServiceState {
-    private(set) var service: ExportService?
-
-    func setService(_ service: ExportService) {
-        self.service = service
-    }
-
-    var currentTable: String { service?.state.currentTable ?? "" }
-    var currentTableIndex: Int { service?.state.currentTableIndex ?? 0 }
-    var totalTables: Int { service?.state.totalTables ?? 0 }
-    var processedRows: Int { service?.state.processedRows ?? 0 }
-    var totalRows: Int { service?.state.totalRows ?? 0 }
-    var statusMessage: String { service?.state.statusMessage ?? "" }
 }
 
 // MARK: - Preview

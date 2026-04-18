@@ -170,6 +170,9 @@ public protocol PluginDatabaseDriver: AnyObject, Sendable {
 
     // Default export query (optional)
     func defaultExportQuery(table: String) -> String?
+
+    // Streaming row fetch for export
+    func streamRows(query: String) -> AsyncThrowingStream<PluginStreamElement, Error>
 }
 
 // MARK: - Default Implementations
@@ -529,5 +532,42 @@ public extension PluginDatabaseDriver {
 
     func fetchRows(query: String, offset: Int, limit: Int) async throws -> PluginQueryResult {
         try await execute(query: "\(query) LIMIT \(limit) OFFSET \(offset)")
+    }
+
+    func streamRows(query: String) -> AsyncThrowingStream<PluginStreamElement, Error> {
+        AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
+            Task {
+                do {
+                    let batchSize = 1_000
+                    let firstPage = try await fetchRows(query: query, offset: 0, limit: batchSize)
+                    continuation.yield(.header(PluginStreamHeader(
+                        columns: firstPage.columns,
+                        columnTypeNames: firstPage.columnTypeNames,
+                        estimatedRowCount: nil
+                    )))
+                    if !firstPage.rows.isEmpty {
+                        continuation.yield(.rows(firstPage.rows))
+                    }
+                    if firstPage.rows.count < batchSize {
+                        continuation.finish()
+                        return
+                    }
+                    await Task.yield()
+                    var offset = firstPage.rows.count
+                    while true {
+                        try Task.checkCancellation()
+                        let page = try await fetchRows(query: query, offset: offset, limit: batchSize)
+                        if page.rows.isEmpty { break }
+                        continuation.yield(.rows(page.rows))
+                        offset += page.rows.count
+                        if page.rows.count < batchSize { break }
+                        await Task.yield()
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
     }
 }

@@ -50,12 +50,6 @@ final class SQLExportPlugin: ExportFormatPlugin, SettablePlugin {
         settings.compressWithGzip ? "sql.gz" : "sql"
     }
 
-    var warnings: [String] {
-        guard !ddlFailures.isEmpty else { return [] }
-        let failedTables = ddlFailures.joined(separator: ", ")
-        return ["Could not fetch table structure for: \(failedTables)"]
-    }
-
     func settingsView() -> AnyView? {
         AnyView(SQLExportOptionsView(plugin: self))
     }
@@ -65,24 +59,29 @@ final class SQLExportPlugin: ExportFormatPlugin, SettablePlugin {
         dataSource: any PluginExportDataSource,
         destination: URL,
         progress: PluginExportProgress
-    ) async throws {
+    ) async throws -> ExportFormatResult {
         ddlFailures = []
 
-        // For gzip, write to temp file first then compress
-        let targetURL: URL
-        let tempFileURL: URL?
+        let actualDestination: URL
+        let gzipTempURL: URL?
 
         if settings.compressWithGzip {
-            let tempURL = FileManager.default.temporaryDirectory
+            let tempSQL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString + ".sql")
-            tempFileURL = tempURL
-            targetURL = tempURL
+            gzipTempURL = tempSQL
+            actualDestination = tempSQL
         } else {
-            tempFileURL = nil
-            targetURL = destination
+            gzipTempURL = nil
+            actualDestination = destination
         }
 
-        let fileHandle = try PluginExportUtilities.createFileHandle(at: targetURL)
+        let (fileHandle, tempURL) = try PluginExportUtilities.beginAtomicWrite(for: actualDestination)
+        var committed = false
+        defer {
+            if !committed {
+                PluginExportUtilities.rollbackAtomicWrite(at: tempURL)
+            }
+        }
 
         do {
             let dateFormatter = ISO8601DateFormatter()
@@ -169,34 +168,48 @@ final class SQLExportPlugin: ExportFormatPlugin, SettablePlugin {
 
                 if includeData {
                     let batchSize = settings.batchSize
-                    var offset = 0
                     var wroteAnyRows = false
+                    var columns: [String] = []
+                    var rowBatch: [[String?]] = []
 
-                    while true {
+                    let stream = dataSource.streamRows(table: table.name, databaseName: table.databaseName)
+                    for try await element in stream {
                         try progress.checkCancellation()
 
-                        let query = SQLExportHelpers.buildPaginatedQuery(
-                            tableRef: tableRef,
-                            databaseTypeId: dataSource.databaseTypeId,
-                            offset: offset,
-                            limit: batchSize
-                        )
-                        let result = try await dataSource.execute(query: query)
+                        switch element {
+                        case .header(let header):
+                            columns = header.columns
+                        case .rows(let rows):
+                            for row in rows {
+                                rowBatch.append(row)
+                                if rowBatch.count >= batchSize {
+                                    try writeInsertStatements(
+                                        tableName: table.name,
+                                        columns: columns,
+                                        rows: rowBatch,
+                                        batchSize: batchSize,
+                                        dataSource: dataSource,
+                                        to: fileHandle,
+                                        progress: progress
+                                    )
+                                    wroteAnyRows = true
+                                    rowBatch.removeAll(keepingCapacity: true)
+                                }
+                            }
+                        }
+                    }
 
-                        if result.rows.isEmpty { break }
-
+                    if !rowBatch.isEmpty {
                         try writeInsertStatements(
                             tableName: table.name,
-                            columns: result.columns,
-                            rows: result.rows,
+                            columns: columns,
+                            rows: rowBatch,
                             batchSize: batchSize,
                             dataSource: dataSource,
                             to: fileHandle,
                             progress: progress
                         )
-
                         wroteAnyRows = true
-                        offset += batchSize
                     }
 
                     if wroteAnyRows {
@@ -206,24 +219,22 @@ final class SQLExportPlugin: ExportFormatPlugin, SettablePlugin {
             }
 
             try fileHandle.close()
+            try PluginExportUtilities.commitAtomicWrite(from: tempURL, to: actualDestination)
+            committed = true
         } catch {
             try? fileHandle.close()
-            if let tempURL = tempFileURL {
-                try? FileManager.default.removeItem(at: tempURL)
-            }
             throw error
         }
 
-        // Handle gzip compression
-        if settings.compressWithGzip, let tempURL = tempFileURL {
+        if settings.compressWithGzip, let gzipSource = gzipTempURL {
             progress.setStatus("Compressing...")
 
             do {
                 defer {
-                    try? FileManager.default.removeItem(at: tempURL)
+                    try? FileManager.default.removeItem(at: gzipSource)
                 }
 
-                try await compressFile(source: tempURL, destination: destination)
+                try await compressFile(source: gzipSource, destination: destination)
             } catch {
                 try? FileManager.default.removeItem(at: destination)
                 throw error
@@ -231,6 +242,13 @@ final class SQLExportPlugin: ExportFormatPlugin, SettablePlugin {
         }
 
         progress.finalizeTable()
+
+        var warnings: [String] = []
+        if !ddlFailures.isEmpty {
+            let failedTables = ddlFailures.joined(separator: ", ")
+            warnings.append("Could not fetch table structure for: \(failedTables)")
+        }
+        return ExportFormatResult(warnings: warnings)
     }
 
     // MARK: - Private
@@ -287,56 +305,65 @@ final class SQLExportPlugin: ExportFormatPlugin, SettablePlugin {
     }
 
     private func compressFile(source: URL, destination: URL) async throws {
-        try await Task.detached(priority: .userInitiated) {
-            let gzipPath = "/usr/bin/gzip"
-            guard FileManager.default.isExecutableFile(atPath: gzipPath) else {
-                throw PluginExportError.exportFailed(
-                    "Compression unavailable: gzip not found at \(gzipPath)"
-                )
-            }
+        let gzipPath = "/usr/bin/gzip"
+        guard FileManager.default.isExecutableFile(atPath: gzipPath) else {
+            throw PluginExportError.exportFailed(
+                "Compression unavailable: gzip not found at \(gzipPath)"
+            )
+        }
 
-            guard FileManager.default.createFile(atPath: destination.path(percentEncoded: false), contents: nil) else {
-                throw PluginExportError.fileWriteFailed(destination.path(percentEncoded: false))
-            }
+        let sourcePath = source.standardizedFileURL.path(percentEncoded: false)
 
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: gzipPath)
+        guard FileManager.default.createFile(atPath: destination.path(percentEncoded: false), contents: nil) else {
+            throw PluginExportError.fileWriteFailed(destination.path(percentEncoded: false))
+        }
 
-            let sanitizedSourcePath = source.standardizedFileURL.path(percentEncoded: false)
+        let outputHandle: FileHandle
+        do {
+            outputHandle = try FileHandle(forWritingTo: destination)
+        } catch {
+            try? FileManager.default.removeItem(at: destination)
+            throw error
+        }
+        let errorPipe = Pipe()
 
-            if sanitizedSourcePath.contains("\0") ||
-                sanitizedSourcePath.contains(where: { $0.isNewline }) {
-                throw PluginExportError.exportFailed("Invalid source path for compression")
-            }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: gzipPath)
+        process.arguments = ["-c", sourcePath]
+        process.standardOutput = outputHandle
+        process.standardError = errorPipe
 
-            process.arguments = ["-c", sanitizedSourcePath]
-            let outputFile = try FileHandle(forWritingTo: destination)
-            defer { try? outputFile.close() }
-            process.standardOutput = outputFile
-
-            let errorPipe = Pipe()
-            process.standardError = errorPipe
-
-            try process.run()
-            process.waitUntilExit()
-
-            let status = process.terminationStatus
-            guard status == 0 else {
-                try? outputFile.close()
-
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorString = String(data: errorData, encoding: .utf8)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-                let message: String
-                if errorString.isEmpty {
-                    message = "Compression failed with exit status \(status)"
-                } else {
-                    message = "Compression failed with exit status \(status): \(errorString)"
+        do {
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                    process.terminationHandler = { proc in
+                        try? outputHandle.close()
+                        let status = proc.terminationStatus
+                        if status == 0 {
+                            continuation.resume()
+                        } else {
+                            let errData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                            let errMsg = String(data: errData, encoding: .utf8)?
+                                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                            let message = errMsg.isEmpty
+                                ? "Compression failed with exit status \(status)"
+                                : "Compression failed with exit status \(status): \(errMsg)"
+                            continuation.resume(throwing: PluginExportError.exportFailed(message))
+                        }
+                    }
+                    do {
+                        try process.run()
+                    } catch {
+                        try? outputHandle.close()
+                        continuation.resume(throwing: error)
+                    }
                 }
-
-                throw PluginExportError.exportFailed(message)
+            } onCancel: {
+                process.terminate()
             }
-        }.value
+        } catch {
+            try? FileManager.default.removeItem(at: destination)
+            throw error
+        }
     }
 }

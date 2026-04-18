@@ -223,6 +223,35 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         )
     }
 
+    // MARK: - Streaming
+
+    func streamRows(query: String) -> AsyncThrowingStream<PluginStreamElement, Error> {
+        guard let conn = oracleConn else {
+            return AsyncThrowingStream { $0.finish(throwing: OracleError.notConnected) }
+        }
+
+        var effectiveQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        while effectiveQuery.hasSuffix(";") {
+            effectiveQuery = String(effectiveQuery.dropLast())
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        effectiveQuery = stripOracleOffsetFetch(from: effectiveQuery)
+
+        return AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
+            let queryToRun = effectiveQuery
+            let streamTask = Task {
+                do {
+                    try await conn.streamQuery(queryToRun, continuation: continuation)
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in
+                streamTask.cancel()
+            }
+        }
+    }
+
     func fetchRowCount(query: String) async throws -> Int {
         let countQuery = "SELECT COUNT(*) FROM (\(query))"
         let result = try await execute(query: countQuery)
