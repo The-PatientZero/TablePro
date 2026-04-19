@@ -68,7 +68,7 @@ internal struct FavoritesTabView: View {
                 viewModel.deleteFolder(folder)
             }
         } message: { folder in
-            Text("The folder \"\(folder.name)\" will be deleted. Items inside will be moved to the parent level.")
+            Text(String(format: String(localized: "The folder \"%@\" will be deleted. Items inside will be moved to the parent level."), folder.name))
         }
         .alert(String(localized: "Delete Favorite?"), isPresented: $viewModel.showDeleteConfirmation) {
             Button(String(localized: "Cancel"), role: .cancel) {
@@ -80,15 +80,10 @@ internal struct FavoritesTabView: View {
         } message: {
             let count = viewModel.favoritesToDelete.count
             if count == 1 {
-                Text("\"\(viewModel.favoritesToDelete.first?.name ?? "")\" will be permanently deleted.")
+                Text(String(format: String(localized: "\"%@\" will be permanently deleted."), viewModel.favoritesToDelete.first?.name ?? ""))
             } else {
-                Text("\(count) favorites will be permanently deleted.")
+                Text(String(format: String(localized: "%d favorites will be permanently deleted."), count))
             }
-        }
-        .onChange(of: coordinator?.pendingSaveAsFavoriteQuery) { _, newQuery in
-            guard let query = newQuery else { return }
-            coordinator?.pendingSaveAsFavoriteQuery = nil
-            viewModel.createFavorite(query: query)
         }
     }
 
@@ -104,7 +99,8 @@ internal struct FavoritesTabView: View {
             deleteSelectedFavorite()
         }
         .onKeyPress(.return) {
-            guard let nodeId = selectedNodeId,
+            guard viewModel.renamingFolderId == nil,
+                  let nodeId = selectedNodeId,
                   let fav = viewModel.favoriteForNodeId(nodeId) else { return .ignored }
             coordinator?.insertFavorite(fav)
             return .handled
@@ -112,35 +108,33 @@ internal struct FavoritesTabView: View {
     }
 
     private func nodeRows(_ items: [FavoriteNode]) -> AnyView {
-        AnyView(
-            ForEach(items) { node in
-                switch node.content {
-                case .favorite(let favorite):
-                    FavoriteRowView(favorite: favorite)
-                        .tag(node.id)
-                        .contextMenu {
-                            favoriteContextMenu(favorite)
-                        }
-                case .folder(let folder):
-                    DisclosureGroup(isExpanded: Binding(
-                        get: { viewModel.expandedFolderIds.contains(folder.id) },
-                        set: { expanded in
-                            if expanded {
-                                viewModel.expandedFolderIds.insert(folder.id)
-                            } else {
-                                viewModel.expandedFolderIds.remove(folder.id)
-                            }
-                        }
-                    )) {
-                        if let children = node.children {
-                            nodeRows(children)
-                        }
-                    } label: {
-                        folderLabel(folder)
+        AnyView(ForEach(items) { node in
+            switch node.content {
+            case .favorite(let favorite):
+                FavoriteRowView(favorite: favorite)
+                    .tag(node.id)
+                    .contextMenu {
+                        favoriteContextMenu(favorite)
                     }
+            case .folder(let folder):
+                DisclosureGroup(isExpanded: Binding(
+                    get: { viewModel.expandedFolderIds.contains(folder.id) },
+                    set: { expanded in
+                        if expanded {
+                            viewModel.expandedFolderIds.insert(folder.id)
+                        } else {
+                            viewModel.expandedFolderIds.remove(folder.id)
+                        }
+                    }
+                )) {
+                    if let children = node.children {
+                        nodeRows(children)
+                    }
+                } label: {
+                    folderLabel(folder)
                 }
             }
-        )
+        })
     }
 
     @ViewBuilder
@@ -234,7 +228,7 @@ internal struct FavoritesTabView: View {
         Button(role: .destructive) {
             viewModel.deleteFavorite(favorite)
         } label: {
-            Text("Delete")
+            Text(String(localized: "Delete"))
         }
     }
 
@@ -258,7 +252,7 @@ internal struct FavoritesTabView: View {
             folderToDelete = folder
             showDeleteFolderAlert = true
         } label: {
-            Text("Delete Folder")
+            Text(String(localized: "Delete Folder"))
         }
     }
 
@@ -270,6 +264,7 @@ internal struct FavoritesTabView: View {
             systemImage: "star",
             description: Text("Save frequently used queries for quick access.")
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var noMatchState: some View {
@@ -277,6 +272,7 @@ internal struct FavoritesTabView: View {
             String(localized: "No Matching Favorites"),
             systemImage: "magnifyingglass"
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Bottom Toolbar
