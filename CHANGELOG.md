@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Structure tab: modify existing tables (add, modify, drop columns, indexes, foreign keys, primary keys)
+
 ## [0.33.0] - 2026-04-19
 
 ### Added
